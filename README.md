@@ -14,7 +14,7 @@ npm install
 npx lerna changed
 
 # publish a new npm packages for all the packages
-npm publish
+npm run publish
 
 # push changes
 npm push --tags origin master

@@ -1,14 +1,15 @@
 {
   "name": "@geoblocks/cesium-compass",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "license": "BSD-3-Clause",
   "repository": "github:geoblocks/cesium-helpers",
   "main": "cesium-compass.js",
   "module": "cesium-compass.js",
-  "peerDependencies": {
-    "cesium": "^1"
-  },
   "publishConfig": {
     "access": "public"
+  },
+  "dependencies": {
+    "cesium": "1.x",
+    "lit-element": "2.x"
   }
 }
