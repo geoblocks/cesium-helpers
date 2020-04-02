@@ -3,17 +3,17 @@
 ## Installation
 
 ```bash
-npm i --save @geoblocks/cesium-fps
+npm i --save @geoblocks/cesium-first-person-mode
 ```
 
 ### Usage
 
 ```js
 import Viewer from 'cesium/Widgets/Viewer/Viewer';
-import {FirstPersonCameraMode} from '@geoblocks/cesium-helpers';
+import {FirstPersonCameraMode} from '@geoblocks/cesium-first-person-mode';
 
 const viewer = new Viewer(...);
-const fpsMode = new FirstPersonCameraMode(viewer.scene);
+const mode = new FirstPersonCameraMode(viewer.scene);
 
-fpsMode.active = true;
+mode.active = true;
 ```
