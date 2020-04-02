@@ -4,5 +4,8 @@
   "license": "BSD-3-Clause",
   "repository": "github:geoblocks/cesium-helpers",
   "module": "index.js",
+  "publishConfig": {
+    "access": "public"
+  },
   "gitHead": "f9cdd25c3c3d3c83ffa83f02be491427373d5c55"
 }
