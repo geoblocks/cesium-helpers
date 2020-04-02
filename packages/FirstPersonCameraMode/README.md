@@ -1,4 +1,4 @@
-# FirstPersonCameraMode
+# FirstPerson camera mode for Cesium
 
 ## Installation
 
