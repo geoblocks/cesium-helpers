@@ -12,4 +12,7 @@ npm install
 
 # publish a new npm packages for all the packages
 npm publish
+
+# push changes
+npm push --tags origin master
 ```
