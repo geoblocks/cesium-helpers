@@ -2,6 +2,7 @@
   "name": "@geoblocks/cesium-first-person-mode",
   "version": "0.0.3",
   "license": "BSD-3-Clause",
+  "repository": "github:geoblocks/cesium-helpers",
   "module": "index.js",
   "publishConfig": {
     "access": "public"
