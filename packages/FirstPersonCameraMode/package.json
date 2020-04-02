@@ -1,0 +1,7 @@
+{
+  "name": "@geoblocks/cesium-fps",
+  "version": "0.0.0",
+  "license": "BSD-3-Clause",
+  "repository": "github:geoblocks/cesium-helpers",
+  "module": "index.js"
+}
