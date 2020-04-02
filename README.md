@@ -10,6 +10,9 @@ This repository uses [lerna](https://lerna.js.org/) to manage the packages.
 # bootstrap/setup
 npm install
 
+# check which packages have changed since the last release.
+npx lerna changed
+
 # publish a new npm packages for all the packages
 npm publish
 
