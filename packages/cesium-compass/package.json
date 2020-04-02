@@ -1,0 +1,10 @@
+{
+  "name": "@geoblocks/cesium-compass",
+  "version": "0.0.0",
+  "license": "BSD-3-Clause",
+  "main": "cesium-compass.js",
+  "module": "cesium-compass.js",
+  "publishConfig": {
+    "access": "public"
+  }
+}
