@@ -17,5 +17,5 @@ npx lerna changed
 npm run publish
 
 # push changes
-npm push --tags origin master
+git push --tags origin master
 ```
