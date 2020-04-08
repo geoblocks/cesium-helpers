@@ -8,8 +8,10 @@
   "publishConfig": {
     "access": "public"
   },
+  "peerDependencies": {
+    "cesium": "1.x"
+  },
   "dependencies": {
-    "cesium": "1.x",
     "lit-element": "2.x"
   }
 }
