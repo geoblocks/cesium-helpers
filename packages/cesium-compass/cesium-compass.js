@@ -64,7 +64,7 @@ class CesiumCompass extends LitElement {
         width: 44px;
         height: 44px;
         border-radius: 100%;
-        border: 12px solid var(--cesium-compass-stroke-color);
+        border: 12px solid var(--cesium-compass-fill-color);
       }
       .inner-ring-background {
         position: absolute;
@@ -73,15 +73,15 @@ class CesiumCompass extends LitElement {
         width: 33px;
         height: 33px;
         border-radius: 100%;
-        background-color: var(--cesium-compass-stroke-color);
-        border: 1px solid var(--cesium-compass-fill-color);
+        background-color: var(--cesium-compass-fill-color);
+        border: 1px solid var(--cesium-compass-stroke-color);
       }
       .rotation-marker, .outer-ring, .inner-ring {
         position: absolute;
         top: 0;
         width: 95px;
         height: 95px;
-        fill: var(--cesium-compass-fill-color);
+        fill: var(--cesium-compass-stroke-color);
       }
       .rotation-marker svg, .outer-ring svg, .inner-ring svg {
         width: 100%;
