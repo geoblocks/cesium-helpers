@@ -16,6 +16,7 @@ import CesiumMath from 'cesium/Core/Math';
 
 const vectorScratch = new Cartesian2();
 const windowPositionScratch = new Cartesian2();
+const clickLocationScratch = new Cartesian2();
 const centerScratch = new Cartesian3();
 const oldTransformScratch = new Matrix4();
 const newTransformScratch = new Matrix4();
@@ -145,11 +146,9 @@ class CesiumCompass extends LitElement {
       (this.context.compassRectangle.right - this.context.compassRectangle.left) / 2,
       (this.context.compassRectangle.bottom - this.context.compassRectangle.top) / 2
     );
-    const clickLocation = new Cartesian2(
-      event.clientX - this.context.compassRectangle.left,
-      event.clientY - this.context.compassRectangle.top
-    );
-    const vector = Cartesian2.subtract(clickLocation, this.context.compassCenter, vectorScratch);
+    clickLocationScratch.x = event.clientX - this.context.compassRectangle.left;
+    clickLocationScratch.y = event.clientY - this.context.compassRectangle.top;
+    const vector = Cartesian2.subtract(clickLocationScratch, this.context.compassCenter, vectorScratch);
     const distanceFromCenter = Cartesian2.magnitude(vector);
 
     windowPositionScratch.x = this.scene.canvas.clientWidth / 2;
@@ -192,11 +191,9 @@ class CesiumCompass extends LitElement {
 
   handleRotatePointerMove(event) {
     const camera = this.scene.camera;
-    const clickLocation = new Cartesian2(
-      event.clientX - this.context.compassRectangle.left,
-      event.clientY - this.context.compassRectangle.top
-    );
-    const vector = Cartesian2.subtract(clickLocation, this.context.compassCenter, vectorScratch);
+    clickLocationScratch.x = event.clientX - this.context.compassRectangle.left;
+    clickLocationScratch.y = event.clientY - this.context.compassRectangle.top;
+    const vector = Cartesian2.subtract(clickLocationScratch, this.context.compassCenter, vectorScratch);
     const angle = Math.atan2(-vector.y, vector.x);
 
     const angleDifference = angle - this.context.rotateInitialCursorAngle;
@@ -265,11 +262,9 @@ class CesiumCompass extends LitElement {
   }
 
   handleOrbitPointerMove(event) {
-    const clickLocation = new Cartesian2(
-      event.clientX - this.context.compassRectangle.left,
-      event.clientY - this.context.compassRectangle.top
-    );
-    const cursorVector = Cartesian2.subtract(clickLocation, this.context.compassCenter, vectorScratch);
+    clickLocationScratch.x = event.clientX - this.context.compassRectangle.left;
+    clickLocationScratch.y = event.clientY - this.context.compassRectangle.top;
+    const cursorVector = Cartesian2.subtract(clickLocationScratch, this.context.compassCenter, vectorScratch);
     this.updateAngleAndOpacity(cursorVector, this.context.compassRectangle.width);
 
   }
