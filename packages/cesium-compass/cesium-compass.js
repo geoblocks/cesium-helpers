@@ -13,7 +13,6 @@ import Transforms from 'cesium/Core/Transforms';
 import Ellipsoid from 'cesium/Core/Ellipsoid';
 import Ray from 'cesium/Core/Ray';
 import CesiumMath from 'cesium/Core/Math';
-import getTimestamp from 'cesium/Core/getTimestamp';
 
 const vectorScratch = new Cartesian2();
 const windowPositionScratch = new Cartesian2();
@@ -219,7 +218,7 @@ class CesiumCompass extends LitElement {
 
   orbit(cursorVector) {
     this.context.orbitIsLook = !this.context.viewCenter;
-    this.context.orbitLastTimestamp = getTimestamp();
+    this.context.orbitLastTimestamp = performance.now();
 
     document.addEventListener('pointermove', this.handleOrbitPointerMoveFunction, false);
     document.addEventListener('pointerup', this.handleOrbitPointerUpFunction, false);
@@ -231,7 +230,7 @@ class CesiumCompass extends LitElement {
 
   handleOrbitTick() {
     const camera = this.scene.camera;
-    const timestamp = getTimestamp();
+    const timestamp = performance.now();
 
     const deltaT = timestamp - this.context.orbitLastTimestamp;
     const rate = ((this.orbitCursorOpacity - 0.5) * 2.5) / 1000;
