@@ -11,7 +11,7 @@ npm i --save @geoblocks/cesium-compass
 ## Usage
 
 ```html
- <cesium-compass .scene="${viewer.scene}" .clock="${viewer.clock}></cesium-compass>
+ <cesium-compass .scene="${viewer.scene}" .clock="${viewer.clock}"></cesium-compass>
 ```
 
 ## API
