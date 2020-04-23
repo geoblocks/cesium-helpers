@@ -1,0 +1,16 @@
+{
+  "name": "cesium-helpers-demo",
+  "version": "0.0.1",
+  "description": "Demos for the cesium-helpers component set",
+  "scripts": {
+    "start": "es-dev-server --node-resolve"
+  },
+  "dependencies": {
+    "@geoblocks/cesium-compass": "^0.0.5",
+    "es-dev-server": "^1.46.5",
+    "cesium": "^1.68.0"
+  },
+  "engines": {
+    "node": "12.x"
+  }
+}
