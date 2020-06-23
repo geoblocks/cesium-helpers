@@ -15,7 +15,4 @@ npx lerna changed
 
 # publish a new npm packages for all the packages
 npm run publish
-
-# push changes
-git push --tags origin master
 ```
