@@ -40,7 +40,8 @@ class CesiumCompass extends LitElement {
       ready: {type: Boolean},
       heading: {type: Number},
       orbitCursorAngle: {type: Number},
-      orbitCursorOpacity: {type: Number}
+      orbitCursorOpacity: {type: Number},
+      resetDuration: {type: Number},
     };
   }
 
@@ -93,6 +94,10 @@ class CesiumCompass extends LitElement {
   constructor() {
     super();
     this.ready = false;
+
+    this.resetDuration = 100;
+
+    this.rotateClick = undefined;
 
     this.unlistenFromPostRender = null;
     this.unlistenFromClockTick = null;
@@ -185,6 +190,8 @@ class CesiumCompass extends LitElement {
     this.context.rotateInitialCameraAngle = Math.atan2(camera.position.y, camera.position.x);
     camera.lookAtTransform(oldTransform);
 
+    this.rotateClick = true;
+
     document.addEventListener('pointermove', this.handleRotatePointerMoveFunction, false);
     document.addEventListener('pointerup', this.handleRotatePointerUpFunction, false);
   }
@@ -206,11 +213,41 @@ class CesiumCompass extends LitElement {
     const currentCameraAngle = Math.atan2(camera.position.y, camera.position.x);
     camera.rotateRight(newCameraAngle - currentCameraAngle);
     camera.lookAtTransform(oldTransform);
+
+    this.rotateClick = false;
   }
 
   handleRotatePointerUp(event) {
     document.removeEventListener('pointermove', this.handleRotatePointerMoveFunction, false);
     document.removeEventListener('pointerup', this.handleRotatePointerUpFunction, false);
+
+    if (this.rotateClick) {
+      this.resetToNorth();
+    }
+  }
+
+  resetToNorth() {
+    const camera = this.scene.camera;
+    const oldTransform = Matrix4.clone(camera.transform, oldTransformScratch);
+    camera.lookAtTransform(this.context.frame);
+    const angle = CesiumMath.PI_OVER_TWO + Math.atan2(camera.position.y, camera.position.x);
+
+    let prevProgress = 0;
+    const start = performance.now();
+    const step = () => {
+      const elapsed = performance.now() - start;
+      const progress = CesiumMath.clamp(elapsed / this.resetDuration, 0, 1);
+
+      camera.rotateLeft((progress - prevProgress) * angle);
+
+      prevProgress = progress;
+      if (progress < 1) {
+        window.requestAnimationFrame(step);
+      } else {
+        camera.lookAtTransform(oldTransform);
+      }
+    };
+    window.requestAnimationFrame(step);
   }
 
   orbit(cursorVector) {
