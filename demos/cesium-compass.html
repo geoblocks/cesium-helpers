@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <script src="https://unpkg.com/@webcomponents/webcomponentsjs@2.4.0/webcomponents-loader.js"></script>
+  <script src="../packages/cesium-compass/cesium-compass.js" type="module"></script>
+  <link href="/node_modules/cesium/Source/Widgets/widgets.css" rel="stylesheet">
+  <style>
+    html, body, #cesiumContainer {
+      height: 100%;
+      margin: 0;
+    }
+
+    cesium-compass {
+      position: absolute;
+      right: 20px;
+      top: 50px;
+      --cesium-compass-stroke-color:rgba(0, 0, 0, 0.6);
+      --cesium-compass-fill-color: rgb(224, 225, 226);
+    }
+
+  </style>
+</head>
+
+<body>
+  <div id="cesiumContainer"></div>
+  <cesium-compass></cesium-compass>
+  <script type="module">
+    window['CESIUM_BASE_URL'] = '/node_modules/cesium/Source';
+    import Viewer from 'cesium/Source/Widgets/Viewer/Viewer';
+    import Cartesian3 from 'cesium/Source/Core/Cartesian3';
+    import CesiumMath from 'cesium/Source/Core/Math';
+
+    const viewer = new Viewer('cesiumContainer');
+    viewer.camera.flyTo({
+      destination: Cartesian3.fromDegrees(6.06749, 43.77784, 204227),
+      orientation: {
+        heading: CesiumMath.toRadians(26.0),
+        pitch: CesiumMath.toRadians(-33.0)
+      },
+      duration: 0
+    });
+
+    const compass = document.querySelector('cesium-compass');
+    compass.scene = viewer.scene;
+    compass.clock = viewer.clock;
+  </script>
+</body>
+
+</html>

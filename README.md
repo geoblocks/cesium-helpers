@@ -2,6 +2,12 @@
 
 A collection of helpers and web component for working with [Cesium](https://cesium.com/)
 
+## Running the demos
+
+```bash
+npx es-dev-server --watch --node-resolve --open demos/cesium-compass.html
+```
+
 ## Guide
 
 This repository uses [lerna](https://lerna.js.org/) to manage the packages.
