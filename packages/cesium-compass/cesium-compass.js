@@ -41,7 +41,7 @@ class CesiumCompass extends LitElement {
       heading: {type: Number},
       orbitCursorAngle: {type: Number},
       orbitCursorOpacity: {type: Number},
-      resetDuration: {type: Number},
+      resetSpeed: {type: Number},
     };
   }
 
@@ -106,7 +106,7 @@ class CesiumCompass extends LitElement {
 
     this.ready = false;
 
-    this.resetDuration = 100;
+    this.resetSpeed = Math.PI / 100;
 
     this.rotateClick = undefined;
 
@@ -241,15 +241,18 @@ class CesiumCompass extends LitElement {
     const camera = this.scene.camera;
     const oldTransform = Matrix4.clone(camera.transform, oldTransformScratch);
     camera.lookAtTransform(this.context.frame);
-    const angle = CesiumMath.PI_OVER_TWO + Math.atan2(camera.position.y, camera.position.x);
+    const newCameraAngle = CesiumMath.negativePiToPi(
+      CesiumMath.PI_OVER_TWO + Math.atan2(camera.position.y, camera.position.x)
+    );
+    const duration = Math.abs(newCameraAngle) / this.resetSpeed;
 
     let prevProgress = 0;
     const start = performance.now();
     const step = () => {
       const elapsed = performance.now() - start;
-      const progress = CesiumMath.clamp(elapsed / this.resetDuration, 0, 1);
+      const progress = CesiumMath.clamp(elapsed / duration, 0, 1);
 
-      camera.rotateLeft((progress - prevProgress) * angle);
+      camera.rotateLeft((progress - prevProgress) * newCameraAngle);
 
       prevProgress = progress;
       if (progress < 1) {
