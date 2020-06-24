@@ -93,6 +93,17 @@ class CesiumCompass extends LitElement {
 
   constructor() {
     super();
+
+    /**
+     * @type {import('cesium/Source/Scene/Scene').default}
+     */
+    this.scene;
+
+    /**
+     * @type {import('cesium/Source/Core/Clock').default}
+     */
+    this.clock = undefined;
+
     this.ready = false;
 
     this.resetDuration = 100;
@@ -132,7 +143,7 @@ class CesiumCompass extends LitElement {
   get rotationMarkerStyle() {
     return {
       transform: `rotate(-${this.orbitCursorAngle}rad)`,
-      opacity: this.orbitCursorOpacity
+      opacity: `${this.orbitCursorOpacity}`
     };
   }
 

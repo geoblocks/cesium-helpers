@@ -1,0 +1,15 @@
+{
+    "compilerOptions": {
+      "checkJs": true,
+      "moduleResolution": "node",
+      "baseUrl": ".",
+      "target": "es6"
+    },
+    "include": [
+        "packages/**/*",
+        "node_modules/cesium/Source/Cesium.d.ts"
+    ],
+    "typeAcquisition": {
+      "exclude": ["cesium"]
+    }
+  }

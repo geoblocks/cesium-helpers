@@ -2,7 +2,7 @@
 export default class FirstPersonCameraMode {
 
   /**
-   * @param {import('cesium/Scene/Scene').default} scene
+   * @param {import('cesium/Source/Scene/Scene').default} scene
    * @param {number} [movementFactor=0.003]
    */
   constructor(scene, movementFactor = 0.003) {
