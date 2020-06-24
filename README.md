@@ -14,5 +14,5 @@ npm install
 npx lerna changed
 
 # publish a new npm packages for all the packages
-npm run publish
+npx lerna publish
 ```
