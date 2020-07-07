@@ -44,6 +44,9 @@ export default class FirstPersonCameraMode {
     }
   }
 
+  /**
+   * @param {MouseEvent} event
+   */
   onMouseMove_(event) {
     if (event.movementX && event.movementY) {
       // the condition workarounds https://bugzilla.mozilla.org/show_bug.cgi?id=1417702
