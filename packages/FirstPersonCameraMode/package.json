@@ -3,7 +3,8 @@
   "version": "0.1.1",
   "license": "BSD-3-Clause",
   "repository": "github:geoblocks/cesium-helpers",
-  "module": "index.js",
+  "main": "FirstPersonCameraMode.js",
+  "module": "FirstPersonCameraMode.js",
   "publishConfig": {
     "access": "public"
   }
