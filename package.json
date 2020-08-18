@@ -2,8 +2,8 @@
   "name": "cesium-helpers",
   "private": true,
   "devDependencies": {
-    "cesium": "^1.71.0",
-    "es-dev-server": "^1.56.0",
+    "cesium": "^1.72.0",
+    "es-dev-server": "^1.57.2",
     "lerna": "^3.22.1",
     "lit-element": "^2.3.1"
   }
