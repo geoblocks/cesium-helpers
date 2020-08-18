@@ -29,10 +29,13 @@
   <script type="module">
     window['CESIUM_BASE_URL'] = '/node_modules/cesium/Source';
     import Viewer from 'cesium/Source/Widgets/Viewer/Viewer';
+    import createWorldTerrain from 'cesium/Source/Core/createWorldTerrain';
     import Cartesian3 from 'cesium/Source/Core/Cartesian3';
     import CesiumMath from 'cesium/Source/Core/Math';
 
-    const viewer = new Viewer('cesiumContainer');
+    const viewer = new Viewer('cesiumContainer', {
+      terrainProvider: createWorldTerrain()
+    });
     viewer.camera.flyTo({
       destination: Cartesian3.fromDegrees(6.06749, 43.77784, 204227),
       orientation: {
