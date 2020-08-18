@@ -77,6 +77,9 @@ class CesiumCompass extends LitElement {
         background-color: var(--cesium-compass-fill-color);
         border: 1px solid var(--cesium-compass-stroke-color);
       }
+      .rotation-marker, .outer-ring {
+        will-change: opacity, transform;
+      }
       .rotation-marker, .outer-ring, .inner-ring {
         position: absolute;
         top: 0;

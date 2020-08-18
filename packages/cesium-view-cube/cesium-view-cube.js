@@ -24,6 +24,7 @@ class CesiumViewCube extends LitElement {
         transform-style: preserve-3d;
         margin: auto;
         position: relative;
+        will-change: transform;
       }
       #cube > div {
         display: flex;
