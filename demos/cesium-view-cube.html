@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <script src="https://unpkg.com/@webcomponents/webcomponentsjs@2.4.0/webcomponents-loader.js"></script>
-  <script src="../packages/cesium-compass/cesium-compass.js" type="module"></script>
+  <script src="../packages/cesium-view-cube/cesium-view-cube.js" type="module"></script>
   <link href="/node_modules/cesium/Source/Widgets/widgets.css" rel="stylesheet">
   <style>
     html, body, #cesiumContainer {
@@ -12,12 +12,14 @@
       margin: 0;
     }
 
-    cesium-compass {
+    cesium-view-cube {
       position: absolute;
       right: 30px;
       top: 30px;
-      --cesium-compass-stroke-color:rgba(0, 0, 0, 0.6);
-      --cesium-compass-fill-color: rgb(224, 225, 226);
+      font-family: monospace;
+      font-weight: bold;
+      --cesium-view-cube-stroke-color:rgba(0, 0, 0, 0.6);
+      --cesium-view-cube-fill-color: rgb(224, 225, 226);
     }
 
   </style>
@@ -25,15 +27,14 @@
 
 <body>
   <div id="cesiumContainer"></div>
-  <cesium-compass></cesium-compass>
+  <cesium-view-cube></cesium-view-cube>
   <script type="module">
     import {createViewer} from './setup.js';
 
     const viewer = createViewer('cesiumContainer');
 
-    const compass = document.querySelector('cesium-compass');
+    const compass = document.querySelector('cesium-view-cube');
     compass.scene = viewer.scene;
-    compass.clock = viewer.clock;
   </script>
 </body>
 

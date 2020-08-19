@@ -3,37 +3,35 @@
 
 <head>
   <meta charset="UTF-8">
-  <script src="https://unpkg.com/@webcomponents/webcomponentsjs@2.4.0/webcomponents-loader.js"></script>
-  <script src="../packages/cesium-compass/cesium-compass.js" type="module"></script>
   <link href="/node_modules/cesium/Source/Widgets/widgets.css" rel="stylesheet">
   <style>
     html, body, #cesiumContainer {
       height: 100%;
       margin: 0;
     }
-
-    cesium-compass {
+    #activate {
       position: absolute;
       right: 30px;
       top: 30px;
-      --cesium-compass-stroke-color:rgba(0, 0, 0, 0.6);
-      --cesium-compass-fill-color: rgb(224, 225, 226);
+      font-family: monospace;
+      font-weight: bold;
+      font-size: 1.6em;
     }
-
   </style>
 </head>
 
 <body>
   <div id="cesiumContainer"></div>
-  <cesium-compass></cesium-compass>
+  <button id="activate" type="button">Activate !</button>
   <script type="module">
     import {createViewer} from './setup.js';
+    import FirstPersonCameraMode from '../packages/FirstPersonCameraMode/FirstPersonCameraMode.js';
 
     const viewer = createViewer('cesiumContainer');
 
-    const compass = document.querySelector('cesium-compass');
-    compass.scene = viewer.scene;
-    compass.clock = viewer.clock;
+    const mode = new FirstPersonCameraMode(viewer.scene);
+
+    document.querySelector('#activate').addEventListener('click', () => mode.active = true);
   </script>
 </body>
 

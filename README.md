@@ -6,6 +6,8 @@ A collection of helpers and web component for working with [Cesium](https://cesi
 
 ```bash
 npx es-dev-server --watch --node-resolve --open demos/cesium-compass.html
+npx es-dev-server --watch --node-resolve --open demos/cesium-view-cube.html
+npx es-dev-server --watch --node-resolve --open demos/cesium-first-person-mode.html
 ```
 
 ## Guide
