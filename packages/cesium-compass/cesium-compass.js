@@ -157,9 +157,12 @@ class CesiumCompass extends LitElement {
     super.disconnectedCallback();
   }
 
+  /**
+   * @param {PointerEvent} event
+   */
   handlePointerDown(event) {
     const camera = this.scene.camera;
-    const compassElement = event.currentTarget;
+    const compassElement = /** @type {HTMLDivElement} */ (event.currentTarget);
     this.context.compassRectangle = compassElement.getBoundingClientRect();
     this.context.compassCenter = new Cartesian2(
       (this.context.compassRectangle.right - this.context.compassRectangle.left) / 2,
@@ -193,6 +196,9 @@ class CesiumCompass extends LitElement {
     event.preventDefault();
   }
 
+  /**
+   * @param {Cartesian2} cursorVector
+   */
   rotate(cursorVector) {
     const camera = this.scene.camera;
 
@@ -210,6 +216,9 @@ class CesiumCompass extends LitElement {
     document.addEventListener('pointerup', this.handleRotatePointerUpFunction, false);
   }
 
+  /**
+   * @param {PointerEvent} event
+   */
   handleRotatePointerMove(event) {
     const camera = this.scene.camera;
     clickLocationScratch.x = event.clientX - this.context.compassRectangle.left;
@@ -231,6 +240,9 @@ class CesiumCompass extends LitElement {
     this.rotateClick = false;
   }
 
+  /**
+   * @param {PointerEvent} event
+   */
   handleRotatePointerUp(event) {
     document.removeEventListener('pointermove', this.handleRotatePointerMoveFunction, false);
     document.removeEventListener('pointerup', this.handleRotatePointerUpFunction, false);
@@ -267,6 +279,9 @@ class CesiumCompass extends LitElement {
     window.requestAnimationFrame(step);
   }
 
+  /**
+   * @param {Cartesian2} cursorVector
+   */
   orbit(cursorVector) {
     this.context.orbitIsLook = !this.context.viewCenter;
     this.context.orbitLastTimestamp = performance.now();
@@ -305,6 +320,10 @@ class CesiumCompass extends LitElement {
     this.context.orbitLastTimestamp = timestamp;
   }
 
+  /**
+   * @param {Cartesian2} vector
+   * @param {number} compassWidth
+   */
   updateAngleAndOpacity(vector, compassWidth) {
     const angle = Math.atan2(-vector.y, vector.x);
     this.orbitCursorAngle = CesiumMath.zeroToTwoPi(angle - CesiumMath.PI_OVER_TWO);
@@ -315,6 +334,9 @@ class CesiumCompass extends LitElement {
     this.orbitCursorOpacity = 0.5 * distanceFraction * distanceFraction + 0.5;
   }
 
+  /**
+   * @param {PointerEvent} event
+   */
   handleOrbitPointerMove(event) {
     clickLocationScratch.x = event.clientX - this.context.compassRectangle.left;
     clickLocationScratch.y = event.clientY - this.context.compassRectangle.top;
@@ -323,6 +345,9 @@ class CesiumCompass extends LitElement {
 
   }
 
+  /**
+   * @param {PointerEvent} event
+   */
   handleOrbitPointerUp(event) {
     document.removeEventListener('pointermove', this.handleOrbitPointerMoveFunction, false);
     document.removeEventListener('pointerup', this.handleOrbitPointerUpFunction, false);
