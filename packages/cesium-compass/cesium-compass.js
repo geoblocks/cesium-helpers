@@ -24,7 +24,7 @@ const newTransformScratch = new Matrix4();
 const pickRayScratch = new Ray();
 
 const nominalTotalRadius = 145;
-const norminalGyroRadius = 50;
+const nominalGyroRadius = 50;
 
 
 const outerRingSvg = svg`<svg height="145" width="145" viewBox="0 0 145 145"><path d="M66.563 0v15.156h3.718V4.75l5.5 10.406h4.375V0h-3.719v10.406L70.938 0h-4.374zM72.5 20.219c-28.867 0-52.281 23.407-52.281 52.281s23.414 52.313 52.281 52.313c28.867 0 52.281-23.44 52.281-52.313 0-28.874-23.414-52.281-52.281-52.281zm0 1.75c13.843 0 26.369 5.558 35.5 14.562l-11.031 11 .625.625 11.031-11c8.92 9.109 14.438 21.58 14.438 35.344 0 13.765-5.518 26.227-14.438 35.344l-11.031-11-.625.625 11.031 11c-9.13 9.01-21.659 14.594-35.5 14.594-13.802 0-26.321-5.535-35.438-14.5l11.126-11.094c6.277 6.122 14.857 9.906 24.312 9.906 19.242 0 34.875-15.63 34.875-34.875 0-19.246-15.633-34.844-34.875-34.844a34.736 34.736 0 00-24.313 9.875L37.063 36.438c9.116-8.96 21.634-14.47 35.437-14.47zm-.875.843V36.75h1.75V22.812h-1.75zm-35.156 14.25l11.093 11.094A34.73 34.73 0 0037.657 72.5c0 9.472 3.774 18.056 9.907 24.344l-11.094 11.094c-8.967-9.125-14.5-21.625-14.5-35.438 0-13.813 5.533-26.32 14.5-35.438zM72.5 39.407c18.298 0 33.125 14.792 33.125 33.094S90.798 105.625 72.5 105.625c-18.298 0-33.094-14.823-33.094-33.125S54.202 39.406 72.5 39.406zM22.844 71.625v1.75h13.968v-1.75H22.845zm85.562 0v1.75h14v-1.75h-14zM71.75 108.25v13.938h1.719V108.25H71.75z"/></svg>`;
@@ -184,7 +184,7 @@ class CesiumCompass extends LitElement {
     const maxDistance = this.context.compassRectangle.width / 2;
     const distanceFraction = distanceFromCenter / maxDistance;
 
-    if (distanceFraction < norminalGyroRadius / nominalTotalRadius) {
+    if (distanceFraction < nominalGyroRadius / nominalTotalRadius) {
       this.orbit(vector);
     } else if (distanceFraction < 1) {
       this.rotate(vector);
