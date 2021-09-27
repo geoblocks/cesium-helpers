@@ -13,6 +13,6 @@
   },
   "dependencies": {
     "lit-element": "2.x",
-    "lit-html": "1.x"
+    "lit-html": "2.x"
   }
 }
