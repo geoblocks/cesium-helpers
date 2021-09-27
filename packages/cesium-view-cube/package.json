@@ -9,6 +9,6 @@
     "access": "public"
   },
   "dependencies": {
-    "lit-element": "2.x"
+    "lit-element": "3.x"
   }
 }
