@@ -12,7 +12,7 @@
     "cesium": "1.x"
   },
   "dependencies": {
-    "lit-element": "2.x",
+    "lit-element": "3.x",
     "lit-html": "1.x"
   }
 }
