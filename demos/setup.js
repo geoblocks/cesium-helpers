@@ -13,6 +13,7 @@ export function createViewer(container) {
     sceneModePicker: false,
     geocoder: false,
     homeButton: false,
+    fullscreenButton: false,
     terrainProvider: createWorldTerrain()
   });
   viewer.camera.flyTo({
