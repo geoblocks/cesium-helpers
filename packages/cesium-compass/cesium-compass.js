@@ -3,8 +3,8 @@
 
 // SVG images from https://cesium.com/ion/stories/ (with permission from Cesium)
 
-import {LitElement, css, svg, html} from 'lit-element';
-import {styleMap} from 'lit-html/directives/style-map';
+import {LitElement, css, svg, html} from 'lit';
+import {styleMap} from 'lit/directives/style-map.js';
 
 import Cartesian2 from 'cesium/Source/Core/Cartesian2';
 import Cartesian3 from 'cesium/Source/Core/Cartesian3';
