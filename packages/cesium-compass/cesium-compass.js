@@ -6,13 +6,7 @@
 import {LitElement, css, svg, html} from 'lit';
 import {styleMap} from 'lit/directives/style-map.js';
 
-import Cartesian2 from 'cesium/Source/Core/Cartesian2';
-import Cartesian3 from 'cesium/Source/Core/Cartesian3';
-import Matrix4 from 'cesium/Source/Core/Matrix4';
-import Transforms from 'cesium/Source/Core/Transforms';
-import Ellipsoid from 'cesium/Source/Core/Ellipsoid';
-import Ray from 'cesium/Source/Core/Ray';
-import CesiumMath from 'cesium/Source/Core/Math';
+import {Cartesian2, Cartesian3, Matrix4, Transforms, Ellipsoid, Ray, Math as CesiumMath} from 'cesium';
 
 const vectorScratch = new Cartesian2();
 const windowPositionScratch = new Cartesian2();
@@ -98,12 +92,12 @@ class CesiumCompass extends LitElement {
     super();
 
     /**
-     * @type {import('cesium/Source/Scene/Scene').default}
+     * @type {import('cesium').Scene}
      */
     this.scene;
 
     /**
-     * @type {import('cesium/Source/Core/Clock').default}
+     * @type {import('cesium').Clock}
      */
     this.clock = undefined;
 

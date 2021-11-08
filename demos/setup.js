@@ -1,8 +1,5 @@
 window['CESIUM_BASE_URL'] = '/node_modules/cesium/Source';
-import Viewer from 'cesium/Source/Widgets/Viewer/Viewer';
-import createWorldTerrain from 'cesium/Source/Core/createWorldTerrain';
-import Cartesian3 from 'cesium/Source/Core/Cartesian3';
-import CesiumMath from 'cesium/Source/Core/Math';
+import {Viewer, createWorldTerrain, Cartesian3, Math as CesiumMath} from 'cesium';
 
 export function createViewer(container) {
   const viewer = new Viewer(container, {
