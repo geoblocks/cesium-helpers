@@ -2,7 +2,7 @@
   "name": "cesium-helpers",
   "private": true,
   "devDependencies": {
-    "@web/dev-server": "0.0.29",
+    "@web/dev-server": "0.1.27",
     "cesium": "^1.87.0",
     "lerna": "^3.22.1",
     "lit": "^2.0.2"
