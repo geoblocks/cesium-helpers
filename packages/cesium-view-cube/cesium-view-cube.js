@@ -70,7 +70,7 @@ class CesiumViewCube extends LitElement {
     super();
 
     /**
-     * @type {import('cesium/Source/Scene/Scene').default}
+     * @type {import('cesium').Scene}
      */
     this.scene;
 
