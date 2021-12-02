@@ -101,15 +101,34 @@ class CesiumCompass extends LitElement {
      */
     this.clock = undefined;
 
+    /**
+     * @type {boolean}
+     */
     this.ready = false;
 
+    /**
+     * @type {number}
+     */
     this.resetSpeed = Math.PI / 100;
 
+    /**
+     * @type {boolean}
+     */
     this.rotateClick = undefined;
 
+    /**
+     * @type {import('cesium').Event.RemoveCallback}
+     */
     this.unlistenFromPostRender = null;
+
+    /**
+     * @type {import('cesium').Event.RemoveCallback}
+     */
     this.unlistenFromClockTick = null;
 
+    /**
+     * @type {number}
+     */
     this.orbitCursorOpacity = 0;
 
     this.handleRotatePointerMoveFunction = this.handleRotatePointerMove.bind(this);

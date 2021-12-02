@@ -79,6 +79,9 @@ class CesiumViewCube extends LitElement {
      */
     this.cubeElement = undefined;
 
+    /**
+     * @type {import('cesium').Event.RemoveCallback}
+     */
     this.unlistenPostRender = null;
   }
 
