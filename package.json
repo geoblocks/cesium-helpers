@@ -4,7 +4,7 @@
   "devDependencies": {
     "@web/dev-server": "^0.1.28",
     "cesium": "^1.87.0",
-    "lerna": "^4.0.0",
+    "lerna": "^5.0.0",
     "lit": "^2.0.2"
   }
 }
