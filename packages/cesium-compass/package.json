@@ -3,8 +3,17 @@
   "version": "0.4.0",
   "license": "BSD-3-Clause",
   "repository": "github:geoblocks/cesium-helpers",
-  "main": "cesium-compass.js",
-  "module": "cesium-compass.js",
+  "type": "module",
+  "source": "cesium-compass.ts",
+  "main": "dist/cesium-compass.js",
+  "types": "dist/cesium-compass.d.ts",
+  "files": [
+    "cesium-compass.ts",
+    "dist"
+  ],
+  "scripts": {
+    "build": "rollup -c"
+  },
   "publishConfig": {
     "access": "public"
   },
@@ -13,5 +22,11 @@
   },
   "dependencies": {
     "lit": "2.x"
+  },
+  "devDependencies": {
+    "@rollup/plugin-typescript": "11.1.2",
+    "rollup": "3.25.3",
+    "rollup-plugin-dts": "5.3.0",
+    "typescript": "5.1.6"
   }
 }
