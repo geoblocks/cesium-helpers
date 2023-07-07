@@ -1,6 +1,6 @@
 {
   "name": "@geoblocks/cesium-compass",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "license": "BSD-3-Clause",
   "repository": "github:geoblocks/cesium-helpers",
   "main": "cesium-compass.js",
