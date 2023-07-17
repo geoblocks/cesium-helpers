@@ -3,9 +3,9 @@
 
 <head>
   <meta charset="UTF-8">
-  <script src="https://unpkg.com/@webcomponents/webcomponentsjs@2.4.0/webcomponents-loader.js"></script>
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.107.1/Build/Cesium/Cesium.js"></script>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.107.1/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
   <script src="../packages/cesium-compass/cesium-compass.js" type="module"></script>
-  <link href="/node_modules/cesium/Source/Widgets/widgets.css" rel="stylesheet">
   <style>
     html, body, #cesiumContainer {
       height: 100%;
@@ -29,11 +29,12 @@
   <script type="module">
     import {createViewer} from './setup.js';
 
-    const viewer = createViewer('cesiumContainer');
+    createViewer('cesiumContainer').then(viewer => {
+      const compass = document.querySelector('cesium-compass');
+      compass.scene = viewer.scene;
+      compass.clock = viewer.clock;
+    });
 
-    const compass = document.querySelector('cesium-compass');
-    compass.scene = viewer.scene;
-    compass.clock = viewer.clock;
   </script>
 </body>
 

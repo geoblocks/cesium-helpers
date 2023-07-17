@@ -3,7 +3,8 @@
 
 <head>
   <meta charset="UTF-8">
-  <link href="/node_modules/cesium/Source/Widgets/widgets.css" rel="stylesheet">
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.107.1/Build/Cesium/Cesium.js"></script>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.107.1/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
   <style>
     html, body, #cesiumContainer {
       height: 100%;
@@ -27,11 +28,10 @@
     import {createViewer} from './setup.js';
     import FirstPersonCameraMode from '../packages/FirstPersonCameraMode/FirstPersonCameraMode.js';
 
-    const viewer = createViewer('cesiumContainer');
-
-    const mode = new FirstPersonCameraMode(viewer.scene);
-
-    document.querySelector('#activate').addEventListener('click', () => mode.active = true);
+    createViewer('cesiumContainer').then(viewer => {
+      const mode = new FirstPersonCameraMode(viewer.scene);
+      document.querySelector('#activate').addEventListener('click', () => mode.active = true);
+    });
   </script>
 </body>
 
