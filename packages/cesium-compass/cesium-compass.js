@@ -233,6 +233,9 @@ class CesiumCompass extends LitElement {
    * @param {PointerEvent} event
    */
   handleRotatePointerMove(event) {
+    if (this.moveUpIfTooCloseToTerrain()) {
+      return;
+    }
     const camera = this.scene.camera;
     clickLocationScratch.x = event.clientX - this.context.compassRectangle.left;
     clickLocationScratch.y = event.clientY - this.context.compassRectangle.top;
@@ -308,6 +311,9 @@ class CesiumCompass extends LitElement {
   }
 
   handleOrbitTick() {
+    if (this.moveUpIfTooCloseToTerrain()) {
+      return;
+    }
     const camera = this.scene.camera;
     const timestamp = performance.now();
 
@@ -331,6 +337,25 @@ class CesiumCompass extends LitElement {
     camera.lookAtTransform(oldTransform);
 
     this.context.orbitLastTimestamp = timestamp;
+  }
+
+  distanceToTerrain() {
+    const camera = this.scene.camera;
+    const height = this.scene.globe.getHeight(camera.positionCartographic);
+    return camera.positionCartographic.height - height;
+  }
+
+  moveUpIfTooCloseToTerrain() {
+    const controller = this.scene.screenSpaceCameraController;
+    if (!controller.enableCollisionDetection) {
+      return false;
+    }
+    const distanceDiff = this.distanceToTerrain() - controller.minimumZoomDistance;
+    if (CesiumMath.lessThan(distanceDiff, 0.0, CesiumMath.EPSILON1)) {
+      this.scene.camera.moveUp(-distanceDiff);
+      return true;
+    }
+    return false;
   }
 
   /**
