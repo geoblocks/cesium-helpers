@@ -5,9 +5,9 @@ A collection of helpers and web component for working with [Cesium](https://cesi
 ## Running the demos
 
 ```bash
-npx web-dev-server --watch --node-resolve --open demos/cesium-compass.html
-npx web-dev-server --watch --node-resolve --open demos/cesium-view-cube.html
-npx web-dev-server --watch --node-resolve --open demos/cesium-first-person-mode.html
+npx parcel serve demos/cesium-compass.html --open
+npx parcel serve demos/cesium-view-cube.html --open
+npx parcel serve demos/cesium-first-person-mode.html --open
 ```
 
 ## Guide
