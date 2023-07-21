@@ -1,14 +1,21 @@
+import {ScreenSpaceEventType, Math as CesiumMath} from 'cesium';
 
 export default class FirstPersonCameraMode {
 
   /**
-   * @param {import('cesium').Scene} scene
+   * @param {import('cesium').Viewer} viewer
+   * @param {number} [zoomFactor=Math.PI / 36]
    * @param {number} [movementFactor=0.003]
    */
-  constructor(scene, movementFactor = 0.003) {
-    this.scene_ = scene;
+  constructor(viewer, zoomFactor = Math.PI / 36, movementFactor = 0.003) {
+    this.viewer_ = viewer;
+    this.scene_ = viewer.scene;
 
     this.movementFactor_ = movementFactor;
+
+    this.zoomFactor_ = zoomFactor;
+
+    this.originalFov_;
 
     this.movementX_ = 0;
 
@@ -16,16 +23,23 @@ export default class FirstPersonCameraMode {
 
     const onMouseMoveCallback = this.onMouseMove_.bind(this);
     const onPostRenderCallback = this.onPostRender_.bind(this);
+    const onMouseWheelCallback = this.onMouseWheel_.bind(this);
 
     document.addEventListener('pointerlockchange', event => {
+      this.scene_.screenSpaceCameraController.enableInputs = !this.active;
+      const frustum = /** @type {import('cesium').PerspectiveFrustum} */ (this.scene_.camera.frustum);
       if (this.active) {
         // enter
+        this.originalFov_ = frustum.fov;
         document.addEventListener('mousemove', onMouseMoveCallback);
         this.scene_.postRender.addEventListener(onPostRenderCallback);
+        this.viewer_.screenSpaceEventHandler.setInputAction(onMouseWheelCallback, ScreenSpaceEventType.WHEEL);
       } else {
         // leave
+        frustum.fov = this.originalFov_;
         document.removeEventListener('mousemove', onMouseMoveCallback);
         this.scene_.postRender.removeEventListener(onPostRenderCallback);
+        this.viewer_.screenSpaceEventHandler.removeInputAction(ScreenSpaceEventType.WHEEL);
       }
     });
 
@@ -42,6 +56,15 @@ export default class FirstPersonCameraMode {
     if (active) {
       this.scene_.canvas.requestPointerLock();
     }
+  }
+
+  /**
+   * @param {number} movement
+   */
+  onMouseWheel_(movement) {
+    const frustum = /** @type {import('cesium').PerspectiveFrustum} */ (this.scene_.camera.frustum);
+    const fov = frustum.fov + (movement > 0 ? -this.zoomFactor_ : this.zoomFactor_);
+    frustum.fov = CesiumMath.clamp(fov, CesiumMath.toRadians(1), CesiumMath.toRadians(60));
   }
 
   /**

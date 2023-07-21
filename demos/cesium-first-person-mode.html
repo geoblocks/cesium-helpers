@@ -29,7 +29,7 @@
     import FirstPersonCameraMode from '../packages/FirstPersonCameraMode/FirstPersonCameraMode.js';
 
     createViewer('cesiumContainer').then(viewer => {
-      const mode = new FirstPersonCameraMode(viewer.scene);
+      const mode = new FirstPersonCameraMode(viewer);
       document.querySelector('#activate').addEventListener('click', () => mode.active = true);
     });
   </script>
