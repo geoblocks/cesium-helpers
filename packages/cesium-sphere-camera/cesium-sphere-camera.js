@@ -20,6 +20,7 @@ export default class CesiumSphereCamera {
   constructor(viewer) {
     this.viewer = viewer;
     this.dragging_ = false;
+    this.active_ = false;
 
     this.handleDownEvent_ = this.handleDownEvent.bind(this);
     this.handleMoveEvent_ = this.handleMoveEvent.bind(this);
@@ -27,20 +28,19 @@ export default class CesiumSphereCamera {
   }
 
   get active() {
-    return !this.viewer.scene.screenSpaceCameraController.enableInputs;
+    return this.active_;
   }
 
   set active(active) {
-    if (active !== this.viewer.scene.screenSpaceCameraController.enableInputs) {
+    if (active === this.active_) {
       return;
     }
+    this.viewer.scene.screenSpaceCameraController.enableInputs = !active;
     if (active) {
-      this.viewer.scene.screenSpaceCameraController.enableInputs = false;
       this.viewer.screenSpaceEventHandler.setInputAction(this.handleDownEvent_, ScreenSpaceEventType.LEFT_DOWN);
       this.viewer.screenSpaceEventHandler.setInputAction(this.handleMoveEvent_, ScreenSpaceEventType.MOUSE_MOVE);
       this.viewer.screenSpaceEventHandler.setInputAction(this.handleUpEvent_, ScreenSpaceEventType.LEFT_UP);
     } else {
-      this.viewer.scene.screenSpaceCameraController.enableInputs = true;
       this.viewer.screenSpaceEventHandler.removeInputAction(ScreenSpaceEventType.LEFT_DOWN);
       this.viewer.screenSpaceEventHandler.removeInputAction(ScreenSpaceEventType.MOUSE_MOVE);
       this.viewer.screenSpaceEventHandler.removeInputAction(ScreenSpaceEventType.LEFT_UP);

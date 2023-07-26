@@ -8,16 +8,17 @@ export default class CesiumSphereCamera {
     this.viewer = viewer;
     this.zoomFactor_ = zoomFactor;
     this.originalFov_ = undefined;
+    this.active_ = false;
 
     this.onMouseWheel_ = this.onMouseWheel.bind(this);
   }
 
   get active() {
-    return !this.viewer.scene.screenSpaceCameraController.enableZoom;
+    return this.active_;
   }
 
   set active(active) {
-    if (active !== this.viewer.scene.screenSpaceCameraController.enableZoom) {
+    if (active === this.active_) {
       return;
     }
     this.viewer.scene.screenSpaceCameraController.enableZoom = !active;
