@@ -21,6 +21,7 @@ export default class CesiumSphereCamera {
     if (active === this.active_) {
       return;
     }
+    this.active_ = active;
     this.viewer.scene.screenSpaceCameraController.enableZoom = !active;
     const frustum = /** @type {import('cesium').PerspectiveFrustum} */ (this.viewer.scene.camera.frustum);
     if (active) {

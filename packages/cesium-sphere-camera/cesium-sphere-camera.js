@@ -35,6 +35,7 @@ export default class CesiumSphereCamera {
     if (active === this.active_) {
       return;
     }
+    this.active_ = active;
     this.viewer.scene.screenSpaceCameraController.enableInputs = !active;
     if (active) {
       this.viewer.screenSpaceEventHandler.setInputAction(this.handleDownEvent_, ScreenSpaceEventType.LEFT_DOWN);
