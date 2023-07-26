@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.107.1/Build/Cesium/Cesium.js"></script>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.107.1/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  <style>
+    html, body, #cesiumContainer {
+      height: 100%;
+      margin: 0;
+    }
+    #activate {
+      position: absolute;
+      right: 30px;
+      top: 30px;
+      font-family: monospace;
+      font-weight: bold;
+      font-size: 1.6em;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="cesiumContainer"></div>
+  <button id="activate" type="button">toggle mode</button>
+  <script type="module">
+    import {createViewer} from './setup.js';
+    import CesiumSphereCamera from '../packages/cesium-sphere-camera/cesium-sphere-camera.js';
+    import CesiumBinoculars from '../packages/cesium-binoculars/cesium-binoculars.js';
+
+    createViewer('cesiumContainer').then(viewer => {
+      const sphereMode = new CesiumSphereCamera(viewer);
+      const binocularsMode = new CesiumBinoculars(viewer);
+      document.querySelector('#activate').addEventListener('click', () => {
+        sphereMode.active = !sphereMode.active;
+        binocularsMode.active = !binocularsMode.active;
+      });
+    });
+  </script>
+</body>
+
+</html>

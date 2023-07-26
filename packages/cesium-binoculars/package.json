@@ -1,10 +1,10 @@
 {
-  "name": "@geoblocks/cesium-first-person-mode",
-  "version": "0.1.2",
+  "name": "@geoblocks/cesium-binoculars",
+  "version": "0.0.0",
   "license": "BSD-3-Clause",
   "repository": "github:geoblocks/cesium-helpers",
-  "main": "FirstPersonCameraMode.js",
-  "module": "FirstPersonCameraMode.js",
+  "main": "cesium-binoculars.js",
+  "module": "cesium-binoculars.js",
   "publishConfig": {
     "access": "public"
   },
