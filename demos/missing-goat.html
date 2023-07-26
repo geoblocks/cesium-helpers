@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.107.1/Build/Cesium/Cesium.js"></script>
+    <link
+      href="https://cesium.com/downloads/cesiumjs/releases/1.107.1/Build/Cesium/Widgets/widgets.css"
+      rel="stylesheet"
+    />
+    <style>
+      html,
+      body,
+      #cesiumContainer {
+        height: 100%;
+        margin: 0;
+      }
+      #play {
+        position: absolute;
+        right: 30px;
+        top: 30px;
+        font-family: monospace;
+        font-weight: bold;
+        font-size: 1.6em;
+      }
+    </style>
+  </head>
+
+  <body>
+    <audio src="goat.mp3"></audio>
+
+    <div id="cesiumContainer"></div>
+    <button id="play" type="button">play</button>
+    <script type="module">
+      import { createViewer } from "./setup.js";
+      import CesiumSphereCamera from "../packages/cesium-sphere-camera/cesium-sphere-camera.js";
+      import CesiumBinoculars from "../packages/cesium-binoculars/cesium-binoculars.js";
+      import CesiumAudio from "../packages/cesium-audio/cesium-audio.js";
+
+      Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJjNmIwZTMxMy0zYzQ2LTQzMDMtOWIyMC0wZTkzNWQwNzAyOTgiLCJpZCI6MjE3NTQsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1ODA0ODE5NTF9.Cggz223KUrmnC7VoflmC3u2CMcSUKZobn-8NXOnQEvc";
+
+      createViewer("cesiumContainer").then(async (viewer) => {
+
+        const sphereMode = new CesiumSphereCamera(viewer);
+        const binocularsMode = new CesiumBinoculars(viewer);
+        sphereMode.active = true;
+        binocularsMode.active = true;
+
+        // goat position
+        const position = new Cesium.Cartesian3.fromDegrees(7.897325, 46.690576, 1000);
+
+        viewer.entities.add({
+          position: position,
+          model: {
+            uri: await Cesium.IonResource.fromAssetId(2048297),
+          },
+        });
+
+        let init = false;
+        let audioElement;
+        let listener;
+        document.querySelector("#play").addEventListener("click", () => {
+          if (!init) {
+            const audioCtx = new AudioContext();
+            audioElement = document.querySelector("audio");
+            const track = audioCtx.createMediaElementSource(audioElement);
+            const panner = audioCtx.createStereoPanner();
+
+            track.connect(panner).connect(audioCtx.destination);
+
+            const cesiumAudio = new CesiumAudio(viewer, position, panner);
+            init = true;
+          }
+          audioElement.play();
+        });
+      });
+    </script>
+  </body>
+</html>
