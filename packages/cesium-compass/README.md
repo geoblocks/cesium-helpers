@@ -1,4 +1,4 @@
-# compass widget for Cesium
+# compass widget for CesiumJS
 
 Note: the code is based on the Compass class from [TerriaJS](https://github.com/TerriaJS/terriajs/blob/master/lib/ReactViews/Map/Navigation/Compass.jsx)
 

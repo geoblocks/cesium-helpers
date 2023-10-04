@@ -1,4 +1,4 @@
-# compass view cube for Cesium
+# compass view cube for CesiumJS
 
 ## Installation
 

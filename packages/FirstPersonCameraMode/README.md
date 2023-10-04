@@ -1,4 +1,4 @@
-# FirstPerson camera mode for Cesium
+# FirstPerson camera mode for CesiumJS
 
 ## Installation
 
