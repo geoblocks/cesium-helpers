@@ -1,8 +1,9 @@
 import { ScreenSpaceEventType, Math as CesiumMath } from "cesium";
 
-export default class CesiumSphereCamera {
+export default class CesiumBinoculars {
   /**
    * @param {import('cesium').Viewer} viewer
+   * @param {number} [zoomFactor]
    */
   constructor(viewer, zoomFactor = Math.PI / 36) {
     this.viewer = viewer;

@@ -27,14 +27,11 @@
   <script type="module">
     import {createViewer} from './setup.js';
     import CesiumSphereCamera from '../packages/cesium-sphere-camera/cesium-sphere-camera.js';
-    import CesiumBinoculars from '../packages/cesium-binoculars/cesium-binoculars.js';
 
     createViewer('cesiumContainer').then(viewer => {
       const sphereMode = new CesiumSphereCamera(viewer);
-      const binocularsMode = new CesiumBinoculars(viewer);
       document.querySelector('#activate').addEventListener('click', () => {
         sphereMode.active = !sphereMode.active;
-        binocularsMode.active = !binocularsMode.active;
       });
     });
   </script>

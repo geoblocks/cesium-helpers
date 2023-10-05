@@ -1,6 +1,6 @@
-# Cesium Helpers
+# CesiumJS Helpers
 
-A collection of helpers and web component for working with [Cesium](https://cesium.com/)
+A collection of helpers and web component for working with [CesiumJS](https://cesium.com/cesiumjs/)
 
  * cesium-compass: a compass widget
  * cesium-view-cube: a view cube widget
