@@ -12,6 +12,6 @@
     "cesium": "1.x"
   },
   "dependencies": {
-    "lit": "2.x"
+    "lit": "3.x"
   }
 }
