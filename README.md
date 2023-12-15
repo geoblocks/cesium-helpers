@@ -8,6 +8,10 @@ A collection of helpers and web component for working with [CesiumJS](https://ce
  * cesium-sphere-camera: a camera mode that allows the user to rotate the camera around a position
  * cesium-binoculars: a camera mode that allows the user to use binoculars with the mouse wheel
 
+## Online demos
+
+https://geoblocks.github.io/cesium-helpers/index.html
+
 ## Running the demos
 
 ```bash

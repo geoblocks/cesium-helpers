@@ -9,8 +9,13 @@
     "url": false,
     "zlib": false
   },
+  "scripts": {
+    "build-demos": "parcel build demos/*.html --public-url '.'",
+    "gh-pages": "rm -rf dist && npm run build-demos && gh-pages -d dist"
+  },
   "devDependencies": {
     "cesium": "1.114.0",
+    "gh-pages": "6.1.1",
     "lerna": "8.1.2",
     "lit": "3.1.2",
     "parcel": "2.11.0"
