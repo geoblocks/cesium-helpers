@@ -11,7 +11,7 @@
   },
   "devDependencies": {
     "cesium": "1.112.0",
-    "lerna": "7.3.0",
+    "lerna": "7.4.2",
     "lit": "3.1.0",
     "parcel": "2.10.3"
   }
