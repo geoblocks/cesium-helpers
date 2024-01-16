@@ -2,7 +2,11 @@
   "name": "@geoblocks/cesium-first-person-mode",
   "version": "0.1.2",
   "license": "BSD-3-Clause",
-  "repository": "github:geoblocks/cesium-helpers",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/geoblocks/cesium-helpers/",
+    "directory": "packages/FirstPersonCameraMode"
+  },
   "main": "FirstPersonCameraMode.js",
   "module": "FirstPersonCameraMode.js",
   "publishConfig": {

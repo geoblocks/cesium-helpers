@@ -2,7 +2,11 @@
   "name": "@geoblocks/cesium-sphere-camera",
   "version": "0.0.0",
   "license": "BSD-3-Clause",
-  "repository": "github:geoblocks/cesium-helpers",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/geoblocks/cesium-helpers/",
+    "directory": "packages/cesium-sphere-camera"
+  },
   "main": "cesium-sphere-camera.js",
   "module": "cesium-sphere-camera.js",
   "publishConfig": {
