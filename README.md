@@ -8,6 +8,7 @@ A collection of helpers and web component for working with [CesiumJS](https://ce
 * [cesium-first-person-mode](packages/FirstPersonCameraMode): a first person navigation mode that uses the Pointer Lock API
 * [cesium-sphere-camera](packages/cesium-sphere-camera): a camera mode that allows the user to rotate the camera around a position
 * [cesium-binoculars](packages/cesium-binoculars): a camera mode that allows the user to use binoculars with the mouse wheel
+* [cesium-flyto](packages/cesium-flyto): a camera mode that allows the user to fly to a position
 
 ## Online demos
 
@@ -22,6 +23,7 @@ npx parcel serve demos/cesium-view-cube.html --open
 npx parcel serve demos/cesium-first-person-mode.html --open
 npx parcel serve demos/cesium-sphere-camera.html --open
 npx parcel serve demos/cesium-binoculars.html --open
+npx parcel serve demos/cesium-flyto.html --open
 ```
 
 ## Guide
