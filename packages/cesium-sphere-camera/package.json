@@ -1,6 +1,6 @@
 {
   "name": "@geoblocks/cesium-sphere-camera",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "license": "BSD-3-Clause",
   "repository": {
     "type": "git",
