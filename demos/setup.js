@@ -24,7 +24,7 @@ export async function createViewer(container) {
       })
     ),
     terrainProvider: await Cesium.CesiumTerrainProvider.fromUrl(
-      "https://download.swissgeol.ch/cli_terrain/ch-2m/"
+      "https://3d.geo.admin.ch/ch.swisstopo.terrain.3d/v1/"
     ),
   });
 
