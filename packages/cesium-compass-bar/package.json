@@ -1,0 +1,21 @@
+{
+  "name": "@geoblocks/cesium-compass-bar",
+  "version": "0.0.0",
+  "license": "BSD-3-Clause",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/geoblocks/cesium-helpers/",
+    "directory": "packages/cesium-compass-bar"
+  },
+  "main": "cesium-compass-bar.js",
+  "module": "cesium-compass-bar.js",
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "cesium": "1.x"
+  },
+  "dependencies": {
+    "lit": "3.x"
+  }
+}
