@@ -22,7 +22,7 @@ npm i --save @geoblocks/cesium-view-cube
 
 ### CSS Custom Properties
 
-| Name                                  | Default | Description
-| ------------------------------------- | ------- | -----------
-| `--cesium-view-cube-stroke-color`     |         | Stroke color
-| `--cesium-view-cube-fill-color`       |         | Fill color
+| Name                                  | Default              | Description
+| ------------------------------------- | -------------------- | -----------
+| `--cesium-view-cube-stroke-color`     | `rgba(0, 0, 0, 0.6)` | Stroke color
+| `--cesium-view-cube-fill-color`       | `rgb(224, 225, 226)` | Fill color

@@ -26,7 +26,7 @@ npm i --save @geoblocks/cesium-compass
 
 ### CSS Custom Properties
 
-| Name                                | Default | Description
-| ----------------------------------- | ------- | -----------
-| `--cesium-compass-stroke-color`     |         | Stroke color
-| `--cesium-compass-fill-color`       |         | Fill color
+| Name                                | Default              | Description
+| ----------------------------------- | -------------------- | -----------
+| `--cesium-compass-stroke-color`     | `rgba(0, 0, 0, 0.6)` | Stroke color
+| `--cesium-compass-fill-color`       | `rgb(224, 225, 226)` | Fill color

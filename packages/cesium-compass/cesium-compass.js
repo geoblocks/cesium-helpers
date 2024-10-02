@@ -41,6 +41,10 @@ class CesiumCompass extends LitElement {
 
   static get styles() {
     return css`
+      :host {
+        --cesium-compass-stroke-color: rgba(0, 0, 0, 0.6);
+        --cesium-compass-fill-color: rgb(224, 225, 226);
+      }
       :host * {
         box-sizing: content-box;
       }
