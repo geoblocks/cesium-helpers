@@ -3,6 +3,7 @@
 A collection of helpers and web component for working with [CesiumJS](https://cesium.com/cesiumjs/)
 
  * cesium-compass: a compass widget
+ * cesium-compass-bar:
  * cesium-view-cube: a view cube widget
  * cesium-first-person-mode: a first person navigation mode that uses the Pointer Lock API
  * cesium-sphere-camera: a camera mode that allows the user to rotate the camera around a position
@@ -16,6 +17,7 @@ https://geoblocks.github.io/cesium-helpers/index.html
 
 ```bash
 npx parcel serve demos/cesium-compass.html --open
+npx parcel serve demos/cesium-compass-bar.html --open
 npx parcel serve demos/cesium-view-cube.html --open
 npx parcel serve demos/cesium-first-person-mode.html --open
 npx parcel serve demos/cesium-sphere-camera.html --open
