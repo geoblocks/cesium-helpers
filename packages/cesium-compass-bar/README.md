@@ -24,4 +24,4 @@ npm i --save @geoblocks/cesium-compass-bar
 
 | Name                                | Default | Description
 | ----------------------------------- | ------- | -----------
-| `--esium-compass-bar-tick-color`    | `#000`  | Ticks and font color
+| `--cesium-compass-bar-tick-color`    | `#000`  | Ticks and font color
