@@ -49,6 +49,13 @@ class CesiumCompassBar extends LitElement {
       .grid > div:nth-child(4) {
         height: 10px;
       }
+      .center-tick {
+        margin: auto;
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background-color: var(--cesium-compass-bar-tick-color);
+      }
     `;
   }
 
@@ -136,6 +143,7 @@ class CesiumCompassBar extends LitElement {
           </div>
         </div>
       </div>
+      <div class="center-tick"></div>
     `;
   }
 }
