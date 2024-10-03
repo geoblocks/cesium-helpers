@@ -1,5 +1,9 @@
 # FirstPerson camera mode for CesiumJS
 
+## Demo
+
+[Demo](https://geoblocks.github.io/cesium-helpers/cesium-first-person-mode.html)
+
 ## Installation
 
 ```bash

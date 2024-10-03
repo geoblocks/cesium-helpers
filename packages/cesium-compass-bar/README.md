@@ -6,6 +6,10 @@
 npm i --save @geoblocks/cesium-compass-bar
 ```
 
+## Demo
+
+[Demo](https://geoblocks.github.io/cesium-helpers/cesium-compass-bar.html)
+
 ## Usage
 
 ```html

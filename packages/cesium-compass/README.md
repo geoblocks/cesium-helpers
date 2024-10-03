@@ -2,6 +2,10 @@
 
 Note: the code is based on the Compass class from [TerriaJS](https://github.com/TerriaJS/terriajs/blob/master/lib/ReactViews/Map/Navigation/Compass.jsx)
 
+## Demo
+
+[Demo](https://geoblocks.github.io/cesium-helpers/cesium-compass.html)
+
 ## Installation
 
 ```bash

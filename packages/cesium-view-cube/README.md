@@ -1,5 +1,9 @@
 # compass view cube for CesiumJS
 
+## Demo
+
+[Demo](https://geoblocks.github.io/cesium-helpers/cesium-view-cube.html)
+
 ## Installation
 
 ```bash
