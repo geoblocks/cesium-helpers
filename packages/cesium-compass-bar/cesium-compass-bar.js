@@ -14,7 +14,7 @@ class CesiumCompassBar extends LitElement {
   static get styles() {
     return css`
       :host {
-        --cesium-compass-bar-tick-color: black;
+        --cesium-compass-bar-tick-color: #000;
       }
       :host * {
         box-sizing: content-box;

@@ -2,16 +2,16 @@
 
 A collection of helpers and web component for working with [CesiumJS](https://cesium.com/cesiumjs/)
 
- * cesium-compass: a compass widget
- * cesium-compass-bar:
- * cesium-view-cube: a view cube widget
- * cesium-first-person-mode: a first person navigation mode that uses the Pointer Lock API
- * cesium-sphere-camera: a camera mode that allows the user to rotate the camera around a position
- * cesium-binoculars: a camera mode that allows the user to use binoculars with the mouse wheel
+* [cesium-compass](packages/cesium-compass): a compass widget
+* [cesium-compass-bar](packages/cesium-compass-bar):
+* [cesium-view-cube](packages/cesium-view-cube): a view cube widget
+* [cesium-first-person-mode](packages/FirstPersonCameraMode): a first person navigation mode that uses the Pointer Lock API
+* [cesium-sphere-camera](packages/cesium-sphere-camera): a camera mode that allows the user to rotate the camera around a position
+* [cesium-binoculars](packages/cesium-binoculars): a camera mode that allows the user to use binoculars with the mouse wheel
 
 ## Online demos
 
-https://geoblocks.github.io/cesium-helpers/index.html
+<https://geoblocks.github.io/cesium-helpers/index.html>
 
 ## Running the demos
 
