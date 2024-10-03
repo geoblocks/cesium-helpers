@@ -14,6 +14,7 @@ var e=globalThis,t={},i={},s=e.parcelRequire5532;null==s&&((s=function(e){if(e i
       }
       .compass-bar {
         display: flex;
+        align-items: flex-end;
       }
       .compass-bar > div {
         width: var(--cesium-compass-bar-intercardinal-width);
@@ -26,7 +27,6 @@ var e=globalThis,t={},i={},s=e.parcelRequire5532;null==s&&((s=function(e){if(e i
       .ticks {
         display: flex;
         justify-content: space-around;
-        align-items: flex-end;
       }
       .ticks > div {
         width: 1px;
@@ -51,39 +51,39 @@ var e=globalThis,t={},i={},s=e.parcelRequire5532;null==s&&((s=function(e){if(e i
       <div class="container">
         <div class="compass-bar">
           <div style=${this.getTransform(4)}>
-            <div class="label" part="label">N</div>
+            <div class="label" part="label major">N</div>
             ${e}
           </div>
           <div style=${this.getTransform(3)}>
-            <div class="label" part="label">NE</div>
+            <div class="label" part="label minor">NE</div>
             ${e}
           </div>
           <div style=${this.getTransform(2)}>
-            <div class="label" part="label">E</div>
+            <div class="label" part="label major">E</div>
             ${e}
           </div>
           <div style=${this.getTransform(1)}>
-            <div class="label" part="label">SE</div>
+            <div class="label" part="label minor">SE</div>
             ${e}
           </div>
           <div style=${this.getTransform(0)}>
-            <div class="label" part="label">S</div>
+            <div class="label" part="label major">S</div>
             ${e}
           </div>
           <div style=${this.getTransform(-1)}>
-            <div class="label" part="label">SW</div>
+            <div class="label" part="label minor">SW</div>
             ${e}
           </div>
           <div style=${this.getTransform(-2)}>
-            <div class="label" part="label">W</div>
+            <div class="label" part="label major">W</div>
             ${e}
           </div>
           <div style=${this.getTransform(-3)}>
-            <div class="label" part="label">NW</div>
+            <div class="label" part="label minor">NW</div>
             ${e}
           </div>
         </div>
       </div>
       <div class="center-tick" part="center-tick"></div>
     `}}customElements.define("cesium-compass-bar",a);
-//# sourceMappingURL=cesium-compass-bar.1db6e123.js.map
+//# sourceMappingURL=cesium-compass-bar.019a53c3.js.map
