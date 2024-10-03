@@ -27,6 +27,7 @@ class CesiumCompassBar extends LitElement {
       }
       .compass-bar {
         display: flex;
+        align-items: flex-end;
       }
       .compass-bar > div {
         width: var(--cesium-compass-bar-intercardinal-width);
@@ -39,7 +40,6 @@ class CesiumCompassBar extends LitElement {
       .ticks {
         display: flex;
         justify-content: space-around;
-        align-items: flex-end;
       }
       .ticks > div {
         width: 1px;
@@ -117,35 +117,35 @@ class CesiumCompassBar extends LitElement {
       <div class="container">
         <div class="compass-bar">
           <div style=${this.getTransform(4)}>
-            <div class="label" part="label">N</div>
+            <div class="label" part="label major">N</div>
             ${ticks}
           </div>
           <div style=${this.getTransform(3)}>
-            <div class="label" part="label">NE</div>
+            <div class="label" part="label minor">NE</div>
             ${ticks}
           </div>
           <div style=${this.getTransform(2)}>
-            <div class="label" part="label">E</div>
+            <div class="label" part="label major">E</div>
             ${ticks}
           </div>
           <div style=${this.getTransform(1)}>
-            <div class="label" part="label">SE</div>
+            <div class="label" part="label minor">SE</div>
             ${ticks}
           </div>
           <div style=${this.getTransform(0)}>
-            <div class="label" part="label">S</div>
+            <div class="label" part="label major">S</div>
             ${ticks}
           </div>
           <div style=${this.getTransform(-1)}>
-            <div class="label" part="label">SW</div>
+            <div class="label" part="label minor">SW</div>
             ${ticks}
           </div>
           <div style=${this.getTransform(-2)}>
-            <div class="label" part="label">W</div>
+            <div class="label" part="label major">W</div>
             ${ticks}
           </div>
           <div style=${this.getTransform(-3)}>
-            <div class="label" part="label">NW</div>
+            <div class="label" part="label minor">NW</div>
             ${ticks}
           </div>
         </div>

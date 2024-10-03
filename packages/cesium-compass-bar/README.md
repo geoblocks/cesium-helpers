@@ -36,5 +36,7 @@ npm i --save @geoblocks/cesium-compass-bar
 | Part name     | Description
 | ------------- | -----------
 | `label`       | The compass label
+| `label major` | The compass major label (N, S, E, W)
+| `label minor` | The compass minor label (NE, SE, SW, NW)
 | `tick`        | The compass tick div
 | `center-tick` | The compass center tick div
