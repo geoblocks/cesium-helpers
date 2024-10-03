@@ -1,6 +1,5 @@
 import { LitElement, css, html } from "lit";
 
-// FIXME: configurable width
 // FIXME: configurable tick count
 
 class CesiumCompassBar extends LitElement {
@@ -15,6 +14,7 @@ class CesiumCompassBar extends LitElement {
     return css`
       :host {
         --cesium-compass-bar-tick-color: #000;
+        --cesium-compass-bar-intercardinal-width: 100px;
       }
       :host * {
         box-sizing: content-box;
@@ -29,7 +29,7 @@ class CesiumCompassBar extends LitElement {
         display: flex;
       }
       .compass-bar > div {
-        width: 100px;
+        width: var(--cesium-compass-bar-intercardinal-width);
         text-align: center;
       }
       .label {
@@ -68,6 +68,11 @@ class CesiumCompassBar extends LitElement {
     this.scene;
 
     /**
+     * @type {number}
+     */
+    this.intercardinalWidth;
+
+    /**
      * @type {import('cesium').Event.RemoveCallback}
      */
     this.unlistenFromPostRender = null;
@@ -80,11 +85,13 @@ class CesiumCompassBar extends LitElement {
           this.heading = this.scene.camera.heading;
         }
       );
+      // FIXME: probably not the best place to compute this
+      this.intercardinalWidth = parseInt(getComputedStyle(this).getPropertyValue('--cesium-compass-bar-intercardinal-width'));
     }
   }
 
   getTransform(index) {
-    const width = 100;
+    const width = this.intercardinalWidth;
     let translate = -width / 2;
     const visibleIndex = -this.heading / (Math.PI / 4) + 4;
     const distance = visibleIndex - index;
