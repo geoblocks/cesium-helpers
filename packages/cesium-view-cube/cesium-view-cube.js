@@ -10,6 +10,10 @@ class CesiumViewCube extends LitElement {
 
   static get styles() {
     return css`
+      :host {
+        --cesium-view-cube-stroke-color: rgba(0, 0, 0, 0.6);
+        --cesium-view-cube-fill-color: rgb(224, 225, 226);
+      }
       :host * {
         box-sizing: content-box;
       }
