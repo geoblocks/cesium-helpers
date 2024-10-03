@@ -13,10 +13,6 @@
     }
 
     cesium-compass-bar {
-      --cesium-compass-bar-tick-color: rgb(224, 225, 226);
-      font-family: monospace;
-      font-size: 14px;
-      font-weight: 700;
       position: absolute;
       left: 50%;
       transform: translate(-50%, 0);
@@ -24,6 +20,21 @@
       width: 280px;
       border-radius: 6px;
       background-color: rgba(0, 0, 0, 0.8);
+    }
+
+    cesium-compass-bar::part(label) {
+      font-family: monospace;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px;
+      color: rgb(224, 225, 226);
+    }
+    cesium-compass-bar::part(tick) {
+      height: 6px;
+      background-color: rgb(224, 225, 226);
+    }
+    cesium-compass-bar::part(center-tick) {
+      background-color: rgb(224, 225, 226);
     }
 
   </style>

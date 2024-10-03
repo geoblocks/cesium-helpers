@@ -1,7 +1,7 @@
 import { LitElement, css, html } from "lit";
 
 // FIXME: configurable width
-// FIXME: configurable styling with css part
+// FIXME: configurable tick count
 
 class CesiumCompassBar extends LitElement {
   static get properties() {
@@ -36,17 +36,17 @@ class CesiumCompassBar extends LitElement {
         padding: 4px;
         color: var(--cesium-compass-bar-tick-color);
       }
-      .grid {
+      .ticks {
         display: flex;
         justify-content: space-around;
         align-items: flex-end;
       }
-      .grid > div {
+      .ticks > div {
         width: 1px;
         height: 6px;
         background-color: var(--cesium-compass-bar-tick-color);
       }
-      .grid > div:nth-child(4) {
+      .ticks > div:nth-child(4) {
         height: 10px;
       }
       .center-tick {
@@ -100,50 +100,50 @@ class CesiumCompassBar extends LitElement {
 
   render() {
     const ticks = html`
-      <div class="grid">
+      <div class="ticks">
         ${Array(7)
           .fill()
-          .map(() => html`<div></div>`)}
+          .map(() => html`<div part="tick"></div>`)}
       </div>
     `;
     return html`
       <div class="container">
         <div class="compass-bar">
           <div style=${this.getTransform(4)}>
-            <div class="label">N</div>
+            <div class="label" part="label">N</div>
             ${ticks}
           </div>
           <div style=${this.getTransform(3)}>
-            <div class="label">NE</div>
+            <div class="label" part="label">NE</div>
             ${ticks}
           </div>
           <div style=${this.getTransform(2)}>
-            <div class="label">E</div>
+            <div class="label" part="label">E</div>
             ${ticks}
           </div>
           <div style=${this.getTransform(1)}>
-            <div class="label">SE</div>
+            <div class="label" part="label">SE</div>
             ${ticks}
           </div>
           <div style=${this.getTransform(0)}>
-            <div class="label">S</div>
+            <div class="label" part="label">S</div>
             ${ticks}
           </div>
           <div style=${this.getTransform(-1)}>
-            <div class="label">SW</div>
+            <div class="label" part="label">SW</div>
             ${ticks}
           </div>
           <div style=${this.getTransform(-2)}>
-            <div class="label">W</div>
+            <div class="label" part="label">W</div>
             ${ticks}
           </div>
           <div style=${this.getTransform(-3)}>
-            <div class="label">NW</div>
+            <div class="label" part="label">NW</div>
             ${ticks}
           </div>
         </div>
       </div>
-      <div class="center-tick"></div>
+      <div class="center-tick" part="center-tick"></div>
     `;
   }
 }
