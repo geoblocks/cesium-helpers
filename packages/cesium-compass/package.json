@@ -12,9 +12,6 @@
   "publishConfig": {
     "access": "public"
   },
-  "peerDependencies": {
-    "cesium": "1.x"
-  },
   "dependencies": {
     "lit": "3.x"
   }
