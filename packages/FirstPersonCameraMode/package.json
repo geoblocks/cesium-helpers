@@ -11,8 +11,5 @@
   "module": "FirstPersonCameraMode.js",
   "publishConfig": {
     "access": "public"
-  },
-  "peerDependencies": {
-    "cesium": "1.x"
   }
 }
