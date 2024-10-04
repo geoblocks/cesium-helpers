@@ -2,7 +2,7 @@ import { LitElement, css, html } from "lit";
 
 // FIXME: configurable tick count
 
-class CesiumCompassBar extends LitElement {
+export default class CesiumCompassBar extends LitElement {
   static get properties() {
     return {
       scene: { type: Object },
