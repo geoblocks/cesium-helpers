@@ -22,6 +22,7 @@ npx parcel serve demos/cesium-view-cube.html --open
 npx parcel serve demos/cesium-first-person-mode.html --open
 npx parcel serve demos/cesium-sphere-camera.html --open
 npx parcel serve demos/cesium-binoculars.html --open
+npx parcel serve demos/cesium-flyto.html --open
 ```
 
 ## Guide
