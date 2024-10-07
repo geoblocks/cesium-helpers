@@ -1,0 +1,20 @@
+{
+  "name": "@geoblocks/cesium-walk",
+  "version": "0.0.0",
+  "license": "BSD-3-Clause",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/geoblocks/cesium-helpers/",
+    "directory": "packages/cesium-walk"
+  },
+  "main": "cesium-walk.js",
+  "module": "cesium-walk.js",
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "@cesium/engine": ">=10"
+  }
+}
