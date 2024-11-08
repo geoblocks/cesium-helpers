@@ -14,7 +14,7 @@
     "gh-pages": "rm -rf dist && npm run build-demos && gh-pages -d dist"
   },
   "devDependencies": {
-    "cesium": "1.123.0",
+    "cesium": "1.123.1",
     "gh-pages": "6.2.0",
     "lerna": "8.1.9",
     "lit": "3.2.1",
