@@ -1,4 +1,4 @@
-var e=globalThis,t={},i={},s=e.parcelRequire5532;null==s&&((s=function(e){if(e in t)return t[e].exports;if(e in i){var s=i[e];delete i[e];var r={id:e,exports:{}};return t[e]=r,s.call(r.exports,r,r.exports),r.exports}var a=Error("Cannot find module '"+e+"'");throw a.code="MODULE_NOT_FOUND",a}).register=function(e,t){i[e]=t},e.parcelRequire5532=s),s.register;var r=s("800sp");class a extends r.LitElement{static get properties(){return{scene:{type:Object},heading:{type:Number}}}static get styles(){return(0,r.css)`
+var e=globalThis,t={},i={},s=e.parcelRequire94c2;null==s&&((s=function(e){if(e in t)return t[e].exports;if(e in i){var s=i[e];delete i[e];var r={id:e,exports:{}};return t[e]=r,s.call(r.exports,r,r.exports),r.exports}var a=Error("Cannot find module '"+e+"'");throw a.code="MODULE_NOT_FOUND",a}).register=function(e,t){i[e]=t},e.parcelRequire94c2=s),s.register;var r=s("800sp");class a extends r.LitElement{static get properties(){return{scene:{type:Object},heading:{type:Number}}}static get styles(){return(0,r.css)`
       :host {
         --cesium-compass-bar-tick-color: #000;
         --cesium-compass-bar-intercardinal-width: 100px;
@@ -86,4 +86,4 @@ var e=globalThis,t={},i={},s=e.parcelRequire5532;null==s&&((s=function(e){if(e i
       </div>
       <div class="center-tick" part="center-tick"></div>
     `}}customElements.define("cesium-compass-bar",a);
-//# sourceMappingURL=cesium-compass-bar.019a53c3.js.map
+//# sourceMappingURL=cesium-compass-bar.552ea5f1.js.map
