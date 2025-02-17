@@ -1,4 +1,4 @@
-import {ScreenSpaceEventType, Math as CesiumMath} from 'cesium';
+import {ScreenSpaceEventType, Math as CesiumMath} from '@cesium/engine';
 
 export default class FirstPersonCameraMode {
 

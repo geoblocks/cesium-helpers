@@ -4,7 +4,7 @@ import {
   Cartesian3,
   Cartesian2,
   Ray,
-} from "cesium";
+} from "@cesium/engine";
 
 const look3DStartPos = new Cartesian2();
 const look3DEndPos = new Cartesian2();

@@ -13,7 +13,7 @@ npm i --save @geoblocks/cesium-first-person-mode
 ### Usage
 
 ```js
-import {Viewer} from 'cesium';
+import {Viewer} from '@cesium/engine';
 import FirstPersonCameraMode from '@geoblocks/cesium-first-person-mode';
 
 const viewer = new Viewer(...);

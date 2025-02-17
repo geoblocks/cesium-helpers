@@ -14,5 +14,8 @@
   },
   "dependencies": {
     "lit": "3.x"
+  },
+  "peerDependencies": {
+    "@cesium/engine": ">=10"
   }
 }
