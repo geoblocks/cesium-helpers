@@ -6,7 +6,7 @@
 import {LitElement, css, svg, html} from 'lit';
 import {styleMap} from 'lit/directives/style-map.js';
 
-import {Cartesian2, Cartesian3, Matrix4, Transforms, Ellipsoid, Ray, Math as CesiumMath} from 'cesium';
+import {Cartesian2, Cartesian3, Matrix4, Transforms, Ellipsoid, Ray, Math as CesiumMath} from '@cesium/engine';
 
 const vectorScratch = new Cartesian2();
 const windowPositionScratch = new Cartesian2();

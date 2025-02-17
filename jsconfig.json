@@ -7,9 +7,8 @@
     },
     "include": [
         "packages/**/*",
-        "node_modules/cesium/Source/Cesium.d.ts"
     ],
     "typeAcquisition": {
-      "exclude": ["cesium"]
+      "exclude": ["@cesium/engine"]
     }
   }
