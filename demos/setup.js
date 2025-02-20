@@ -29,6 +29,7 @@ export async function createViewer(container) {
   });
 
   viewer.scene.highDynamicRange = true;
+  viewer.scene.requestRenderMode = true;
   viewer.scene.globe.showGroundAtmosphere = true;
   viewer.scene.globe.enableLighting = true;
   viewer.scene.globe.preloadSiblings = true;
