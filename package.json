@@ -16,8 +16,8 @@
   "devDependencies": {
     "@cesium/engine": "20.0.1",
     "gh-pages": "6.3.0",
-    "lerna": "8.2.3",
+    "lerna": "8.2.4",
     "lit": "3.3.1",
-    "parcel": "2.15.4"
+    "parcel": "2.16.0"
   }
 }
