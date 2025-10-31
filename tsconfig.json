@@ -1,9 +1,12 @@
 {
     "compilerOptions": {
-      "checkJs": true,
+      "target": "es2021",
+      "module": "es2015",
       "moduleResolution": "node",
+      "lib": ["es2021", "dom"],
+      "experimentalDecorators": true,
+      "checkJs": true,
       "baseUrl": ".",
-      "target": "es6"
     },
     "include": [
         "packages/**/*",

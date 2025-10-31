@@ -7,8 +7,13 @@
     "url": "https://github.com/geoblocks/cesium-helpers/",
     "directory": "packages/cesium-compass"
   },
+  "type": "module",
+  "source": "cesium-compass.ts",
   "main": "cesium-compass.js",
   "module": "cesium-compass.js",
+  "scripts": {
+    "build": "tsc"
+  },
   "publishConfig": {
     "access": "public"
   },
