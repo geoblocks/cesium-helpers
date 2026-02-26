@@ -110,7 +110,7 @@ export default class CesiumCompassBar extends LitElement {
       <div class="ticks">
         ${Array(7)
           .fill()
-          .map(() => html`<div part="tick"></div>`)}
+          .map((_, index, arr) => html`<div part="tick ${index === Math.floor(arr.length / 2) ? 'major' : 'minor'}"></div>`)}
       </div>
     `;
     return html`
