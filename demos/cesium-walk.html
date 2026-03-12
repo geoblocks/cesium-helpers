@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.137/Build/Cesium/Cesium.js"></script>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.137/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  <style>
+    html, body, #cesiumContainer {
+      height: 100%;
+      margin: 0;
+    }
+    #activate {
+      position: absolute;
+      right: 30px;
+      top: 30px;
+      font-family: monospace;
+      font-weight: bold;
+      font-size: 1.6em;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="cesiumContainer"></div>
+  <button id="activate" type="button">Activate !</button>
+  <script type="module">
+    import {createViewer} from './setup.js';
+    import CesiumWalk from '../packages/cesium-walk/cesium-walk.js';
+
+    createViewer('cesiumContainer').then(viewer => {
+      const mode = new CesiumWalk(viewer);
+      document.querySelector('#activate').addEventListener('click', () => mode.active = !mode.active);
+    });
+  </script>
+</body>
+
+</html>
