@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.137/Build/Cesium/Cesium.js"></script>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.137/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  <style>
+    html, body, #cesiumContainer {
+      height: 100%;
+      margin: 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="cesiumContainer"></div>
+  <script type="module">
+    import {createViewer} from './setup.js';
+    import CesiumFlyto from '../packages/cesium-flyto/cesium-flyto.js';
+
+    createViewer('cesiumContainer').then(viewer => {
+      const mode = new CesiumFlyto(viewer);
+    });
+  </script>
+</body>
+
+</html>
