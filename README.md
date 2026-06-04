@@ -9,6 +9,12 @@ A collection of helpers and web component for working with [CesiumJS](https://ce
 * [cesium-sphere-camera](packages/cesium-sphere-camera): a camera mode that allows the user to rotate the camera around a position
 * [cesium-binoculars](packages/cesium-binoculars): a camera mode that allows the user to use binoculars with the mouse wheel
 
+## Sponsorship
+
+[![camptocamp logo](https://raw.githubusercontent.com/geoblocks/etter/main/images/camptocamp-logo.png)](https://www.camptocamp.com)
+
+The development of this library is sponsored by [Camptocamp](https://www.camptocamp.com).
+
 ## Online demos
 
 <https://geoblocks.github.io/cesium-helpers/index.html>
