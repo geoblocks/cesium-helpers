@@ -1,0 +1,14 @@
+{
+  "name": "@geoblocks/cesium-audio",
+  "version": "0.0.0",
+  "license": "BSD-3-Clause",
+  "repository": "github:geoblocks/cesium-helpers",
+  "main": "cesium-audio.js",
+  "module": "cesium-audio.js",
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "cesium": "1.x"
+  }
+}
