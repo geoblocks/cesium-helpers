@@ -134,6 +134,7 @@ class CesiumCompass extends LitElement {
      * @type {number}
      */
     this.orbitCursorOpacity = 0;
+    this.orbitCursorAngle = 0;
 
     this.handleRotatePointerMoveFunction = this.handleRotatePointerMove.bind(this);
     this.handleRotatePointerUpFunction = this.handleRotatePointerUp.bind(this);
@@ -170,6 +171,11 @@ class CesiumCompass extends LitElement {
   disconnectedCallback() {
     if (this.unlistenFromPostRender) {
       this.unlistenFromPostRender();
+    }
+    if (this.unlistenFromClockTick) {
+      this.unlistenFromClockTick();
+      this.unlistenFromClockTick = null;
+      this.orbitCursorOpacity = 0;
     }
     super.disconnectedCallback();
   }
@@ -274,7 +280,7 @@ class CesiumCompass extends LitElement {
 
   resetToNorth() {
     const camera = this.scene.camera;
-    const oldTransform = Matrix4.clone(camera.transform, oldTransformScratch);
+    const oldTransform = Matrix4.clone(camera.transform, new Matrix4());
     camera.lookAtTransform(this.context.frame);
     const newCameraAngle = CesiumMath.negativePiToPi(
       CesiumMath.PI_OVER_TWO + Math.atan2(camera.position.y, camera.position.x)
@@ -346,6 +352,7 @@ class CesiumCompass extends LitElement {
   distanceToTerrain() {
     const camera = this.scene.camera;
     const height = this.scene.globe.getHeight(camera.positionCartographic);
+    if (height === undefined) return Infinity;
     return camera.positionCartographic.height - height;
   }
 
