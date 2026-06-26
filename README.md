@@ -22,13 +22,10 @@ The development of this library is sponsored by [Camptocamp](https://www.camptoc
 ## Running the demos
 
 ```bash
-npx parcel serve demos/cesium-compass.html --open
-npx parcel serve demos/cesium-compass-bar.html --open
-npx parcel serve demos/cesium-view-cube.html --open
-npx parcel serve demos/cesium-first-person-mode.html --open
-npx parcel serve demos/cesium-sphere-camera.html --open
-npx parcel serve demos/cesium-binoculars.html --open
+npm run dev
 ```
+
+Then open `http://localhost:5173` and navigate to the demo of your choice.
 
 ## Guide
 

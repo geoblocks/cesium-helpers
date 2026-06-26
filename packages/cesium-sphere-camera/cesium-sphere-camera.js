@@ -12,6 +12,7 @@ const look3DStartRay = new Ray();
 const look3DEndRay = new Ray();
 const look3DNegativeRot = new Cartesian3();
 const look3DTan = new Cartesian3();
+const rotationAxisScratch = new Cartesian3();
 
 export default class CesiumSphereCamera {
   /**
@@ -60,7 +61,7 @@ export default class CesiumSphereCamera {
     if (!this.dragging_) {
       return;
     }
-    const camera = this.viewer.camera;
+    const camera = this.viewer.scene.camera;
 
     // x axis
 
@@ -80,7 +81,7 @@ export default class CesiumSphereCamera {
     }
     angle = movement.startPosition.x > movement.endPosition.x ? -angle : angle;
     const rotationAxis =
-      this.viewer.scene.globe.ellipsoid.geodeticSurfaceNormal(camera.position);
+      this.viewer.scene.globe.ellipsoid.geodeticSurfaceNormal(camera.position, rotationAxisScratch);
     camera.look(rotationAxis, -angle);
 
     // y axis

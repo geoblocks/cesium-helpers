@@ -86,8 +86,16 @@ export default class CesiumCompassBar extends LitElement {
         }
       );
       // FIXME: probably not the best place to compute this
-      this.intercardinalWidth = parseInt(getComputedStyle(this).getPropertyValue('--cesium-compass-bar-intercardinal-width'));
+      this.intercardinalWidth = parseFloat(getComputedStyle(this).getPropertyValue('--cesium-compass-bar-intercardinal-width'));
     }
+  }
+
+  disconnectedCallback() {
+    if (this.unlistenFromPostRender) {
+      this.unlistenFromPostRender();
+      this.unlistenFromPostRender = null;
+    }
+    super.disconnectedCallback();
   }
 
   getTransform(index) {
