@@ -17,6 +17,7 @@ export async function createViewer(container) {
     homeButton: false,
     fullscreenButton: false,
     scene3DOnly: true,
+    requestRenderMode: true,
     baseLayer: new Cesium.ImageryLayer(
       new Cesium.UrlTemplateImageryProvider({
         url: "https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage/default/current/3857/{z}/{x}/{y}.jpeg",
@@ -38,9 +39,9 @@ export async function createViewer(container) {
   viewer.scene.fog.minimumBrightness = 0.03 * 10;
 
   viewer.camera.flyTo({
-    destination: Cesium.Cartesian3.fromDegrees(7.863775, 46.686447, 1200),
+    destination: Cesium.Cartesian3.fromDegrees(7.863775, 46.686447, 1000),
     orientation: {
-      heading: Cesium.Math.toRadians(25.0),
+      heading: Math.PI,
       pitch: 0.0,
     },
     duration: 0,
