@@ -9,6 +9,7 @@ A collection of helpers and web component for working with [CesiumJS](https://ce
 * [cesium-flyto](packages/cesium-flyto): a camera mode that flies toward the double-clicked position, with motion blur and depth of field
 * [cesium-sphere-camera](packages/cesium-sphere-camera): a camera mode that allows the user to rotate the camera around a position
 * [cesium-binoculars](packages/cesium-binoculars): a camera mode that allows the user to use binoculars with the mouse wheel
+* [cesium-post-process](packages/cesium-post-process): screen-space effects (Technicolor and Super 8 film looks, infrared, color isolation, tilt-shift, a spotlight, valley fog and a snow line)
 
 ## Sponsorship
 

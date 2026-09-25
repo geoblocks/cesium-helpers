@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Cesium.js"></script>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  <style>
+    html, body, #cesiumContainer {
+      height: 100%;
+      margin: 0;
+    }
+    #controls {
+      position: absolute;
+      right: 30px;
+      top: 30px;
+      max-height: calc(100% - 84px);
+      overflow: auto;
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.85);
+      font-family: sans-serif;
+      font-size: 14px;
+    }
+    #controls fieldset {
+      display: grid;
+      grid-template-columns: auto auto;
+      gap: 4px 12px;
+      align-items: center;
+      margin: 0 0 8px;
+    }
+    #controls legend {
+      font-weight: bold;
+    }
+    #controls p {
+      max-width: 30ch;
+      margin: 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="cesiumContainer"></div>
+  <form id="controls">
+    <fieldset name="snowLine">
+      <legend><label><input type="checkbox" name="active"> Snow line</label></legend>
+      <label for="altitude">Altitude</label>
+      <input type="range" id="altitude" name="altitude" min="500" max="4000" step="50" value="2000">
+      <label for="transition">Transition</label>
+      <input type="range" id="transition" name="transition" min="0" max="1000" step="10" value="200">
+      <label for="maxSlope">Max slope</label>
+      <input type="range" id="maxSlope" name="maxSlope" min="10" max="80" step="1" value="40">
+    </fieldset>
+    <fieldset name="valleyFog">
+      <legend><label><input type="checkbox" name="active"> Valley fog</label></legend>
+      <label for="top">Top</label>
+      <input type="range" id="top" name="top" min="400" max="3000" step="10" value="1500">
+      <label for="density">Density</label>
+      <input type="range" id="density" name="density" min="0.0005" max="0.02" step="0.0005" value="0.005">
+      <label for="softness">Softness</label>
+      <input type="range" id="softness" name="softness" min="0" max="500" step="10" value="100">
+    </fieldset>
+    <fieldset name="tiltShift">
+      <legend><label><input type="checkbox" name="active"> Tilt-shift</label></legend>
+      <label for="range">Sharp band</label>
+      <input type="range" id="range" name="range" min="0.05" max="1" step="0.05" value="0.3">
+      <label for="blur">Blur</label>
+      <input type="range" id="blur" name="blur" min="1" max="10" step="0.5" value="4">
+      <label for="saturation">Saturation</label>
+      <input type="range" id="saturation" name="saturation" min="0" max="1" step="0.05" value="0.3">
+    </fieldset>
+    <fieldset name="spotlight">
+      <legend><label><input type="checkbox" name="active"> Spotlight</label></legend>
+      <label for="radius">Radius</label>
+      <input type="range" id="radius" name="radius" min="20" max="2000" step="10" value="200">
+      <label for="softness">Softness</label>
+      <input type="range" id="softness" name="softness" min="0" max="1" step="0.05" value="0.5">
+      <label for="darkness">Darkness</label>
+      <input type="range" id="darkness" name="darkness" min="0" max="1" step="0.05" value="0.8">
+      <label for="beam">Beam</label>
+      <input type="range" id="beam" name="beam" min="0" max="1" step="0.05" value="0.25">
+      <label for="followCursor">Follow the cursor</label>
+      <input type="checkbox" id="followCursor" name="followCursor">
+    </fieldset>
+    <fieldset name="colorIsolation">
+      <legend><label><input type="checkbox" name="active"> Color isolation</label></legend>
+      <label for="hue">Hue</label>
+      <input type="range" id="hue" name="hue" min="0" max="359" step="1" value="0">
+      <label for="isolationRange">Range</label>
+      <input type="range" id="isolationRange" name="range" min="5" max="120" step="1" value="60">
+    </fieldset>
+    <fieldset name="infrared">
+      <legend><label><input type="checkbox" name="active"> Infrared</label></legend>
+      <label for="infraredStrength">Strength</label>
+      <input type="range" id="infraredStrength" name="strength" min="0" max="1" step="0.05" value="1">
+    </fieldset>
+    <fieldset name="technicolor">
+      <legend><label><input type="checkbox" name="active"> Technicolor</label></legend>
+      <label for="strength">Strength</label>
+      <input type="range" id="strength" name="strength" min="0" max="1" step="0.05" value="1">
+      <label for="technicolorAspectRatio">Aspect ratio</label>
+      <select id="technicolorAspectRatio" name="aspectRatio">
+        <option value="0" selected>none</option>
+        <option value="1.37">1.37</option>
+      </select>
+    </fieldset>
+    <fieldset name="super8">
+      <legend><label><input type="checkbox" name="active"> Super 8</label></legend>
+      <label for="fade">Fade</label>
+      <input type="range" id="fade" name="fade" min="0" max="1" step="0.05" value="0.5">
+      <label for="halation">Halation</label>
+      <input type="range" id="halation" name="halation" min="0" max="1" step="0.05" value="0.5">
+      <label for="grain">Grain</label>
+      <input type="range" id="grain" name="grain" min="0" max="0.5" step="0.01" value="0.15">
+      <label for="weave">Weave</label>
+      <input type="range" id="weave" name="weave" min="0" max="5" step="0.1" value="1.5">
+      <label for="flicker">Flicker</label>
+      <input type="range" id="flicker" name="flicker" min="0" max="0.3" step="0.01" value="0.08">
+      <label for="lightLeaks">Light leaks</label>
+      <input type="range" id="lightLeaks" name="lightLeaks" min="0" max="1" step="0.05" value="0.5">
+      <label for="super8AspectRatio">Aspect ratio</label>
+      <select id="super8AspectRatio" name="aspectRatio">
+        <option value="0">none</option>
+        <option value="1.3333" selected>4:3</option>
+      </select>
+    </fieldset>
+    <p>Click the map to focus the tilt-shift and the spotlight there.
+      <button type="button" id="center">Focus the middle</button></p>
+  </form>
+  <script type="module">
+    import {createViewer} from './setup.js';
+    import {ColorIsolation, Infrared, SnowLine, Spotlight, Super8, Technicolor, TiltShift, ValleyFog} from '../packages/cesium-post-process/cesium-post-process.js';
+
+    // snow under the fog, the lens effects on the whole scene, then the colors, the film looks last
+    const ORDER = ['snowLine', 'valleyFog', 'spotlight', 'tiltShift', 'colorIsolation', 'infrared', 'technicolor', 'super8'];
+
+    createViewer('cesiumContainer').then(viewer => {
+      // an early autumn afternoon, for the light
+      viewer.clock.currentTime = Cesium.JulianDate.fromIso8601('2026-09-25T14:00:00+02:00');
+      viewer.clock.shouldAnimate = false;
+
+      const effects = {
+        snowLine: new SnowLine(viewer),
+        valleyFog: new ValleyFog(viewer),
+        tiltShift: new TiltShift(viewer),
+        spotlight: new Spotlight(viewer),
+        colorIsolation: new ColorIsolation(viewer),
+        infrared: new Infrared(viewer),
+        technicolor: new Technicolor(viewer),
+        super8: new Super8(viewer),
+      };
+      let followCursor = false;
+      document.querySelector('#controls').addEventListener('input', event => {
+        const {name, value, checked} = event.target;
+        const key = event.target.closest('fieldset').name;
+        if (name === 'followCursor') {
+          followCursor = checked;
+          return;
+        }
+        if (name !== 'active') {
+          effects[key][name] = Number(value);
+          return;
+        }
+        effects[key].active = checked;
+        // the stages run in the order they are added: re-add the active effects that come after
+        if (checked) {
+          for (const later of ORDER.slice(ORDER.indexOf(key) + 1)) {
+            if (effects[later].active) {
+              effects[later].active = false;
+              effects[later].active = true;
+            }
+          }
+        }
+      });
+
+      const setFocus = focus => {
+        effects.tiltShift.focus = focus;
+        effects.spotlight.focus = focus;
+      };
+      viewer.screenSpaceEventHandler.setInputAction(({position}) => {
+        const focus = viewer.scene.pickPosition(position);
+        if (focus) {
+          setFocus(focus);
+        }
+      }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+      viewer.screenSpaceEventHandler.setInputAction(({endPosition}) => {
+        const focus = followCursor && viewer.scene.pickPosition(endPosition);
+        if (focus) {
+          effects.spotlight.focus = focus;
+        }
+      }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+      document.querySelector('#center').addEventListener('click', () => setFocus(undefined));
+    });
+  </script>
+</body>
+
+</html>
