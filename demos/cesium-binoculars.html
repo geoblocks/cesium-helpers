@@ -18,12 +18,24 @@
       font-weight: bold;
       font-size: 1.6em;
     }
+    /* in the notch below where the two eyepieces meet: the 160x100 eyepieces box
+       fits the window, and the notch is 45% of its height below the centre */
+    #magnification {
+      position: absolute;
+      top: calc(50% + min(45vh, 28.1vw));
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-family: monospace;
+      font-size: 1.4em;
+      color: #bbb;
+    }
   </style>
 </head>
 
 <body>
   <div id="cesiumContainer"></div>
   <button id="activate" type="button">toggle mode</button>
+  <div id="magnification"></div>
   <script type="module">
     import {createViewer} from './setup.js';
     import CesiumBinoculars from '../packages/cesium-binoculars/cesium-binoculars.js';
@@ -31,6 +43,13 @@
     createViewer('cesiumContainer').then(viewer => {
       const mode = new CesiumBinoculars(viewer);
       document.querySelector('#activate').addEventListener('click', () => mode.active = !mode.active);
+      const magnification = document.querySelector('#magnification');
+      viewer.scene.postRender.addEventListener(() => {
+        const text = mode.active ? `${mode.magnification.toFixed(1)}x` : '';
+        if (magnification.textContent !== text) {
+          magnification.textContent = text;
+        }
+      });
     });
   </script>
 </body>

@@ -3,6 +3,7 @@
 // Keep this list in sync with the helpers' imports; the build fails otherwise.
 export const {
   BoundingSphere,
+  CameraEventType,
   Cartesian2,
   Cartesian3,
   EasingFunction,
@@ -10,6 +11,7 @@ export const {
   HeadingPitchRange,
   Math,
   Matrix4,
+  PostProcessStage,
   Ray,
   ScreenSpaceEventType,
   Transforms,
