@@ -37,7 +37,7 @@ const rotationMarkerSvg = svg`<svg height="145" width="145" viewBox="0 0 145 145
  * @property {number} orbitLastTimestamp
  */
 
-class CesiumCompass extends LitElement {
+export default class CesiumCompass extends LitElement {
 
   /** @override */
   static get properties() {
