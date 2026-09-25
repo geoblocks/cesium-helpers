@@ -8,8 +8,8 @@
     "url": "https://github.com/geoblocks/cesium-helpers/",
     "directory": "packages/cesium-compass"
   },
-  "main": "cesium-compass.js",
-  "module": "cesium-compass.js",
+  "main": "src/cesium-compass.js",
+  "module": "src/cesium-compass.js",
   "publishConfig": {
     "access": "public"
   },

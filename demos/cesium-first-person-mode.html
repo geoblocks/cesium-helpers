@@ -26,7 +26,7 @@
   <button id="activate" type="button">Activate !</button>
   <script type="module">
     import {createViewer} from './setup.js';
-    import FirstPersonCameraMode from '../packages/FirstPersonCameraMode/FirstPersonCameraMode.js';
+    import FirstPersonCameraMode from '../packages/FirstPersonCameraMode/src/FirstPersonCameraMode.js';
 
     createViewer('cesiumContainer').then(viewer => {
       const mode = new FirstPersonCameraMode(viewer);

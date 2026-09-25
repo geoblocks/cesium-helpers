@@ -8,8 +8,8 @@
     "url": "https://github.com/geoblocks/cesium-helpers/",
     "directory": "packages/FirstPersonCameraMode"
   },
-  "main": "FirstPersonCameraMode.js",
-  "module": "FirstPersonCameraMode.js",
+  "main": "src/FirstPersonCameraMode.js",
+  "module": "src/FirstPersonCameraMode.js",
   "publishConfig": {
     "access": "public"
   },

@@ -15,5 +15,5 @@
     "noUnusedParameters": true,
     "exactOptionalPropertyTypes": true
   },
-  "include": ["packages/**/*.js"]
+  "include": ["packages/*/src/**/*.js"]
 }

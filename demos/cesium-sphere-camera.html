@@ -26,7 +26,7 @@
   <button id="activate" type="button">toggle mode</button>
   <script type="module">
     import {createViewer} from './setup.js';
-    import CesiumSphereCamera from '../packages/cesium-sphere-camera/cesium-sphere-camera.js';
+    import CesiumSphereCamera from '../packages/cesium-sphere-camera/src/cesium-sphere-camera.js';
 
     createViewer('cesiumContainer').then(viewer => {
       const sphereMode = new CesiumSphereCamera(viewer);
