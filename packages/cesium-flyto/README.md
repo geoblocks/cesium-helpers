@@ -1,0 +1,28 @@
+# Cesium Fly To
+
+This package provides a camera mode for CesiumJS: on double-click, the camera flies toward the clicked position (terrain or 3D Tiles) along the line of sight, and stops at a given distance from it.
+
+## Installation
+
+```bash
+npm i --save @geoblocks/cesium-flyto
+```
+
+## Demo
+
+[Demo](https://geoblocks.github.io/cesium-helpers/cesium-flyto.html)
+
+## Usage
+
+```javascript
+import {Viewer, ScreenSpaceEventType} from '@cesium/engine';
+import CesiumFlyTo from '@geoblocks/cesium-flyto';
+
+const viewer = new Viewer(...);
+// optional: event type (default: double-click), final distance in meters (default: 300),
+// flight duration in seconds (default: computed from the distance) and easing function (default: EasingFunction.SINUSOIDAL_IN_OUT)
+const flyTo = new CesiumFlyTo(viewer, ScreenSpaceEventType.LEFT_DOUBLE_CLICK, 300);
+flyTo.active = true;
+```
+
+Deactivating the mode restores the previous input action for that event (for example the Viewer's entity tracking on double-click).

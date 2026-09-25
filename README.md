@@ -6,6 +6,7 @@ A collection of helpers and web component for working with [CesiumJS](https://ce
 * [cesium-compass-bar](packages/cesium-compass-bar): a horizontal compass bar widget showing the camera heading
 * [cesium-view-cube](packages/cesium-view-cube): a view cube widget
 * [cesium-first-person-mode](packages/FirstPersonCameraMode): a first person navigation mode that uses the Pointer Lock API
+* [cesium-flyto](packages/cesium-flyto): a camera mode that flies toward the double-clicked position
 * [cesium-sphere-camera](packages/cesium-sphere-camera): a camera mode that allows the user to rotate the camera around a position
 * [cesium-binoculars](packages/cesium-binoculars): a camera mode that allows the user to use binoculars with the mouse wheel
 
