@@ -1,5 +1,7 @@
 import {
   CameraEventType,
+  Cartesian2,
+  Cartesian3,
   PostProcessStage,
   PostProcessStageComposite,
   PostProcessStageLibrary,
@@ -11,6 +13,8 @@ import Lens from "./shaders/Lens.js";
 
 // blur of the depth of field and of the rim, the sigma of Cesium's blur stage
 const LENS_BLUR = 3;
+
+const middleScratch = new Cartesian2();
 
 export default class CesiumBinoculars {
   /**
@@ -36,6 +40,7 @@ export default class CesiumBinoculars {
     /** @type {PostProcessStageComposite | undefined} */
     this.lens_ = undefined;
     this.previousDepthTestAgainstTerrain_ = false;
+    this.reticle_ = false;
     this.onPreRender_ = this.onPreRender.bind(this);
     this.onMouseWheel_ = this.onMouseWheel.bind(this);
   }
@@ -95,6 +100,8 @@ export default class CesiumBinoculars {
           uniforms: {
             blurTexture: blur.name,
             magnification: () => this.magnification,
+            reticle: () => (this.reticle_ ? 1 : 0),
+            pixelsPerMil: () => (scene.drawingBufferHeight / 2 / Math.tan(/** @type {number} */ (this.frustum_.fovy) / 2)) * 0.001,
           },
         }),
       ],
@@ -114,6 +121,36 @@ export default class CesiumBinoculars {
     if (scene.globe) {
       scene.globe.depthTestAgainstTerrain = this.previousDepthTestAgainstTerrain_;
     }
+  }
+
+  /**
+   * Whether to draw a rangefinder reticle: a mil scale (milliradians) that
+   * grows with the magnification, so an object's size is its distance times
+   * the mils it covers, divided by 1000.
+   */
+  get reticle() {
+    return this.reticle_;
+  }
+
+  set reticle(value) {
+    this.reticle_ = value;
+    this.viewer.scene.requestRender();
+  }
+
+  /**
+   * Distance in meters from the camera to what is in the middle of the view,
+   * terrain or 3D Tiles; undefined for the sky, when inactive or when picking
+   * positions is not supported. Picked when read.
+   */
+  get distance() {
+    const scene = this.viewer.scene;
+    if (!this.active_ || !scene.pickPositionSupported) {
+      return undefined;
+    }
+    const canvas = scene.canvas;
+    const middle = Cartesian2.fromElements(canvas.clientWidth / 2, canvas.clientHeight / 2, middleScratch);
+    const position = scene.pickPosition(middle);
+    return position && Cartesian3.distance(scene.camera.positionWC, position);
   }
 
   get frustum_() {

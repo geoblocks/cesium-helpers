@@ -2,12 +2,17 @@
 // them. Inside, lens effects: a slight fisheye and color fringes toward the rim, both stronger at
 // high magnification, the light falling off and the image softening toward the rim, a depth of
 // field focused on the middle of the view that gets shallower as the magnification grows, and the
-// warm tint of the coatings. Picking ignores the fisheye, so near the rim the picked point is a
-// little off what is shown.
+// warm tint of the coatings. Optionally, a rangefinder reticle, a mil scale that grows with the
+// magnification. Picking ignores the fisheye, so near the rim the picked point is a little off
+// what is shown.
 uniform sampler2D colorTexture;
 uniform sampler2D blurTexture;
 uniform sampler2D depthTexture;
 uniform float magnification;
+// 1 to draw the reticle, 0 not to
+uniform float reticle;
+// device pixels per milliradian, from the field of view
+uniform float pixelsPerMil;
 in vec2 v_textureCoordinates;
 
 const vec2 BOX = vec2(160.0, 100.0);
@@ -29,6 +34,50 @@ const float VIGNETTE = 0.35;
 const float RIM_BLUR = 0.6;
 // sharp within this many factors of two of the focal distance at 1x, narrower as 1 / magnification
 const float FOCUS_RANGE = 2.0;
+
+// ticks of the reticle closer than this, in CSS pixels, are left out for every 5th or 10th
+const float MIN_TICK_SPACING = 6.0;
+// ticks on each side of the middle, and the empty gap in the middle, in ticks
+const float TICKS = 10.0;
+const float GAP = 1.0;
+// dark lines in a light halo, readable on dark forest as on snow
+const vec4 RETICLE = vec4(0.05, 0.05, 0.05, 0.9);
+const vec4 HALO = vec4(0.9, 0.9, 0.85, 0.6);
+
+// coverage of a line this far from the pixel, width pixels wide
+float line(float distance, float width) {
+  return 1.0 - smoothstep(0.5 * width - 0.5, 0.5 * width + 0.5, distance);
+}
+
+// coverage of the reticle at a pixel, in device pixels from the middle of the view, with lines
+// width device pixels wide: a cross of mil scales, ticks every 1, 5 or 10 mils, longer every 5th
+float reticleAt(vec2 p, float width) {
+  float minSpacing = MIN_TICK_SPACING * czm_pixelRatio;
+  float spacing = pixelsPerMil;
+  if (spacing < minSpacing) {
+    spacing *= 5.0;
+  }
+  if (spacing < minSpacing) {
+    spacing *= 2.0;
+  }
+  float coverage = 0.0;
+  // one axis at a time: along is the distance along the scale, across the distance from it
+  for (int axis = 0; axis < 2; axis++) {
+    float along = axis == 0 ? p.x : p.y;
+    float across = axis == 0 ? p.y : p.x;
+    float fromMiddle = abs(along);
+    if (fromMiddle < GAP * spacing || fromMiddle > TICKS * spacing + width) {
+      continue;
+    }
+    float tick = floor(fromMiddle / spacing + 0.5);
+    float tickLength = (mod(tick, 5.0) == 0.0 ? 6.0 : 3.0) * czm_pixelRatio + 0.5 * width;
+    coverage = max(coverage, line(abs(across), width));
+    if (abs(across) < tickLength) {
+      coverage = max(coverage, line(abs(fromMiddle - tick * spacing), width));
+    }
+  }
+  return coverage;
+}
 
 // offsets in box units for one eyepiece: xy the fisheye, zw the color fringe
 vec4 lensOffsets(vec2 toCenter, float strength) {
@@ -84,6 +133,11 @@ void main() {
   color *= vec3(1.0, 0.98, 0.93);
   // the light falls off toward the field stop
   color *= 1.0 - VIGNETTE * smoothstep(0.5, 1.0, fromAxis);
+  if (reticle > 0.0) {
+    vec2 fromMiddle = gl_FragCoord.xy - 0.5 * size;
+    color = mix(color, HALO.rgb, HALO.a * reticleAt(fromMiddle, 3.0 * czm_pixelRatio));
+    color = mix(color, RETICLE.rgb, RETICLE.a * reticleAt(fromMiddle, czm_pixelRatio));
+  }
   float open = 1.0 - smoothstep(RADIUS - EDGE, RADIUS + EDGE, min(length(toLeft), length(toRight)));
   out_FragColor = vec4(color * open, center.a);
 }
