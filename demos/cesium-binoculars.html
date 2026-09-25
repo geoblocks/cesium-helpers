@@ -26,7 +26,7 @@
   <button id="activate" type="button">toggle mode</button>
   <script type="module">
     import {createViewer} from './setup.js';
-    import CesiumBinoculars from '../packages/cesium-binoculars/cesium-binoculars.js';
+    import CesiumBinoculars from '../packages/cesium-binoculars/src/cesium-binoculars.js';
 
     createViewer('cesiumContainer').then(viewer => {
       const mode = new CesiumBinoculars(viewer);

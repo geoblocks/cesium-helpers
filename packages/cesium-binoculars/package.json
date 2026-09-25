@@ -8,8 +8,24 @@
     "url": "https://github.com/geoblocks/cesium-helpers/",
     "directory": "packages/cesium-binoculars"
   },
-  "main": "cesium-binoculars.js",
-  "module": "cesium-binoculars.js",
+  "main": "dist/cesium-binoculars.js",
+  "module": "dist/cesium-binoculars.js",
+  "types": "dist/cesium-binoculars.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/cesium-binoculars.d.ts",
+      "default": "./dist/cesium-binoculars.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -p .",
+    "prepack": "npm run build"
+  },
   "publishConfig": {
     "access": "public"
   },
