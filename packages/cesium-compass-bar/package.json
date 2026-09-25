@@ -2,6 +2,7 @@
   "name": "@geoblocks/cesium-compass-bar",
   "version": "0.0.4",
   "license": "BSD-3-Clause",
+  "type": "module",
   "repository": {
     "type": "git",
     "url": "https://github.com/geoblocks/cesium-helpers/",

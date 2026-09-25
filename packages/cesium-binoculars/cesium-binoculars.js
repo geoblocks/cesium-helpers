@@ -2,7 +2,7 @@ import { ScreenSpaceEventType, Math as CesiumMath } from "@cesium/engine";
 
 export default class CesiumBinoculars {
   /**
-   * @param {import('cesium').Viewer} viewer
+   * @param {import('@cesium/engine').CesiumWidget} viewer
    * @param {number} [zoomFactor]
    */
   constructor(viewer, zoomFactor = Math.PI / 36) {
@@ -24,7 +24,7 @@ export default class CesiumBinoculars {
     }
     this.active_ = active;
     this.viewer.scene.screenSpaceCameraController.enableZoom = !active;
-    const frustum = /** @type {import('cesium').PerspectiveFrustum} */ (this.viewer.scene.camera.frustum);
+    const frustum = /** @type {import('@cesium/engine').PerspectiveFrustum} */ (this.viewer.scene.camera.frustum);
     if (active) {
       this.originalFov_ = frustum.fov;
       this.viewer.screenSpaceEventHandler.setInputAction(this.onMouseWheel_, ScreenSpaceEventType.WHEEL);
@@ -38,11 +38,11 @@ export default class CesiumBinoculars {
    * @param {number} movement
    */
   onMouseWheel(movement) {
-    const frustum = /** @type {import('cesium').PerspectiveFrustum} */ (
+    const frustum = /** @type {import('@cesium/engine').PerspectiveFrustum} */ (
       this.viewer.scene.camera.frustum
     );
     const fov =
-      frustum.fov + (movement > 0 ? -this.zoomFactor_ : this.zoomFactor_);
+      /** @type {number} */ (frustum.fov) + (movement > 0 ? -this.zoomFactor_ : this.zoomFactor_);
     frustum.fov = CesiumMath.clamp(
       fov,
       CesiumMath.toRadians(1),

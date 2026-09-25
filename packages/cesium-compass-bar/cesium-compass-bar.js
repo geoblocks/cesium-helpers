@@ -3,6 +3,7 @@ import { LitElement, css, html } from "lit";
 // FIXME: configurable tick count
 
 export default class CesiumCompassBar extends LitElement {
+  /** @override */
   static get properties() {
     return {
       scene: { type: Object },
@@ -10,6 +11,7 @@ export default class CesiumCompassBar extends LitElement {
     };
   }
 
+  /** @override */
   static get styles() {
     return css`
       :host {
@@ -63,21 +65,28 @@ export default class CesiumCompassBar extends LitElement {
     super();
 
     /**
-     * @type {import('cesium').Scene}
+     * Required. In TypeScript, replace with a `declare scene: Scene;` field.
+     * @type {import('@cesium/engine').Scene}
      */
-    this.scene;
+    this.scene = /** @type {import('@cesium/engine').Scene} */ (/** @type {unknown} */ (undefined));
 
     /**
      * @type {number}
      */
-    this.intercardinalWidth;
+    this.intercardinalWidth = 0;
 
     /**
-     * @type {import('cesium').Event.RemoveCallback}
+     * @type {number}
+     */
+    this.heading = 0;
+
+    /**
+     * @type {import('@cesium/engine').Event.RemoveCallback | null}
      */
     this.unlistenFromPostRender = null;
   }
 
+  /** @override */
   updated() {
     if (this.scene && !this.unlistenFromPostRender) {
       this.unlistenFromPostRender = this.scene.postRender.addEventListener(
@@ -90,6 +99,7 @@ export default class CesiumCompassBar extends LitElement {
     }
   }
 
+  /** @override */
   disconnectedCallback() {
     if (this.unlistenFromPostRender) {
       this.unlistenFromPostRender();
@@ -98,6 +108,9 @@ export default class CesiumCompassBar extends LitElement {
     super.disconnectedCallback();
   }
 
+  /**
+   * @param {number} index
+   */
   getTransform(index) {
     const width = this.intercardinalWidth;
     let translate = -width / 2;
@@ -113,11 +126,12 @@ export default class CesiumCompassBar extends LitElement {
     return `transform: translate(${visibleIndex * width + translate}px)`;
   }
 
+  /** @override */
   render() {
     const ticks = html`
       <div class="ticks">
         ${Array(7)
-          .fill()
+          .fill(undefined)
           .map((_, index, arr) => html`<div part="tick ${index === Math.floor(arr.length / 2) ? 'major' : 'minor'}"></div>`)}
       </div>
     `;

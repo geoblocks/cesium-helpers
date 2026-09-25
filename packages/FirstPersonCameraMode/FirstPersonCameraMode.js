@@ -3,7 +3,7 @@ import {ScreenSpaceEventType, Math as CesiumMath} from '@cesium/engine';
 export default class FirstPersonCameraMode {
 
   /**
-   * @param {import('cesium').Viewer} viewer
+   * @param {import('@cesium/engine').CesiumWidget} viewer
    * @param {number} [zoomFactor=Math.PI / 36]
    * @param {number} [movementFactor=0.003]
    */
@@ -29,7 +29,7 @@ export default class FirstPersonCameraMode {
 
   onPointerLockChange_() {
     this.scene_.screenSpaceCameraController.enableInputs = !this.active;
-    const frustum = /** @type {import('cesium').PerspectiveFrustum} */ (this.scene_.camera.frustum);
+    const frustum = /** @type {import('@cesium/engine').PerspectiveFrustum} */ (this.scene_.camera.frustum);
     if (this.active) {
       // enter
       this.originalFov_ = frustum.fov;
@@ -61,8 +61,8 @@ export default class FirstPersonCameraMode {
    * @param {number} movement
    */
   onMouseWheel_(movement) {
-    const frustum = /** @type {import('cesium').PerspectiveFrustum} */ (this.scene_.camera.frustum);
-    const fov = frustum.fov + (movement > 0 ? -this.zoomFactor_ : this.zoomFactor_);
+    const frustum = /** @type {import('@cesium/engine').PerspectiveFrustum} */ (this.scene_.camera.frustum);
+    const fov = /** @type {number} */ (frustum.fov) + (movement > 0 ? -this.zoomFactor_ : this.zoomFactor_);
     frustum.fov = CesiumMath.clamp(fov, CesiumMath.toRadians(1), CesiumMath.toRadians(60));
   }
 

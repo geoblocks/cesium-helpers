@@ -2,12 +2,14 @@ import {LitElement, css, html} from 'lit';
 
 class CesiumViewCube extends LitElement {
 
+  /** @override */
   static get properties() {
     return {
       scene: {type: Object}
     };
   }
 
+  /** @override */
   static get styles() {
     return css`
       :host {
@@ -74,31 +76,35 @@ class CesiumViewCube extends LitElement {
     super();
 
     /**
-     * @type {import('cesium').Scene}
+     * Required. In TypeScript, replace with a `declare scene: Scene;` field.
+     * @type {import('@cesium/engine').Scene}
      */
-    this.scene;
+    this.scene = /** @type {import('@cesium/engine').Scene} */ (/** @type {unknown} */ (undefined));
 
     /**
-     * @type {HTMLElement}
+     * @type {HTMLElement | undefined}
      */
     this.cubeElement = undefined;
 
     /**
-     * @type {import('cesium').Event.RemoveCallback}
+     * @type {import('@cesium/engine').Event.RemoveCallback | null}
      */
     this.unlistenPostRender = null;
   }
 
+  /** @override */
   firstUpdated() {
-    this.cubeElement = this.shadowRoot.querySelector('#cube');
+    this.cubeElement = /** @type {HTMLElement} */ (this.renderRoot.querySelector('#cube'));
   }
 
+  /** @override */
   updated() {
     if (this.scene && !this.unlistenPostRender) {
       this.unlistenPostRender = this.scene.postRender.addEventListener(() => this.updateFromCamera());
     }
   }
 
+  /** @override */
   disconnectedCallback() {
     if (this.unlistenPostRender) {
       this.unlistenPostRender();
@@ -113,6 +119,7 @@ class CesiumViewCube extends LitElement {
     }
   }
 
+  /** @override */
   render() {
     return html`
       <div id="wrapper">
