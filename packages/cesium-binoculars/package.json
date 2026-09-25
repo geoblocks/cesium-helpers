@@ -10,6 +10,10 @@
   },
   "main": "cesium-binoculars.js",
   "module": "cesium-binoculars.js",
+  "files": [
+    "cesium-binoculars.js",
+    "shaders/*.js"
+  ],
   "publishConfig": {
     "access": "public"
   },

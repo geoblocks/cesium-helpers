@@ -7,8 +7,10 @@
   ],
   "scripts": {
     "build-demos": "vite build",
+    "build-shaders": "node scripts/build-shaders.js",
     "dev": "vite",
     "gh-pages": "npm run build-demos && gh-pages -d dist",
+    "prepare": "npm run build-shaders",
     "typecheck": "tsc --pretty"
   },
   "devDependencies": {
