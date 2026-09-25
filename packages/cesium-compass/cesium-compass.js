@@ -25,8 +25,21 @@ const outerRingSvg = svg`<svg height="145" width="145" viewBox="0 0 145 145"><pa
 const innerRingSvg = svg`<svg height="145" width="145" viewBox="0 0 145 145"><path d="M72.719 54.375c-.477 0-.908.245-1.219.563-.31.317-.551.701-.781 1.187-.172.363-.32.792-.469 1.25-6.916 1.076-12.313 6.657-13 13.625-.328.117-.662.245-.938.375-.485.23-.901.471-1.218.781-.317.31-.563.742-.563 1.219h.032c0 .477.245.877.562 1.188.317.31.702.582 1.188.812.355.168.771.322 1.218.469 1.371 6.1 6.421 10.834 12.719 11.812.147.447.3.863.469 1.219.23.486.47.87.781 1.188.31.317.742.562 1.219.562.476 0 .877-.245 1.187-.563.31-.317.583-.701.813-1.187.172-.363.319-.792.469-1.25 6.249-1.017 11.256-5.718 12.624-11.781.448-.147.864-.3 1.22-.469.485-.23.9-.502 1.218-.813.317-.31.563-.71.563-1.187h-.032c0-.477-.245-.909-.562-1.219-.317-.31-.702-.551-1.188-.781a9.68 9.68 0 00-.906-.375c-.685-6.922-6.052-12.496-12.906-13.625-.15-.462-.327-.885-.5-1.25a4.292 4.292 0 00-.813-1.188c-.31-.317-.71-.562-1.187-.562zm-.063 1.406c.036-.013.06 0 .063 0 .005 0 .043-.022.187.125.145.148.344.447.531.844.064.135.124.31.188.469-.32-.02-.644-.063-.969-.063-.289 0-.558.047-.844.063.064-.16.124-.334.188-.469.188-.397.356-.696.5-.844a.508.508 0 01.156-.125zm0 2.407c.448 0 .906.054 1.344.093.177.593.348 1.271.5 2.032.475 2.37.808 5.463.938 8.937-.907-.029-1.835-.063-2.782-.063-.923 0-1.802.036-2.687.063.138-3.474.493-6.567.969-8.938.154-.771.32-1.463.5-2.062a14.53 14.53 0 011.218-.063zm-2.719.28c-.13.5-.26.988-.374 1.563-.499 2.488-.839 5.694-.97 9.25-3.213.152-6.119.48-8.406.938-.682.136-1.275.28-1.843.437.799-6.135 5.504-11.036 11.593-12.187zm5.563.032c6.043 1.184 10.705 6.053 11.5 12.156-.57-.156-1.2-.302-1.875-.437-2.263-.453-5.109-.784-8.281-.938-.13-3.556-.47-6.762-.969-9.25-.113-.564-.248-1.04-.375-1.531zm-2.844 12.094c.96 0 1.896.033 2.813.062.013.612.031 1.215.031 1.844 0 1.229-.014 2.438-.063 3.594-.897.028-1.811.062-2.75.062-.927 0-1.83-.034-2.718-.062a82.244 82.244 0 01-.063-3.594c0-.629.018-1.232.031-1.844.896-.028 1.784-.062 2.72-.062zm-4.094.094c-.012.606-.03 1.19-.03 1.812 0 1.224.015 2.408.062 3.563-3.125-.15-5.921-.472-8.094-.907-.785-.157-1.511-.316-2.125-.5a14.206 14.206 0 01-.188-2.156c0-.116.029-.229.032-.344.643-.203 1.39-.39 2.25-.562 2.167-.434 4.979-.756 8.093-.906zm8.313.03c3.075.153 5.824.447 7.969.876.857.171 1.63.36 2.281.562.003.115 0 .229 0 .344 0 .736-.08 1.45-.188 2.156-.598.18-1.29.346-2.062.5-2.158.432-4.932.755-8.031.906.047-1.154.062-2.338.062-3.562 0-.612-.019-1.185-.031-1.781zm-19.719 1.844c.003.573.061 1.132.125 1.688-.125-.051-.266-.105-.375-.156-.396-.188-.665-.388-.812-.531-.147-.144-.157-.183-.157-.188 0-.005-.022-.075.126-.219.147-.144.447-.312.843-.5.071-.033.172-.06.25-.094zm31.032 0c.082.036.175.06.25.094.396.188.665.356.812.5.147.144.156.214.156.219 0 .005-.009.044-.156.188-.147.143-.416.343-.813.53-.097.047-.233.08-.343.126.062-.547.091-1.094.094-1.656zm-29.5 3.626c.479.123.983.234 1.53.343 2.303.46 5.23.787 8.47.938.167 2.843.46 5.433.874 7.5.116.575.246 1.063.376 1.562-5.464-1.028-9.834-5.092-11.25-10.344zm27.968 0C85.248 81.407 80.92 85.442 75.5 86.5c.127-.49.262-.967.375-1.531.414-2.067.708-4.657.875-7.5 3.204-.152 6.088-.48 8.375-.938.548-.11 1.052-.22 1.531-.344zM70.062 77.53c.866.026 1.724.031 2.626.031.912 0 1.782-.004 2.656-.03-.165 2.736-.454 5.207-.844 7.156-.152.76-.323 1.438-.5 2.03-.437.04-.896.063-1.344.063-.415 0-.812-.029-1.219-.062a22.698 22.698 0 01-.5-2.031c-.39-1.95-.7-4.42-.874-7.157zm1.75 10.281c.285.016.555.032.844.032.325 0 .649-.012.969-.031-.06.148-.127.31-.188.437-.187.397-.386.696-.53.844-.145.147-.183.125-.188.125-.006 0-.075.022-.219-.125-.144-.148-.312-.447-.5-.844a8.629 8.629 0 01-.188-.438z"/></svg>`;
 const rotationMarkerSvg = svg`<svg height="145" width="145" viewBox="0 0 145 145"><path d="M72.469 22.031c-12.963.02-25.947 4.973-35.781 14.844l11.156 11.094c13.678-13.729 35.599-13.742 49.281-.063l11.125-11.125c-9.848-9.846-22.818-14.769-35.781-14.75z"/></svg>`;
 
+/**
+ * @typedef {Object} Context
+ * @property {DOMRect} compassRectangle
+ * @property {Cartesian2} compassCenter
+ * @property {Cartesian3 | undefined} viewCenter
+ * @property {Matrix4} frame
+ * @property {number} rotateInitialCursorAngle
+ * @property {number} rotateInitialCameraAngle
+ * @property {boolean} orbitIsLook
+ * @property {number} orbitLastTimestamp
+ */
+
 class CesiumCompass extends LitElement {
 
+  /** @override */
   static get properties() {
     return {
       scene: {type: Object},
@@ -39,6 +52,7 @@ class CesiumCompass extends LitElement {
     };
   }
 
+  /** @override */
   static get styles() {
     return css`
       :host {
@@ -96,14 +110,16 @@ class CesiumCompass extends LitElement {
     super();
 
     /**
-     * @type {import('cesium').Scene}
+     * Required. In TypeScript, replace with a `declare scene: Scene;` field.
+     * @type {import('@cesium/engine').Scene}
      */
-    this.scene;
+    this.scene = /** @type {import('@cesium/engine').Scene} */ (/** @type {unknown} */ (undefined));
 
     /**
-     * @type {import('cesium').Clock}
+     * Required. In TypeScript, replace with a `declare clock: Clock;` field.
+     * @type {import('@cesium/engine').Clock}
      */
-    this.clock = undefined;
+    this.clock = /** @type {import('@cesium/engine').Clock} */ (/** @type {unknown} */ (undefined));
 
     /**
      * @type {boolean}
@@ -118,15 +134,15 @@ class CesiumCompass extends LitElement {
     /**
      * @type {boolean}
      */
-    this.rotateClick = undefined;
+    this.rotateClick = false;
 
     /**
-     * @type {import('cesium').Event.RemoveCallback}
+     * @type {import('@cesium/engine').Event.RemoveCallback | null}
      */
     this.unlistenFromPostRender = null;
 
     /**
-     * @type {import('cesium').Event.RemoveCallback}
+     * @type {import('@cesium/engine').Event.RemoveCallback | null}
      */
     this.unlistenFromClockTick = null;
 
@@ -143,9 +159,13 @@ class CesiumCompass extends LitElement {
     this.handleOrbitPointerUpFunction = this.handleOrbitPointerUp.bind(this);
     this.handleOrbitTickFunction = this.handleOrbitTick.bind(this);
 
-    this.context = {};
+    /**
+     * @type {Context}
+     */
+    this.context = /** @type {Context} */ ({});
   }
 
+  /** @override */
   updated() {
     if (this.scene && this.clock && !this.unlistenFromPostRender) {
       this.unlistenFromPostRender = this.scene.postRender.addEventListener(() => {
@@ -168,6 +188,7 @@ class CesiumCompass extends LitElement {
     };
   }
 
+  /** @override */
   disconnectedCallback() {
     if (this.unlistenFromPostRender) {
       this.unlistenFromPostRender();
@@ -198,8 +219,8 @@ class CesiumCompass extends LitElement {
 
     windowPositionScratch.x = this.scene.canvas.clientWidth / 2;
     windowPositionScratch.y = this.scene.canvas.clientHeight / 2;
-    const ray = camera.getPickRay(windowPositionScratch, pickRayScratch);
-    this.context.viewCenter = this.scene.globe.pick(ray, this.scene, centerScratch);
+    camera.getPickRay(windowPositionScratch, pickRayScratch);
+    this.context.viewCenter = this.scene.globe.pick(pickRayScratch, this.scene, centerScratch);
 
     this.context.frame = Transforms.eastNorthUpToFixedFrame(
       this.context.viewCenter ? this.context.viewCenter : camera.positionWC,
@@ -400,10 +421,13 @@ class CesiumCompass extends LitElement {
   handleOrbitPointerUp(event) {
     document.removeEventListener('pointermove', this.handleOrbitPointerMoveFunction, false);
     document.removeEventListener('pointerup', this.handleOrbitPointerUpFunction, false);
-    this.unlistenFromClockTick();
+    if (this.unlistenFromClockTick) {
+      this.unlistenFromClockTick();
+    }
     this.orbitCursorOpacity = 0;
   }
 
+  /** @override */
   render() {
     if (this.ready) {
       return html`

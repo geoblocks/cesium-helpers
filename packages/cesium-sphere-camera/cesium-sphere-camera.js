@@ -16,7 +16,7 @@ const rotationAxisScratch = new Cartesian3();
 
 export default class CesiumSphereCamera {
   /**
-   * @param {import('cesium').Viewer} viewer
+   * @param {import('@cesium/engine').CesiumWidget} viewer
    */
   constructor(viewer) {
     this.viewer = viewer;
@@ -55,7 +55,7 @@ export default class CesiumSphereCamera {
 
   /**
    * Code from look3D function in ScreenSpaceCameraController
-   * @param {import('cesium').ScreenSpaceEventHandler.MotionEvent} movement
+   * @param {import('@cesium/engine').ScreenSpaceEventHandler.MotionEvent} movement
    */
   handleMoveEvent(movement) {
     if (!this.dragging_) {
@@ -71,10 +71,10 @@ export default class CesiumSphereCamera {
     look3DEndPos.x = movement.endPosition.x;
     look3DEndPos.y = 0.0;
 
-    let startDirection = camera.getPickRay(look3DStartPos, look3DStartRay).direction;
-    let endDirection = camera.getPickRay(look3DEndPos, look3DEndRay).direction;
+    camera.getPickRay(look3DStartPos, look3DStartRay);
+    camera.getPickRay(look3DEndPos, look3DEndRay);
 
-    let dot = Cartesian3.dot(startDirection, endDirection);
+    let dot = Cartesian3.dot(look3DStartRay.direction, look3DEndRay.direction);
     if (dot < 1.0) {
       // dot is in [0, 1]
       angle = Math.acos(dot);
@@ -91,11 +91,11 @@ export default class CesiumSphereCamera {
     look3DEndPos.x = 0.0;
     look3DEndPos.y = movement.endPosition.y;
 
-    startDirection = camera.getPickRay(look3DStartPos, look3DStartRay).direction;
-    endDirection = camera.getPickRay(look3DEndPos, look3DEndRay).direction;
+    camera.getPickRay(look3DStartPos, look3DStartRay);
+    camera.getPickRay(look3DEndPos, look3DEndRay);
     angle = 0.0;
 
-    dot = Cartesian3.dot(startDirection, endDirection);
+    dot = Cartesian3.dot(look3DStartRay.direction, look3DEndRay.direction);
     if (dot < 1.0) {
       // dot is in [0, 1]
       angle = Math.acos(dot);
