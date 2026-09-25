@@ -12,6 +12,8 @@ export const {
   Math,
   Matrix4,
   PostProcessStage,
+  PostProcessStageComposite,
+  PostProcessStageLibrary,
   Ray,
   ScreenSpaceEventType,
   Transforms,
