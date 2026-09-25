@@ -2,6 +2,9 @@
   "name": "cesium-helpers",
   "private": true,
   "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "build-demos": "vite build",
     "dev": "vite",
@@ -12,7 +15,6 @@
     "@cesium/engine": "26.3.0",
     "gh-pages": "6.3.0",
     "lerna": "10.0.1",
-    "lit": "3.3.3",
     "typescript": "7.0.2",
     "vite": "8.3.1"
   }
