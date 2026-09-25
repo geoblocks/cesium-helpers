@@ -1,6 +1,6 @@
 # Cesium Fly To
 
-This package provides a camera mode for CesiumJS: on double-click, the camera flies toward the clicked position (terrain or 3D Tiles) along the line of sight, and stops at a given distance from it.
+This package provides a camera mode for CesiumJS: on double-click, the camera flies toward the clicked position (terrain or 3D Tiles) along the line of sight, and stops at a given distance from it, with a cinematic motion blur and depth of field during the flight.
 
 ## Installation
 
@@ -26,3 +26,5 @@ flyTo.active = true;
 ```
 
 Deactivating the mode restores the previous input action for that event (for example the Viewer's entity tracking on double-click).
+
+During a flight, a camera motion blur and a slight depth of field focused on the target fade in, and fade out when the camera arrives. They need the terrain's depth, so `globe.depthTestAgainstTerrain` is on during the flight and restored after it: billboards and labels that show through the terrain can be hidden by it while flying.
