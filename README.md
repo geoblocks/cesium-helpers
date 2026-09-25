@@ -38,6 +38,8 @@ npm install
 # check which packages have changed since the last release.
 npx lerna changed
 
-# publish a new npm packages for all the packages
+# publish a new npm packages for all the changed packages.
+# Versions and changelogs are derived from the conventional commit messages,
+# and a GitHub release is created for each package (requires GH_TOKEN).
 npx lerna publish
 ```

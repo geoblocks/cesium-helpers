@@ -1,3 +1,10 @@
 {
-  "version": "independent"
+  "version": "independent",
+  "command": {
+    "version": {
+      "conventionalCommits": true,
+      "createRelease": "github",
+      "message": "chore(release): publish"
+    }
+  }
 }
