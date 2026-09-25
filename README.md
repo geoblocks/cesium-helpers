@@ -35,10 +35,16 @@ This repository uses [lerna](https://lerna.js.org/) to manage the packages.
 # bootstrap/setup
 npm install
 
+# type check the sources
+npm run typecheck
+
+# build the packages (JavaScript and type declarations in packages/*/dist)
+npm run build
+
 # check which packages have changed since the last release.
 npx lerna changed
 
-# publish a new npm packages for all the changed packages.
+# publish a new npm packages for all the changed packages (builds them first).
 # Versions and changelogs are derived from the conventional commit messages,
 # and a GitHub release is created for each package (requires GH_TOKEN).
 npx lerna publish

@@ -8,8 +8,16 @@
     "url": "https://github.com/geoblocks/cesium-helpers/",
     "directory": "packages/cesium-view-cube"
   },
-  "main": "src/cesium-view-cube.js",
-  "module": "src/cesium-view-cube.js",
+  "main": "dist/cesium-view-cube.js",
+  "module": "dist/cesium-view-cube.js",
+  "types": "dist/cesium-view-cube.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p .",
+    "prepack": "npm run build"
+  },
   "publishConfig": {
     "access": "public"
   },

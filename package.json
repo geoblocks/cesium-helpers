@@ -6,6 +6,7 @@
     "packages/*"
   ],
   "scripts": {
+    "build": "lerna run build",
     "build-demos": "vite build",
     "dev": "vite",
     "gh-pages": "npm run build-demos && gh-pages -d dist",

@@ -8,8 +8,16 @@
     "url": "https://github.com/geoblocks/cesium-helpers/",
     "directory": "packages/cesium-compass-bar"
   },
-  "main": "src/cesium-compass-bar.js",
-  "module": "src/cesium-compass-bar.js",
+  "main": "dist/cesium-compass-bar.js",
+  "module": "dist/cesium-compass-bar.js",
+  "types": "dist/cesium-compass-bar.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p .",
+    "prepack": "npm run build"
+  },
   "publishConfig": {
     "access": "public"
   },

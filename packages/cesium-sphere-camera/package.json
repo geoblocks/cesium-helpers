@@ -8,8 +8,16 @@
     "url": "https://github.com/geoblocks/cesium-helpers/",
     "directory": "packages/cesium-sphere-camera"
   },
-  "main": "src/cesium-sphere-camera.js",
-  "module": "src/cesium-sphere-camera.js",
+  "main": "dist/cesium-sphere-camera.js",
+  "module": "dist/cesium-sphere-camera.js",
+  "types": "dist/cesium-sphere-camera.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p .",
+    "prepack": "npm run build"
+  },
   "publishConfig": {
     "access": "public"
   },
