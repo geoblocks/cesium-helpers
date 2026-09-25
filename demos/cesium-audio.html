@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en" class="wa-theme-default wa-palette-default wa-light">
+
+<head>
+  <meta charset="UTF-8">
+  <script src="https://cdn.jsdelivr.net/npm/cesium@1.146.0/Build/Cesium/Cesium.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/cesium@1.146.0/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  <style>
+    html, body, #cesiumContainer {
+      height: 100%;
+      margin: 0;
+    }
+    #controls {
+      position: absolute;
+      inset-block-start: var(--wa-space-xl);
+      inset-inline-end: var(--wa-space-xl);
+      --spacing: var(--wa-space-s);
+      max-inline-size: 30ch;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="cesiumContainer"></div>
+  <wa-card id="controls">
+    <p class="wa-caption-m">Turn the sound on, then zoom toward the goat to hear it louder, and Ctrl + drag to turn your head and hear where it is. Headphones recommended: the HRTF panning model simulates how each ear hears the sound.</p>
+    <wa-switch id="sound" size="s">Sound</wa-switch>
+  </wa-card>
+  <script type="module">
+    import {createViewer} from './setup.js';
+    import CesiumAudio from '../packages/cesium-audio/cesium-audio.js';
+    import '@awesome.me/webawesome/dist/styles/webawesome.css';
+    import '@awesome.me/webawesome/dist/components/card/card.js';
+    import '@awesome.me/webawesome/dist/components/switch/switch.js';
+
+    // a goat seen from the side, with a white halo to stand out on any terrain
+    const goatIcon = 'data:image/svg+xml,' + encodeURIComponent(`
+      <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 64 64">
+        <defs>
+          <g id="goat">
+            <ellipse cx="36" cy="32" rx="15" ry="9"/>
+            <path d="M24 30 L17 16 L24 14 L30 27 Z"/>
+            <path d="M15 13 L24 12 L22 20 L11 22 Q8 21 9 18 Z"/>
+            <path d="M22 14 L28 15 L23 17 Z"/>
+            <path d="M20 12 Q22 4 30 6 Q24 7 23 12 Z"/>
+            <path d="M13 21 L15 21 L13 27 Z"/>
+            <path d="M50 27 L56 22 L54 29 Z"/>
+            <rect x="24" y="38" width="3" height="16"/>
+            <rect x="29" y="39" width="3" height="15"/>
+            <rect x="42" y="38" width="3" height="16"/>
+            <rect x="47" y="37" width="3" height="17"/>
+          </g>
+        </defs>
+        <use xlink:href="#goat" fill="#fff" stroke="#fff" stroke-width="4" stroke-linejoin="round"/>
+        <use xlink:href="#goat" fill="#222"/>
+      </svg>`);
+
+    createViewer('cesiumContainer').then(async viewer => {
+      const goat = Cesium.Cartographic.fromDegrees(7.897325, 46.690576);
+      await Cesium.sampleTerrainMostDetailed(viewer.terrainProvider, [goat]);
+      const position = Cesium.Cartographic.toCartesian(goat);
+      viewer.entities.add({
+        position,
+        billboard: {
+          image: goatIcon,
+          width: 40,
+          height: 40,
+          verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+        },
+      });
+
+      const toggle = document.querySelector('#sound');
+      let audioContext;
+      toggle.addEventListener('change', async () => {
+        if (!audioContext) {
+          // the audio context can only start from a user gesture
+          audioContext = new AudioContext();
+          const panner = new PannerNode(audioContext, {panningModel: 'HRTF', distanceModel: 'inverse', refDistance: 1000});
+          panner.connect(audioContext.destination);
+          new CesiumAudio(viewer.scene, position, panner).active = true;
+
+          const response = await fetch('sounds/goat.mp3');
+          const buffer = await audioContext.decodeAudioData(await response.arrayBuffer());
+          // a bleat every few seconds; the chain pauses while the context is suspended
+          const bleat = () => {
+            const source = new AudioBufferSourceNode(audioContext, {buffer});
+            source.connect(panner);
+            source.onended = () => setTimeout(bleat, 1000 + Math.random() * 3000);
+            source.start();
+          };
+          bleat();
+        } else if (toggle.checked) {
+          await audioContext.resume();
+        } else {
+          await audioContext.suspend();
+        }
+      });
+    });
+  </script>
+</body>
+
+</html>
