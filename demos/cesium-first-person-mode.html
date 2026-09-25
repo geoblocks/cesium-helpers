@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="wa-theme-default wa-palette-default wa-light">
 
 <head>
   <meta charset="UTF-8">
@@ -10,23 +10,32 @@
       height: 100%;
       margin: 0;
     }
-    #activate {
+    #controls {
       position: absolute;
-      right: 30px;
-      top: 30px;
-      font-family: monospace;
-      font-weight: bold;
-      font-size: 1.6em;
+      inset-block-start: var(--wa-space-xl);
+      inset-inline-end: var(--wa-space-xl);
+      --spacing: var(--wa-space-s);
+      max-inline-size: 30ch;
     }
   </style>
 </head>
 
 <body>
   <div id="cesiumContainer"></div>
-  <button id="activate" type="button">Activate !</button>
+  <wa-card id="controls">
+    <p class="wa-caption-m">Click the button, then move the mouse to look around and use the wheel to zoom. Press Esc to leave.</p>
+    <wa-button id="activate" size="s" variant="brand">
+      <wa-icon slot="start" name="person-walking"></wa-icon>
+      First person mode
+    </wa-button>
+  </wa-card>
   <script type="module">
     import {createViewer} from './setup.js';
     import FirstPersonCameraMode from '../packages/FirstPersonCameraMode/FirstPersonCameraMode.js';
+    import '@awesome.me/webawesome/dist/styles/webawesome.css';
+    import '@awesome.me/webawesome/dist/components/button/button.js';
+    import '@awesome.me/webawesome/dist/components/card/card.js';
+    import '@awesome.me/webawesome/dist/components/icon/icon.js';
 
     createViewer('cesiumContainer').then(viewer => {
       const mode = new FirstPersonCameraMode(viewer);

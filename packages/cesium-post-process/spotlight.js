@@ -1,5 +1,6 @@
 import {Cartesian4, PostProcessStage} from '@cesium/engine';
 import {acquireTerrainDepth, releaseTerrainDepth} from './depth-test.js';
+import Effect from './effect.js';
 import {eyeFocus} from './focus.js';
 import {heightUniforms} from './height.js';
 import EyeFromDepth from './shaders/EyeFromDepth.js';
@@ -14,52 +15,52 @@ const focusScratch = new Cartesian4();
  * light on the scene, shades the relief under it and lights up the haze in
  * its beam, the rest darkens.
  */
-export default class Spotlight {
+export default class Spotlight extends Effect {
   /**
    * @param {import('@cesium/engine').CesiumWidget} viewer
    * @param {{focus?: import('./focus.js').Focus, radius?: number, softness?: number, darkness?: number, beam?: number}} [options]
    */
   constructor(viewer, options = {}) {
-    this.viewer = viewer;
+    super(viewer);
     this.focus_ = options.focus;
     this.radius_ = options.radius ?? 200;
     this.softness_ = options.softness ?? 0.5;
     this.darkness_ = options.darkness ?? 0.8;
     this.beam_ = options.beam ?? 0.25;
-    /** @type {PostProcessStage | undefined} */
-    this.stage_ = undefined;
   }
 
-  get active() {
-    return this.stage_ !== undefined;
+  /**
+   * @override
+   * @param {import('@cesium/engine').Scene} scene
+   */
+  createStage_(scene) {
+    return new PostProcessStage({
+      fragmentShader: EyeFromDepth + Noise + Normal + SpotlightShader,
+      uniforms: {
+        focus: () => eyeFocus(scene, this.focus_, focusScratch),
+        up: heightUniforms(scene).up,
+        radius: () => this.radius_,
+        softness: () => this.softness_,
+        darkness: () => this.darkness_,
+        beam: () => this.beam_,
+      },
+    });
   }
 
-  set active(active) {
-    if (active === this.active) {
-      return;
-    }
-    const scene = this.viewer.scene;
-    if (active) {
-      acquireTerrainDepth(scene);
-      this.stage_ = new PostProcessStage({
-        fragmentShader: EyeFromDepth + Noise + Normal + SpotlightShader,
-        uniforms: {
-          focus: () => eyeFocus(scene, this.focus_, focusScratch),
-          up: heightUniforms(scene).up,
-          radius: () => this.radius_,
-          softness: () => this.softness_,
-          darkness: () => this.darkness_,
-          beam: () => this.beam_,
-        },
-      });
-      scene.postProcessStages.add(this.stage_);
-    } else {
-      // removing a stage also destroys it
-      scene.postProcessStages.remove(/** @type {PostProcessStage} */ (this.stage_));
-      this.stage_ = undefined;
-      releaseTerrainDepth(scene);
-    }
-    scene.requestRender();
+  /**
+   * @override
+   * @param {import('@cesium/engine').Scene} scene
+   */
+  activated_(scene) {
+    acquireTerrainDepth(scene);
+  }
+
+  /**
+   * @override
+   * @param {import('@cesium/engine').Scene} scene
+   */
+  deactivating_(scene) {
+    releaseTerrainDepth(scene);
   }
 
   /**
@@ -122,9 +123,5 @@ export default class Spotlight {
   set beam(value) {
     this.beam_ = value;
     this.viewer.scene.requestRender();
-  }
-
-  destroy() {
-    this.active = false;
   }
 }

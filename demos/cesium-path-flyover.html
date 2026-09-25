@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en" class="wa-theme-default wa-palette-default wa-light">
+
+<head>
+  <meta charset="UTF-8">
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Cesium.js"></script>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  <style>
+    html, body, #cesiumContainer {
+      height: 100%;
+      margin: 0;
+    }
+    #controls {
+      position: absolute;
+      inset-block-start: var(--wa-space-xl);
+      inset-inline-end: var(--wa-space-xl);
+      inline-size: 30ch;
+      --spacing: var(--wa-space-m);
+    }
+    #controls h2 {
+      margin: 0;
+      font-size: var(--wa-font-size-m);
+    }
+    /* collapsed: only the header, out of the way of the picture */
+    #controls.collapsed::part(body) {
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="cesiumContainer"></div>
+  <wa-card id="controls">
+    <h2 slot="header">Path flyover</h2>
+    <wa-button id="collapse" slot="header-actions" appearance="plain" size="s">
+      <wa-icon name="chevron-up" label="Collapse"></wa-icon>
+    </wa-button>
+    <div class="wa-stack wa-gap-s">
+      <wa-select id="track" size="s" label="Track" value="baulmes-valley">
+        <wa-option value="baulmes-valley">Gorge down to Baulmes, SchweizMobil tour (15 s)</wa-option>
+        <wa-option value="rechy">Vallon de Rechy, gorge section 8 km (40 s)</wa-option>
+        <wa-option value="suchet">Le Suchet, 14 km and 900 m of climb (60 s)</wa-option>
+        <span slot="hint">or drop a GPX or GeoJSON file on the map</span>
+      </wa-select>
+      <wa-select id="preset" size="s" label="Preset" value="default">
+        <wa-option value="custom">custom</wa-option>
+        <wa-option value="default">default</wa-option>
+        <wa-option value="pilot">pilot: low, close, rigid</wa-option>
+        <wa-option value="spectator">spectator: high, wide, calm</wa-option>
+        <wa-option value="drone">drone: mid height, floating</wa-option>
+      </wa-select>
+      <wa-slider id="style" size="s" label="Style" min="0" max="1" step="0.1" value="0.5" with-markers with-tooltip>
+        <span slot="reference">pilot</span>
+        <span slot="reference">spectator</span>
+      </wa-slider>
+      <wa-slider id="motion" size="s" label="Motion" min="0" max="1" step="0.1" value="0.5" with-markers with-tooltip>
+        <span slot="reference">rigid</span>
+        <span slot="reference">floating</span>
+      </wa-slider>
+      <wa-slider id="progress" size="s" label="Progress" min="0" max="1" step="0.01" value="0" disabled></wa-slider>
+      <wa-switch id="motionBlur" size="s">Motion blur</wa-switch>
+      <wa-switch id="drone" size="s">Drone</wa-switch>
+      <wa-button-group label="Playback">
+        <wa-button id="play" size="s" appearance="filled" loading disabled>
+          <wa-icon name="play" variant="solid" label="Play"></wa-icon>
+        </wa-button>
+        <wa-button id="pause" size="s" appearance="filled" disabled>
+          <wa-icon name="pause" variant="solid" label="Pause"></wa-icon>
+        </wa-button>
+        <wa-button id="stop" size="s" appearance="filled" disabled>
+          <wa-icon name="stop" variant="solid" label="Stop"></wa-icon>
+        </wa-button>
+      </wa-button-group>
+      <wa-tooltip for="play">Play</wa-tooltip>
+      <wa-tooltip for="pause">Pause</wa-tooltip>
+      <wa-tooltip for="stop">Stop</wa-tooltip>
+    </div>
+  </wa-card>
+  <script type="module">
+    import {createViewer} from './setup.js';
+    import CesiumPathFlyover from '../packages/cesium-path-flyover/cesium-path-flyover.js';
+    import {parseTrack} from '../packages/cesium-path-flyover/track.js';
+    import {AnalogVideo, DigitalVideo, DroneDisplay, Jello, MotionBlur} from '../packages/cesium-post-process/cesium-post-process.js';
+    import {Cartesian3} from './cesium-shim.js';
+    import '@awesome.me/webawesome/dist/styles/webawesome.css';
+    import '@awesome.me/webawesome/dist/components/card/card.js';
+    import '@awesome.me/webawesome/dist/components/select/select.js';
+    import '@awesome.me/webawesome/dist/components/option/option.js';
+    import '@awesome.me/webawesome/dist/components/slider/slider.js';
+    import '@awesome.me/webawesome/dist/components/switch/switch.js';
+    import '@awesome.me/webawesome/dist/components/button/button.js';
+    import '@awesome.me/webawesome/dist/components/button-group/button-group.js';
+    import '@awesome.me/webawesome/dist/components/tooltip/tooltip.js';
+    import '@awesome.me/webawesome/dist/components/icon/icon.js';
+
+    const tracks = {
+      'baulmes-valley': ['tracks/Tour_Baulmes_valley.gpx', 15],
+      'rechy': ['tracks/Vallon_de_Rechy_gorge.gpx', 40],
+      'suchet': ['tracks/Suchet.gpx', 60],
+    };
+
+    // [style, motion]
+    const presets = {
+      'custom': null,
+      'default': [0.5, 0.5],
+      'pilot': [0, 0],
+      'spectator': [1, 0.8],
+      'drone': [0.6, 1],
+    };
+
+    createViewer('cesiumContainer').then(async viewer => {
+      const select = document.querySelector('#track');
+      const preset = document.querySelector('#preset');
+      const style = document.querySelector('#style');
+      const motion = document.querySelector('#motion');
+      const progress = document.querySelector('#progress');
+      const button = document.querySelector('#play');
+      const pause = document.querySelector('#pause');
+      const stop = document.querySelector('#stop');
+      // the card folds to its header, to show the whole picture
+      const controls = document.querySelector('#controls');
+      const collapse = document.querySelector('#collapse');
+      collapse.addEventListener('click', () => {
+        const collapsed = controls.classList.toggle('collapsed');
+        const icon = collapse.querySelector('wa-icon');
+        icon.name = collapsed ? 'chevron-down' : 'chevron-up';
+        icon.label = collapsed ? 'Expand' : 'Collapse';
+      });
+      const motionBlur = new MotionBlur(viewer);
+      const motionBlurSwitch = document.querySelector('#motionBlur');
+      // the look of an FPV drone: a little jello, its display, and both its video links
+      const drone = [new Jello(viewer, {amount: 0.02}), new DroneDisplay(viewer), new AnalogVideo(viewer), new DigitalVideo(viewer, {breakup: 0.15})];
+      const droneSwitch = document.querySelector('#drone');
+      const setDrone = (active) => {
+        for (const effect of drone) effect.active = active;
+      };
+      motionBlurSwitch.addEventListener('change', () => {
+        motionBlur.active = motionBlurSwitch.checked;
+        // the stages run in the order they are added: the blur goes under the drone's picture
+        if (motionBlurSwitch.checked && droneSwitch.checked) {
+          setDrone(false);
+          setDrone(true);
+        }
+      });
+      droneSwitch.addEventListener('change', () => setDrone(droneSwitch.checked));
+      const settings = [select, preset, style, motion];
+      // what can act in each state: settings reload the track, so not while playing;
+      // pause only means something while playing; stop also rewinds a paused run;
+      // scrubbing works whenever a track is loaded; after a track fails to load, only the
+      // settings and another track can act
+      let state = 'loading';
+      const setState = (next) => {
+        state = next;
+        for (const control of settings) control.disabled = !(state === 'ready' || state === 'failed');
+        progress.disabled = state === 'loading' || state === 'failed';
+        pause.disabled = state !== 'playing';
+        stop.disabled = !(state === 'playing' || (state === 'ready' && flyover.progress > 0));
+        button.loading = state === 'loading';
+        button.disabled = state !== 'ready';
+      };
+      let flyover;
+      let scrubbing = false;
+      // a dropped file becomes a track option; its run lasts 4 s per km, 15 s to 120 s
+      const dropped = document.createElement('wa-option');
+      dropped.value = 'dropped';
+      const durationFor = (text) => {
+        const points = parseTrack(text).map(([lon, lat]) => Cartesian3.fromDegrees(lon, lat));
+        let length = 0;
+        for (let i = 1; i < points.length; i++) length += Cartesian3.distance(points[i - 1], points[i]);
+        return Math.min(120, Math.max(15, Math.round((4 * length) / 1000)));
+      };
+      const drop = async (file) => {
+        const duration = durationFor(await file.text());
+        if (tracks.dropped) URL.revokeObjectURL(tracks.dropped[0]);
+        tracks.dropped = [URL.createObjectURL(file), duration];
+        dropped.textContent = `${file.name} (${duration} s)`;
+        if (!dropped.parentNode) {
+          select.append(dropped);
+          await select.updateComplete; // the select resolves a new option's value after an update
+        }
+        select.value = 'dropped';
+        load('dropped');
+      };
+      const map = document.querySelector('#cesiumContainer');
+      map.addEventListener('dragover', (event) => event.preventDefault());
+      map.addEventListener('drop', (event) => {
+        event.preventDefault();
+        const file = event.dataTransfer?.files[0];
+        // not while playing: loading destroys the playing flyover
+        if (file && (state === 'ready' || state === 'failed')) drop(file);
+      });
+      const load = async (key = select.value) => {
+        setState('loading');
+        flyover?.destroy();
+        const [url, duration] = tracks[key];
+        flyover = new CesiumPathFlyover(viewer, {duration, style: +style.value, motion: +motion.value});
+        flyover.progressChanged.addEventListener((p) => {
+          const shown = Math.round(p * 100) / 100;
+          if (!scrubbing && +progress.value !== shown) progress.value = shown;
+        });
+        try {
+          await flyover.load(url);
+        } catch (error) {
+          // a track that cannot be fetched or read: choose another one
+          console.error(error);
+          setState('failed');
+          return;
+        }
+        progress.value = 0;
+        flyToStart(flyover);
+        setState('ready');
+      };
+      // fly the camera to the run's first frame: place it there to read the pose,
+      // put the camera back, then animate to it
+      const flyToStart = (run) => {
+        const camera = viewer.camera;
+        const from = {destination: camera.position.clone(), orientation: {direction: camera.direction.clone(), up: camera.up.clone()}};
+        run.progress = 0;
+        const to = {destination: camera.position.clone(), orientation: {heading: camera.heading, pitch: camera.pitch, roll: 0}};
+        camera.setView(from);
+        camera.flyTo({...to, duration: 2});
+      };
+      select.addEventListener('change', () => load());
+      preset.addEventListener('change', () => {
+        const values = presets[preset.value];
+        if (values) {
+          [style.value, motion.value] = values;
+          load();
+        }
+      });
+      for (const dial of [style, motion]) {
+        dial.addEventListener('change', () => {
+          preset.value = 'custom';
+          load();
+        });
+      }
+      progress.addEventListener('input', () => {
+        scrubbing = true;
+        flyover.progress = +progress.value;
+      });
+      progress.addEventListener('change', () => {
+        scrubbing = false;
+        if (state === 'ready') setState('ready'); // the stop button follows the progress
+      });
+      // stop() freezes the run where it is and play() resumes from there: that is a pause;
+      // a stop also rewinds to the start
+      pause.addEventListener('click', () => flyover.stop());
+      stop.addEventListener('click', () => {
+        flyover.stop();
+        flyover.progress = 0;
+        setState('ready');
+      });
+      button.addEventListener('click', async () => {
+        setState('playing');
+        await flyover.play();
+        setState('ready');
+      });
+      await load();
+    });
+  </script>
+</body>
+
+</html>

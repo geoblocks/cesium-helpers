@@ -1,5 +1,7 @@
-import {Cartesian4, PostProcessStage, PostProcessStageComposite, PostProcessStageLibrary} from '@cesium/engine';
+import {Cartesian4, PostProcessStage, PostProcessStageComposite} from '@cesium/engine';
+import createBlur from './blur.js';
 import {acquireTerrainDepth, releaseTerrainDepth} from './depth-test.js';
+import Effect from './effect.js';
 import {eyeFocus} from './focus.js';
 import EyeFromDepth from './shaders/EyeFromDepth.js';
 import TiltShiftShader from './shaders/TiltShift.js';
@@ -10,59 +12,60 @@ const focusScratch = new Cartesian4();
  * Tilt-shift: a narrow depth of field around the focus, which makes the scene
  * look like a scale model.
  */
-export default class TiltShift {
+export default class TiltShift extends Effect {
   /**
    * @param {import('@cesium/engine').CesiumWidget} viewer
    * @param {{focus?: import('./focus.js').Focus, range?: number, blur?: number, saturation?: number}} [options]
    */
   constructor(viewer, options = {}) {
-    this.viewer = viewer;
+    super(viewer);
     this.focus_ = options.focus;
     this.range_ = options.range ?? 0.3;
     this.blur_ = options.blur ?? 4;
     this.saturation_ = options.saturation ?? 0.3;
-    /** @type {PostProcessStageComposite | undefined} */
-    this.stage_ = undefined;
   }
 
-  get active() {
-    return this.stage_ !== undefined;
+  /**
+   * @override
+   * @param {import('@cesium/engine').Scene} scene
+   */
+  createStage_(scene) {
+    const blur = createBlur('czm_tilt_shift_blur');
+    const stage = new PostProcessStageComposite({
+      stages: [
+        blur,
+        new PostProcessStage({
+          fragmentShader: EyeFromDepth + TiltShiftShader,
+          uniforms: {
+            blurTexture: blur.name,
+            focus: () => eyeFocus(scene, this.focus_, focusScratch),
+            range: () => this.range_,
+            saturation: () => this.saturation_,
+          },
+        }),
+      ],
+      // both read the scene
+      inputPreviousStageTexture: false,
+      uniforms: blur.uniforms,
+    });
+    stage.uniforms.sigma = this.blur_;
+    return stage;
   }
 
-  set active(active) {
-    if (active === this.active) {
-      return;
-    }
-    const scene = this.viewer.scene;
-    if (active) {
-      acquireTerrainDepth(scene);
-      const blur = PostProcessStageLibrary.createBlurStage();
-      this.stage_ = new PostProcessStageComposite({
-        stages: [
-          blur,
-          new PostProcessStage({
-            fragmentShader: EyeFromDepth + TiltShiftShader,
-            uniforms: {
-              blurTexture: blur.name,
-              focus: () => eyeFocus(scene, this.focus_, focusScratch),
-              range: () => this.range_,
-              saturation: () => this.saturation_,
-            },
-          }),
-        ],
-        // both read the scene
-        inputPreviousStageTexture: false,
-        uniforms: blur.uniforms,
-      });
-      this.stage_.uniforms.sigma = this.blur_;
-      scene.postProcessStages.add(this.stage_);
-    } else {
-      // removing a stage also destroys it
-      scene.postProcessStages.remove(/** @type {PostProcessStageComposite} */ (this.stage_));
-      this.stage_ = undefined;
-      releaseTerrainDepth(scene);
-    }
-    scene.requestRender();
+  /**
+   * @override
+   * @param {import('@cesium/engine').Scene} scene
+   */
+  activated_(scene) {
+    acquireTerrainDepth(scene);
+  }
+
+  /**
+   * @override
+   * @param {import('@cesium/engine').Scene} scene
+   */
+  deactivating_(scene) {
+    releaseTerrainDepth(scene);
   }
 
   /**
@@ -115,9 +118,5 @@ export default class TiltShift {
   set saturation(value) {
     this.saturation_ = value;
     this.viewer.scene.requestRender();
-  }
-
-  destroy() {
-    this.active = false;
   }
 }

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="wa-theme-default wa-palette-default wa-light">
 
 <head>
   <meta charset="UTF-8">
@@ -10,29 +10,35 @@
       height: 100%;
       margin: 0;
     }
-    #activate {
+    #controls {
       position: absolute;
-      right: 30px;
-      top: 30px;
-      font-family: monospace;
-      font-weight: bold;
-      font-size: 1.6em;
+      inset-block-start: var(--wa-space-xl);
+      inset-inline-end: var(--wa-space-xl);
+      --spacing: var(--wa-space-s);
+      max-inline-size: 30ch;
     }
   </style>
 </head>
 
 <body>
   <div id="cesiumContainer"></div>
-  <button id="activate" type="button">toggle mode</button>
+  <wa-card id="controls">
+    <p class="wa-caption-m">Double-click the map to fly toward that point.</p>
+    <wa-switch id="activate" size="s" checked>Fly to</wa-switch>
+  </wa-card>
   <script type="module">
     import {createViewer} from './setup.js';
     import CesiumFlyTo from '../packages/cesium-flyto/cesium-flyto.js';
+    import '@awesome.me/webawesome/dist/styles/webawesome.css';
+    import '@awesome.me/webawesome/dist/components/card/card.js';
+    import '@awesome.me/webawesome/dist/components/switch/switch.js';
 
     createViewer('cesiumContainer').then(viewer => {
       // double-click on the terrain to fly toward it
       const mode = new CesiumFlyTo(viewer);
-      mode.active = true;
-      document.querySelector('#activate').addEventListener('click', () => mode.active = !mode.active);
+      const toggle = document.querySelector('#activate');
+      mode.active = toggle.checked;
+      toggle.addEventListener('change', () => mode.active = toggle.checked);
     });
   </script>
 </body>

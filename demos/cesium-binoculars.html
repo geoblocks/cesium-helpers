@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="wa-theme-default wa-palette-default wa-light">
 
 <head>
   <meta charset="UTF-8">
@@ -10,20 +10,12 @@
       height: 100%;
       margin: 0;
     }
-    #activate {
+    #controls {
       position: absolute;
-      right: 30px;
-      top: 30px;
-      font-family: monospace;
-      font-weight: bold;
-      font-size: 1.6em;
-    }
-    #reticle {
-      position: absolute;
-      right: 30px;
-      top: 80px;
-      font-family: monospace;
-      color: #bbb;
+      inset-block-start: var(--wa-space-xl);
+      inset-inline-end: var(--wa-space-xl);
+      --spacing: var(--wa-space-s);
+      max-inline-size: 30ch;
     }
     /* in the notch below where the two eyepieces meet: the 160x100 eyepieces box
        fits the window, and the notch is 45% of its height below the centre */
@@ -42,12 +34,20 @@
 
 <body>
   <div id="cesiumContainer"></div>
-  <button id="activate" type="button">toggle mode</button>
+  <wa-card id="controls">
+    <p class="wa-caption-m">Turn the switch on, then drag to look around and use the mouse wheel to zoom in and out without moving the camera.</p>
+    <div class="wa-stack wa-gap-s">
+      <wa-switch id="activate" size="s">Binoculars</wa-switch>
+      <wa-switch id="reticle" size="s">Reticle</wa-switch>
+    </div>
+  </wa-card>
   <div id="magnification"></div>
-  <label id="reticle"><input type="checkbox"> reticle</label>
   <script type="module">
     import {createViewer} from './setup.js';
     import CesiumBinoculars from '../packages/cesium-binoculars/cesium-binoculars.js';
+    import '@awesome.me/webawesome/dist/styles/webawesome.css';
+    import '@awesome.me/webawesome/dist/components/card/card.js';
+    import '@awesome.me/webawesome/dist/components/switch/switch.js';
 
     createViewer('cesiumContainer').then(viewer => {
       // today at 14:00, for the light
@@ -57,8 +57,9 @@
       viewer.clock.shouldAnimate = false;
 
       const mode = new CesiumBinoculars(viewer);
-      document.querySelector('#activate').addEventListener('click', () => mode.active = !mode.active);
-      const reticle = document.querySelector('#reticle input');
+      const toggle = document.querySelector('#activate');
+      toggle.addEventListener('change', () => mode.active = toggle.checked);
+      const reticle = document.querySelector('#reticle');
       reticle.addEventListener('change', () => mode.reticle = reticle.checked);
       const magnification = document.querySelector('#magnification');
       viewer.scene.postRender.addEventListener(() => {

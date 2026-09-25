@@ -1,49 +1,33 @@
 import {PostProcessStage} from '@cesium/engine';
+import Effect from './effect.js';
 import ColorIsolationShader from './shaders/ColorIsolation.js';
 import Hsl from './shaders/Hsl.js';
 
 /**
  * Color isolation: one hue keeps its color, the rest of the scene turns gray.
  */
-export default class ColorIsolation {
+export default class ColorIsolation extends Effect {
   /**
    * @param {import('@cesium/engine').CesiumWidget} viewer
    * @param {{hue?: number, range?: number, strength?: number}} [options]
    */
   constructor(viewer, options = {}) {
-    this.viewer = viewer;
+    super(viewer);
     this.hue_ = options.hue ?? 0;
     this.range_ = options.range ?? 60;
     this.strength_ = options.strength ?? 1;
-    /** @type {PostProcessStage | undefined} */
-    this.stage_ = undefined;
   }
 
-  get active() {
-    return this.stage_ !== undefined;
-  }
-
-  set active(active) {
-    if (active === this.active) {
-      return;
-    }
-    const scene = this.viewer.scene;
-    if (active) {
-      this.stage_ = new PostProcessStage({
-        fragmentShader: Hsl + ColorIsolationShader,
-        uniforms: {
-          hue: () => this.hue_ / 360,
-          range: () => this.range_ / 360,
-          strength: () => this.strength_,
-        },
-      });
-      scene.postProcessStages.add(this.stage_);
-    } else {
-      // removing a stage also destroys it
-      scene.postProcessStages.remove(/** @type {PostProcessStage} */ (this.stage_));
-      this.stage_ = undefined;
-    }
-    scene.requestRender();
+  /** @override */
+  createStage_() {
+    return new PostProcessStage({
+      fragmentShader: Hsl + ColorIsolationShader,
+      uniforms: {
+        hue: () => this.hue_ / 360,
+        range: () => this.range_ / 360,
+        strength: () => this.strength_,
+      },
+    });
   }
 
   /**
@@ -81,9 +65,5 @@ export default class ColorIsolation {
   set strength(value) {
     this.strength_ = value;
     this.viewer.scene.requestRender();
-  }
-
-  destroy() {
-    this.active = false;
   }
 }

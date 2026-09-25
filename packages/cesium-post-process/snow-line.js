@@ -1,5 +1,6 @@
 import {Math as CesiumMath, PostProcessStage} from '@cesium/engine';
 import {acquireTerrainDepth, releaseTerrainDepth} from './depth-test.js';
+import Effect from './effect.js';
 import {heightUniforms} from './height.js';
 import EyeFromDepth from './shaders/EyeFromDepth.js';
 import Height from './shaders/Height.js';
@@ -10,50 +11,50 @@ import SnowLineShader from './shaders/SnowLine.js';
  * Snow above an altitude, on the slopes gentle enough to hold it, shaded by
  * the sun.
  */
-export default class SnowLine {
+export default class SnowLine extends Effect {
   /**
    * @param {import('@cesium/engine').CesiumWidget} viewer
    * @param {{altitude?: number, transition?: number, maxSlope?: number, coverage?: number}} [options]
    */
   constructor(viewer, options = {}) {
-    this.viewer = viewer;
+    super(viewer);
     this.altitude_ = options.altitude ?? 2000;
     this.transition_ = options.transition ?? 200;
     this.maxSlope_ = options.maxSlope ?? 40;
     this.coverage_ = options.coverage ?? 1;
-    /** @type {PostProcessStage | undefined} */
-    this.stage_ = undefined;
   }
 
-  get active() {
-    return this.stage_ !== undefined;
+  /**
+   * @override
+   * @param {import('@cesium/engine').Scene} scene
+   */
+  createStage_(scene) {
+    return new PostProcessStage({
+      fragmentShader: EyeFromDepth + Height + Normal + SnowLineShader,
+      uniforms: {
+        ...heightUniforms(scene),
+        altitude: () => this.altitude_,
+        transition: () => this.transition_,
+        maxSlope: () => CesiumMath.toRadians(this.maxSlope_),
+        coverage: () => this.coverage_,
+      },
+    });
   }
 
-  set active(active) {
-    if (active === this.active) {
-      return;
-    }
-    const scene = this.viewer.scene;
-    if (active) {
-      acquireTerrainDepth(scene);
-      this.stage_ = new PostProcessStage({
-        fragmentShader: EyeFromDepth + Height + Normal + SnowLineShader,
-        uniforms: {
-          ...heightUniforms(scene),
-          altitude: () => this.altitude_,
-          transition: () => this.transition_,
-          maxSlope: () => CesiumMath.toRadians(this.maxSlope_),
-          coverage: () => this.coverage_,
-        },
-      });
-      scene.postProcessStages.add(this.stage_);
-    } else {
-      // removing a stage also destroys it
-      scene.postProcessStages.remove(/** @type {PostProcessStage} */ (this.stage_));
-      this.stage_ = undefined;
-      releaseTerrainDepth(scene);
-    }
-    scene.requestRender();
+  /**
+   * @override
+   * @param {import('@cesium/engine').Scene} scene
+   */
+  activated_(scene) {
+    acquireTerrainDepth(scene);
+  }
+
+  /**
+   * @override
+   * @param {import('@cesium/engine').Scene} scene
+   */
+  deactivating_(scene) {
+    releaseTerrainDepth(scene);
   }
 
   /**
@@ -102,9 +103,5 @@ export default class SnowLine {
   set coverage(value) {
     this.coverage_ = value;
     this.viewer.scene.requestRender();
-  }
-
-  destroy() {
-    this.active = false;
   }
 }

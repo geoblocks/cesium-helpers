@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="wa-theme-default wa-palette-default wa-light">
 
 <head>
   <meta charset="UTF-8">
@@ -12,126 +12,182 @@
     }
     #controls {
       position: absolute;
-      right: 30px;
-      top: 30px;
-      max-height: calc(100% - 84px);
+      inset-block-start: var(--wa-space-xl);
+      inset-inline-end: var(--wa-space-xl);
+      inline-size: 30ch;
+      max-block-size: calc(100% - 2 * var(--wa-space-xl));
       overflow: auto;
-      padding: 12px;
-      background: rgba(255, 255, 255, 0.85);
-      font-family: sans-serif;
-      font-size: 14px;
+      --spacing: var(--wa-space-m);
     }
-    #controls fieldset {
-      display: grid;
-      grid-template-columns: auto auto;
-      gap: 4px 12px;
-      align-items: center;
-      margin: 0 0 8px;
-    }
-    #controls legend {
-      font-weight: bold;
-    }
-    #controls p {
-      max-width: 30ch;
+    #controls h2 {
       margin: 0;
+      font-size: var(--wa-font-size-m);
     }
   </style>
 </head>
 
 <body>
   <div id="cesiumContainer"></div>
-  <form id="controls">
-    <fieldset name="snowLine">
-      <legend><label><input type="checkbox" name="active"> Snow line</label></legend>
-      <label for="altitude">Altitude</label>
-      <input type="range" id="altitude" name="altitude" min="500" max="4000" step="50" value="2000">
-      <label for="transition">Transition</label>
-      <input type="range" id="transition" name="transition" min="0" max="1000" step="10" value="200">
-      <label for="maxSlope">Max slope</label>
-      <input type="range" id="maxSlope" name="maxSlope" min="10" max="80" step="1" value="40">
-    </fieldset>
-    <fieldset name="valleyFog">
-      <legend><label><input type="checkbox" name="active"> Valley fog</label></legend>
-      <label for="top">Top</label>
-      <input type="range" id="top" name="top" min="400" max="3000" step="10" value="1500">
-      <label for="density">Density</label>
-      <input type="range" id="density" name="density" min="0.0005" max="0.02" step="0.0005" value="0.005">
-      <label for="softness">Softness</label>
-      <input type="range" id="softness" name="softness" min="0" max="500" step="10" value="100">
-    </fieldset>
-    <fieldset name="tiltShift">
-      <legend><label><input type="checkbox" name="active"> Tilt-shift</label></legend>
-      <label for="range">Sharp band</label>
-      <input type="range" id="range" name="range" min="0.05" max="1" step="0.05" value="0.3">
-      <label for="blur">Blur</label>
-      <input type="range" id="blur" name="blur" min="1" max="10" step="0.5" value="4">
-      <label for="saturation">Saturation</label>
-      <input type="range" id="saturation" name="saturation" min="0" max="1" step="0.05" value="0.3">
-    </fieldset>
-    <fieldset name="spotlight">
-      <legend><label><input type="checkbox" name="active"> Spotlight</label></legend>
-      <label for="radius">Radius</label>
-      <input type="range" id="radius" name="radius" min="20" max="2000" step="10" value="200">
-      <label for="softness">Softness</label>
-      <input type="range" id="softness" name="softness" min="0" max="1" step="0.05" value="0.5">
-      <label for="darkness">Darkness</label>
-      <input type="range" id="darkness" name="darkness" min="0" max="1" step="0.05" value="0.8">
-      <label for="beam">Beam</label>
-      <input type="range" id="beam" name="beam" min="0" max="1" step="0.05" value="0.25">
-      <label for="followCursor">Follow the cursor</label>
-      <input type="checkbox" id="followCursor" name="followCursor">
-    </fieldset>
-    <fieldset name="colorIsolation">
-      <legend><label><input type="checkbox" name="active"> Color isolation</label></legend>
-      <label for="hue">Hue</label>
-      <input type="range" id="hue" name="hue" min="0" max="359" step="1" value="0">
-      <label for="isolationRange">Range</label>
-      <input type="range" id="isolationRange" name="range" min="5" max="120" step="1" value="60">
-    </fieldset>
-    <fieldset name="infrared">
-      <legend><label><input type="checkbox" name="active"> Infrared</label></legend>
-      <label for="infraredStrength">Strength</label>
-      <input type="range" id="infraredStrength" name="strength" min="0" max="1" step="0.05" value="1">
-    </fieldset>
-    <fieldset name="technicolor">
-      <legend><label><input type="checkbox" name="active"> Technicolor</label></legend>
-      <label for="strength">Strength</label>
-      <input type="range" id="strength" name="strength" min="0" max="1" step="0.05" value="1">
-      <label for="technicolorAspectRatio">Aspect ratio</label>
-      <select id="technicolorAspectRatio" name="aspectRatio">
-        <option value="0" selected>none</option>
-        <option value="1.37">1.37</option>
-      </select>
-    </fieldset>
-    <fieldset name="super8">
-      <legend><label><input type="checkbox" name="active"> Super 8</label></legend>
-      <label for="fade">Fade</label>
-      <input type="range" id="fade" name="fade" min="0" max="1" step="0.05" value="0.5">
-      <label for="halation">Halation</label>
-      <input type="range" id="halation" name="halation" min="0" max="1" step="0.05" value="0.5">
-      <label for="grain">Grain</label>
-      <input type="range" id="grain" name="grain" min="0" max="0.5" step="0.01" value="0.15">
-      <label for="weave">Weave</label>
-      <input type="range" id="weave" name="weave" min="0" max="5" step="0.1" value="1.5">
-      <label for="flicker">Flicker</label>
-      <input type="range" id="flicker" name="flicker" min="0" max="0.3" step="0.01" value="0.08">
-      <label for="lightLeaks">Light leaks</label>
-      <input type="range" id="lightLeaks" name="lightLeaks" min="0" max="1" step="0.05" value="0.5">
-      <label for="super8AspectRatio">Aspect ratio</label>
-      <select id="super8AspectRatio" name="aspectRatio">
-        <option value="0">none</option>
-        <option value="1.3333" selected>4:3</option>
-      </select>
-    </fieldset>
-    <p>Click the map to focus the tilt-shift and the spotlight there.
-      <button type="button" id="center">Focus the middle</button></p>
-  </form>
+  <wa-card id="controls">
+    <h2 slot="header">Post-process</h2>
+    <div class="wa-stack wa-gap-xs">
+      <wa-details name="effects" data-effect="snowLine">
+        <wa-switch slot="summary" name="active" size="s">Snow line</wa-switch>
+        <div class="wa-stack wa-gap-xs">
+          <wa-slider name="altitude" size="s" label="Altitude" min="500" max="4000" step="50" value="2000" with-tooltip data-unit="m"></wa-slider>
+          <wa-slider name="transition" size="s" label="Transition" min="0" max="1000" step="10" value="200" with-tooltip data-unit="m"></wa-slider>
+          <wa-slider name="maxSlope" size="s" label="Max slope" min="10" max="80" step="1" value="40" with-tooltip data-unit="deg"></wa-slider>
+        </div>
+      </wa-details>
+      <wa-details name="effects" data-effect="valleyFog">
+        <wa-switch slot="summary" name="active" size="s">Valley fog</wa-switch>
+        <div class="wa-stack wa-gap-xs">
+          <wa-slider name="top" size="s" label="Top" min="400" max="3000" step="10" value="1500" with-tooltip data-unit="m"></wa-slider>
+          <wa-slider name="density" size="s" label="Density" min="0.0005" max="0.02" step="0.0005" value="0.005" with-tooltip data-unit="per-m"></wa-slider>
+          <wa-slider name="softness" size="s" label="Softness" min="0" max="500" step="10" value="100" with-tooltip data-unit="m"></wa-slider>
+        </div>
+      </wa-details>
+      <wa-details name="effects" data-effect="tiltShift">
+        <wa-switch slot="summary" name="active" size="s">Tilt-shift</wa-switch>
+        <div class="wa-stack wa-gap-xs">
+          <wa-slider name="range" size="s" label="Sharp band" min="0.05" max="1" step="0.05" value="0.3" with-tooltip></wa-slider>
+          <wa-slider name="blur" size="s" label="Blur" min="1" max="10" step="0.5" value="4" with-tooltip></wa-slider>
+          <wa-slider name="saturation" size="s" label="Saturation" min="0" max="1" step="0.05" value="0.3" with-tooltip data-unit="percent"></wa-slider>
+        </div>
+      </wa-details>
+      <wa-details name="effects" data-effect="motionBlur">
+        <wa-switch slot="summary" name="active" size="s">Motion blur</wa-switch>
+        <div class="wa-stack wa-gap-xs">
+          <wa-slider name="strength" size="s" label="Strength" min="0" max="1" step="0.05" value="1" with-tooltip data-unit="percent"></wa-slider>
+          <wa-slider name="exposure" size="s" label="Exposure (s)" min="0.005" max="0.1" step="0.005" value="0.04" with-tooltip data-unit="shutter"></wa-slider>
+        </div>
+      </wa-details>
+      <wa-details name="effects" data-effect="speedLines">
+        <wa-switch slot="summary" name="active" size="s">Speed lines</wa-switch>
+        <div class="wa-stack wa-gap-xs">
+          <wa-slider name="strength" size="s" label="Strength" min="0" max="1" step="0.05" value="1" with-tooltip data-unit="percent"></wa-slider>
+        </div>
+      </wa-details>
+      <wa-details name="effects" data-effect="spotlight">
+        <wa-switch slot="summary" name="active" size="s">Spotlight</wa-switch>
+        <div class="wa-stack wa-gap-xs">
+          <wa-slider name="radius" size="s" label="Radius" min="20" max="2000" step="10" value="200" with-tooltip data-unit="m"></wa-slider>
+          <wa-slider name="softness" size="s" label="Softness" min="0" max="1" step="0.05" value="0.5" with-tooltip data-unit="percent"></wa-slider>
+          <wa-slider name="darkness" size="s" label="Darkness" min="0" max="1" step="0.05" value="0.8" with-tooltip data-unit="percent"></wa-slider>
+          <wa-slider name="beam" size="s" label="Beam" min="0" max="1" step="0.05" value="0.25" with-tooltip data-unit="percent"></wa-slider>
+          <wa-switch name="followCursor" size="s">Follow the cursor</wa-switch>
+        </div>
+      </wa-details>
+      <wa-details name="effects" data-effect="colorIsolation">
+        <wa-switch slot="summary" name="active" size="s">Color isolation</wa-switch>
+        <div class="wa-stack wa-gap-xs">
+          <wa-slider name="hue" size="s" label="Hue" min="0" max="359" step="1" value="0" with-tooltip data-unit="deg"></wa-slider>
+          <wa-slider name="range" size="s" label="Range" min="5" max="120" step="1" value="60" with-tooltip data-unit="deg"></wa-slider>
+        </div>
+      </wa-details>
+      <wa-details name="effects" data-effect="infrared">
+        <wa-switch slot="summary" name="active" size="s">Infrared</wa-switch>
+        <div class="wa-stack wa-gap-xs">
+          <wa-slider name="strength" size="s" label="Strength" min="0" max="1" step="0.05" value="1" with-tooltip data-unit="percent"></wa-slider>
+        </div>
+      </wa-details>
+      <wa-details name="effects" data-effect="technicolor">
+        <wa-switch slot="summary" name="active" size="s">Technicolor</wa-switch>
+        <div class="wa-stack wa-gap-xs">
+          <wa-slider name="strength" size="s" label="Strength" min="0" max="1" step="0.05" value="1" with-tooltip data-unit="percent"></wa-slider>
+          <wa-select name="aspectRatio" size="s" label="Aspect ratio" value="0">
+            <wa-option value="0">none</wa-option>
+            <wa-option value="1.37">1.37</wa-option>
+          </wa-select>
+        </div>
+      </wa-details>
+      <wa-details name="effects" data-effect="super8">
+        <wa-switch slot="summary" name="active" size="s">Super 8</wa-switch>
+        <div class="wa-stack wa-gap-xs">
+          <wa-slider name="fade" size="s" label="Fade" min="0" max="1" step="0.05" value="0.5" with-tooltip data-unit="percent"></wa-slider>
+          <wa-slider name="halation" size="s" label="Halation" min="0" max="1" step="0.05" value="0.5" with-tooltip data-unit="percent"></wa-slider>
+          <wa-slider name="grain" size="s" label="Grain" min="0" max="0.5" step="0.01" value="0.15" with-tooltip data-unit="percent"></wa-slider>
+          <wa-slider name="weave" size="s" label="Weave" min="0" max="5" step="0.1" value="1.5" with-tooltip data-unit="px"></wa-slider>
+          <wa-slider name="flicker" size="s" label="Flicker" min="0" max="0.3" step="0.01" value="0.08" with-tooltip data-unit="percent"></wa-slider>
+          <wa-slider name="lightLeaks" size="s" label="Light leaks" min="0" max="1" step="0.05" value="0.5" with-tooltip data-unit="percent"></wa-slider>
+          <wa-select name="aspectRatio" size="s" label="Aspect ratio" value="1.3333">
+            <wa-option value="0">none</wa-option>
+            <wa-option value="1.3333">4:3</wa-option>
+          </wa-select>
+        </div>
+      </wa-details>
+      <wa-details name="effects" data-effect="lensDistortion">
+        <wa-switch slot="summary" name="active" size="s">Wide lens</wa-switch>
+        <div class="wa-stack wa-gap-xs">
+          <wa-slider name="distortion" size="s" label="Distortion" min="0" max="1" step="0.05" value="0.5" with-tooltip data-unit="percent"></wa-slider>
+          <wa-slider name="vignette" size="s" label="Vignette" min="0" max="1" step="0.05" value="0.5" with-tooltip data-unit="percent"></wa-slider>
+        </div>
+      </wa-details>
+      <wa-details name="effects" data-effect="jello">
+        <wa-switch slot="summary" name="active" size="s">Jello</wa-switch>
+        <div class="wa-stack wa-gap-xs">
+          <wa-slider name="amount" size="s" label="Amount" min="0" max="1" step="0.05" value="0.1" with-tooltip data-unit="percent"></wa-slider>
+          <wa-slider name="frequency" size="s" label="Frequency" min="2" max="80" step="1" value="30" with-tooltip data-unit="hz"></wa-slider>
+        </div>
+      </wa-details>
+      <wa-details name="effects" data-effect="droneDisplay">
+        <wa-switch slot="summary" name="active" size="s">Drone display</wa-switch>
+        <div class="wa-stack wa-gap-xs">
+          <wa-slider name="opacity" size="s" label="Opacity" min="0" max="1" step="0.05" value="1" with-tooltip data-unit="percent"></wa-slider>
+          <wa-select name="reticle" size="s" label="Reticle" value="v">
+            <wa-option value="ring">ring</wa-option>
+            <wa-option value="v">V</wa-option>
+            <wa-option value="heart">heart</wa-option>
+          </wa-select>
+        </div>
+      </wa-details>
+      <wa-details name="effects" data-effect="analogVideo">
+        <wa-switch slot="summary" name="active" size="s">Analog video</wa-switch>
+        <div class="wa-stack wa-gap-xs">
+          <wa-slider name="noise" size="s" label="Noise" min="0" max="1" step="0.05" value="0.5" with-tooltip data-unit="percent"></wa-slider>
+          <wa-slider name="interference" size="s" label="Interference" min="0" max="1" step="0.05" value="0.15" with-tooltip data-unit="percent"></wa-slider>
+        </div>
+      </wa-details>
+      <wa-details name="effects" data-effect="digitalVideo">
+        <wa-switch slot="summary" name="active" size="s">Digital video</wa-switch>
+        <div class="wa-stack wa-gap-xs">
+          <wa-slider name="breakup" size="s" label="Breakup" min="0" max="1" step="0.05" value="0.5" with-tooltip data-unit="percent"></wa-slider>
+        </div>
+      </wa-details>
+      <p class="wa-caption-m">Click the map to focus the tilt-shift, the spotlight and the speed lines there.</p>
+      <wa-button id="center" size="s">Focus the middle</wa-button>
+    </div>
+  </wa-card>
   <script type="module">
     import {createViewer} from './setup.js';
-    import {ColorIsolation, Infrared, SnowLine, Spotlight, Super8, Technicolor, TiltShift, ValleyFog} from '../packages/cesium-post-process/cesium-post-process.js';
+    import {AnalogVideo, ColorIsolation, DigitalVideo, DroneDisplay, Infrared, Jello, LensDistortion, MotionBlur, SnowLine, SpeedLines, Spotlight, Super8, Technicolor, TiltShift, ValleyFog} from '../packages/cesium-post-process/cesium-post-process.js';
+    import '@awesome.me/webawesome/dist/styles/webawesome.css';
+    import '@awesome.me/webawesome/dist/components/card/card.js';
+    import '@awesome.me/webawesome/dist/components/details/details.js';
+    import '@awesome.me/webawesome/dist/components/switch/switch.js';
+    import '@awesome.me/webawesome/dist/components/slider/slider.js';
+    import '@awesome.me/webawesome/dist/components/select/select.js';
+    import '@awesome.me/webawesome/dist/components/option/option.js';
+    import '@awesome.me/webawesome/dist/components/button/button.js';
 
-    // snow under the fog, the lens effects on the whole scene, then the colors, the film looks last
-    const ORDER = ['snowLine', 'valleyFog', 'spotlight', 'tiltShift', 'colorIsolation', 'infrared', 'technicolor', 'super8'];
+    // the values in the sliders' tooltips, with their units
+    const formats = {
+      'm': (v) => `${v} m`,
+      'deg': (v) => `${v}°`,
+      'percent': (v) => `${Math.round(v * 100)} %`,
+      'shutter': (v) => `1/${Math.round(1 / v)} s`,
+      'px': (v) => `${+v.toFixed(1)} px`,
+      'hz': (v) => `${v} Hz`,
+      'per-m': (v) => `${+v.toFixed(4)} /m`,
+    };
+    for (const slider of document.querySelectorAll('#controls wa-slider[data-unit]')) {
+      slider.valueFormatter = formats[slider.dataset.unit];
+    }
+
+    // snow under the fog, the lens effects on the whole scene, then the colors and the film looks;
+    // last the drone camera: its lens, its sensor's jello, its display drawn over the picture, and
+    // the video signal, analog or digital
+    const ORDER = ['snowLine', 'valleyFog', 'spotlight', 'tiltShift', 'motionBlur', 'speedLines', 'colorIsolation', 'infrared', 'technicolor', 'super8', 'lensDistortion', 'jello', 'droneDisplay', 'analogVideo', 'digitalVideo'];
 
     createViewer('cesiumContainer').then(viewer => {
       // an early autumn afternoon, for the light
@@ -142,27 +198,38 @@
         snowLine: new SnowLine(viewer),
         valleyFog: new ValleyFog(viewer),
         tiltShift: new TiltShift(viewer),
+        motionBlur: new MotionBlur(viewer, {exposure: 0.04}),
+        speedLines: new SpeedLines(viewer),
         spotlight: new Spotlight(viewer),
         colorIsolation: new ColorIsolation(viewer),
         infrared: new Infrared(viewer),
         technicolor: new Technicolor(viewer),
         super8: new Super8(viewer),
+        lensDistortion: new LensDistortion(viewer),
+        jello: new Jello(viewer),
+        droneDisplay: new DroneDisplay(viewer),
+        analogVideo: new AnalogVideo(viewer),
+        digitalVideo: new DigitalVideo(viewer),
       };
       let followCursor = false;
       document.querySelector('#controls').addEventListener('input', event => {
         const {name, value, checked} = event.target;
-        const key = event.target.closest('fieldset').name;
+        const key = event.target.closest('[data-effect]').dataset.effect;
         if (name === 'followCursor') {
           followCursor = checked;
           return;
         }
         if (name !== 'active') {
-          effects[key][name] = Number(value);
+          // numbers, or the value of a select of names
+          const number = Number(value);
+          effects[key][name] = Number.isNaN(number) ? value : number;
           return;
         }
         effects[key].active = checked;
-        // the stages run in the order they are added: re-add the active effects that come after
         if (checked) {
+          // show its settings
+          event.target.closest('wa-details').open = true;
+          // the stages run in the order they are added: re-add the active effects that come after
           for (const later of ORDER.slice(ORDER.indexOf(key) + 1)) {
             if (effects[later].active) {
               effects[later].active = false;
@@ -175,6 +242,7 @@
       const setFocus = focus => {
         effects.tiltShift.focus = focus;
         effects.spotlight.focus = focus;
+        effects.speedLines.focus = focus;
       };
       viewer.screenSpaceEventHandler.setInputAction(({position}) => {
         const focus = viewer.scene.pickPosition(position);
