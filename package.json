@@ -5,7 +5,7 @@
   "scripts": {
     "build-demos": "vite build",
     "dev": "vite",
-    "gh-pages": "rm -rf dist && npm run build-demos && gh-pages -d dist",
+    "gh-pages": "npm run build-demos && gh-pages -d dist",
     "typecheck": "tsc --pretty"
   },
   "devDependencies": {
@@ -14,6 +14,6 @@
     "lerna": "10.0.1",
     "lit": "3.3.3",
     "typescript": "7.0.2",
-    "vite": "^8.1.0"
+    "vite": "8.3.1"
   }
 }
