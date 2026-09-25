@@ -1,5 +1,16 @@
-import { CameraEventType, PostProcessStage, ScreenSpaceEventType, Math as CesiumMath } from "@cesium/engine";
+import {
+  CameraEventType,
+  PostProcessStage,
+  PostProcessStageComposite,
+  PostProcessStageLibrary,
+  ScreenSpaceEventType,
+  Math as CesiumMath,
+} from "@cesium/engine";
+import EyeFromDepth from "./shaders/EyeFromDepth.js";
 import Lens from "./shaders/Lens.js";
+
+// blur of the depth of field and of the rim, the sigma of Cesium's blur stage
+const LENS_BLUR = 3;
 
 export default class CesiumBinoculars {
   /**
@@ -22,8 +33,9 @@ export default class CesiumBinoculars {
      * @type {ReturnType<import('@cesium/engine').ScreenSpaceEventHandler['getInputAction']> | undefined}
      */
     this.previousAction_ = undefined;
-    /** @type {PostProcessStage | undefined} */
+    /** @type {PostProcessStageComposite | undefined} */
     this.lens_ = undefined;
+    this.previousDepthTestAgainstTerrain_ = false;
     this.onPreRender_ = this.onPreRender.bind(this);
     this.onMouseWheel_ = this.onMouseWheel.bind(this);
   }
@@ -50,14 +62,11 @@ export default class CesiumBinoculars {
       controller.lookEventTypes = CameraEventType.LEFT_DRAG;
       this.previousAction_ = handler.getInputAction(ScreenSpaceEventType.WHEEL);
       handler.setInputAction(this.onMouseWheel_, ScreenSpaceEventType.WHEEL);
-      this.lens_ = new PostProcessStage({fragmentShader: Lens});
-      this.viewer.scene.postProcessStages.add(this.lens_);
+      this.addLens_();
       this.viewer.scene.preRender.addEventListener(this.onPreRender_);
     } else {
       this.viewer.scene.preRender.removeEventListener(this.onPreRender_);
-      // removing a stage also destroys it
-      this.viewer.scene.postProcessStages.remove(/** @type {PostProcessStage} */ (this.lens_));
-      this.lens_ = undefined;
+      this.removeLens_();
       this.frustum_.fov = this.originalFov_;
       Object.assign(controller, this.previousController_);
       if (this.previousAction_) {
@@ -68,6 +77,43 @@ export default class CesiumBinoculars {
     }
     // requestRenderMode: adding or removing the lens stage does not request a render
     this.viewer.scene.requestRender();
+  }
+
+  addLens_() {
+    const scene = this.viewer.scene;
+    // the post-process stages only get the depth of the terrain when it is depth tested
+    if (scene.globe) {
+      this.previousDepthTestAgainstTerrain_ = scene.globe.depthTestAgainstTerrain;
+      scene.globe.depthTestAgainstTerrain = true;
+    }
+    const blur = PostProcessStageLibrary.createBlurStage();
+    this.lens_ = new PostProcessStageComposite({
+      stages: [
+        blur,
+        new PostProcessStage({
+          fragmentShader: EyeFromDepth + Lens,
+          uniforms: {
+            blurTexture: blur.name,
+            magnification: () => this.magnification,
+          },
+        }),
+      ],
+      // both read the scene
+      inputPreviousStageTexture: false,
+      uniforms: blur.uniforms,
+    });
+    this.lens_.uniforms.sigma = LENS_BLUR;
+    scene.postProcessStages.add(this.lens_);
+  }
+
+  removeLens_() {
+    const scene = this.viewer.scene;
+    // removing a stage also destroys it
+    scene.postProcessStages.remove(/** @type {PostProcessStageComposite} */ (this.lens_));
+    this.lens_ = undefined;
+    if (scene.globe) {
+      scene.globe.depthTestAgainstTerrain = this.previousDepthTestAgainstTerrain_;
+    }
   }
 
   get frustum_() {

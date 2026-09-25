@@ -41,6 +41,12 @@
     import CesiumBinoculars from '../packages/cesium-binoculars/cesium-binoculars.js';
 
     createViewer('cesiumContainer').then(viewer => {
+      // today at 14:00, for the light
+      const afternoon = new Date();
+      afternoon.setHours(14, 0, 0, 0);
+      viewer.clock.currentTime = Cesium.JulianDate.fromDate(afternoon);
+      viewer.clock.shouldAnimate = false;
+
       const mode = new CesiumBinoculars(viewer);
       document.querySelector('#activate').addEventListener('click', () => mode.active = !mode.active);
       const magnification = document.querySelector('#magnification');
