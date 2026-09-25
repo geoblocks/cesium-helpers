@@ -287,10 +287,7 @@ class CesiumCompass extends LitElement {
     this.rotateClick = false;
   }
 
-  /**
-   * @param {PointerEvent} event
-   */
-  handleRotatePointerUp(event) {
+  handleRotatePointerUp() {
     document.removeEventListener('pointermove', this.handleRotatePointerMoveFunction, false);
     document.removeEventListener('pointerup', this.handleRotatePointerUpFunction, false);
 
@@ -415,10 +412,7 @@ class CesiumCompass extends LitElement {
 
   }
 
-  /**
-   * @param {PointerEvent} event
-   */
-  handleOrbitPointerUp(event) {
+  handleOrbitPointerUp() {
     document.removeEventListener('pointermove', this.handleOrbitPointerMoveFunction, false);
     document.removeEventListener('pointerup', this.handleOrbitPointerUpFunction, false);
     if (this.unlistenFromClockTick) {
