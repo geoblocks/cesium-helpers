@@ -10,6 +10,9 @@ import {
   ScreenSpaceEventType,
   Transforms,
 } from '@cesium/engine';
+import DepthOfField from './shaders/DepthOfField.js';
+import EyeFromDepth from './shaders/EyeFromDepth.js';
+import MotionBlur from './shaders/MotionBlur.js';
 
 const directionScratch = new Cartesian3();
 const enuScratch = new Matrix4();
@@ -20,149 +23,6 @@ const FADE_TIME = 0.5;
 const EXPOSURE = 1 / 48;
 // blur of the depth of field, the sigma of Cesium's blur stage
 const FOCUS_BLUR = 2;
-
-// Eye coordinates of the pixel at uv, from the depth texture; w is 0 for the sky. With a
-// logarithmic depth buffer, czm_readDepth's perspective depth is about 1 beyond a few meters,
-// so the distance is decoded from the logarithmic depth directly.
-const EYE_FROM_DEPTH = `
-vec4 eyeAt(sampler2D depthTexture, vec2 uv) {
-  float raw = texture(depthTexture, uv).r;
-  // the pixel's view ray, through the near plane
-  vec4 ray = czm_inverseProjection * vec4(2.0 * uv - 1.0, -1.0, 1.0);
-  ray.xyz /= ray.w;
-  if (raw >= 1.0) {
-    return vec4(normalize(ray.xyz), 0.0);
-  }
-#ifdef LOG_DEPTH
-  float viewDepth = exp2(raw * czm_log2FarDepthFromNearPlusOne) - 1.0 + czm_currentFrustum.x;
-#else
-  vec4 eye = czm_inverseProjection * vec4(2.0 * uv - 1.0, 2.0 * raw - 1.0, 1.0);
-  float viewDepth = -eye.z / eye.w;
-#endif
-  return vec4(ray.xyz * (viewDepth / -ray.z), 1.0);
-}
-`;
-
-// Camera motion blur, after "A Reconstruction Filter for Plausible Motion Blur" (McGuire et al.,
-// I3D 2012). Only the camera moves, so each pixel's motion follows from its depth and the
-// reprojection into the previous frame, and there is no velocity buffer. The blur gathers
-// jittered samples along the pixel's motion, weighted by depth so that near terrain and far
-// ridges or sky do not smear into each other.
-const MOTION_BLUR_SHADER = `
-uniform sampler2D colorTexture;
-uniform sampler2D depthTexture;
-// current eye coordinates to the previous frame's clip coordinates, computed in double
-// precision on the CPU
-uniform mat4 reprojection;
-// exposure time over the time since the previous frame: the blur spans the motion during the
-// exposure, whatever the frame rate
-uniform float exposureScale;
-in vec2 v_textureCoordinates;
-
-const int SAMPLES = 16;
-// longest blur, as a fraction of the viewport height
-const float MAX_BLUR = 0.05;
-// depth difference, relative to the depth, over which a sample goes from in front to behind
-const float SOFT_DEPTH = 0.1;
-
-${EYE_FROM_DEPTH}
-
-// xy: half the blur of the pixel at uv, in pixels; z: its distance from the camera
-vec3 halfBlurAt(vec2 uv) {
-  // the sky is a direction: only the camera rotation moves it
-  vec4 eye = eyeAt(depthTexture, uv);
-  vec4 previous = reprojection * eye;
-  vec2 motion = previous.w > 0.0 ? uv - (previous.xy / previous.w * 0.5 + 0.5) : vec2(0.0);
-  // in pixels
-  motion *= exposureScale * czm_viewport.zw;
-  float extent = length(motion);
-  float maxExtent = MAX_BLUR * czm_viewport.w;
-  if (extent > maxExtent) {
-    motion *= maxExtent / extent;
-  }
-  return vec3(0.5 * motion, eye.w == 0.0 ? 1e30 : length(eye.xyz));
-}
-
-// 1 when b is in front of a, 0 when it is SOFT_DEPTH behind
-float inFront(float a, float b) {
-  return clamp(1.0 - (b - a) / (SOFT_DEPTH * min(a, b)), 0.0, 1.0);
-}
-
-// the blur of a pixel with this half blur covers a sample this far away; the extents are kept
-// above 0 for samples without blur
-float cone(float gap, vec2 halfBlur) {
-  return clamp(1.0 - gap / max(length(halfBlur), 1e-3), 0.0, 1.0);
-}
-
-// both pixels are blurred over the gap between them
-float cylinder(float gap, vec2 halfBlur) {
-  float extent = max(length(halfBlur), 1e-3);
-  return 1.0 - smoothstep(0.95 * extent, 1.05 * extent, gap);
-}
-
-// per pixel noise in [0, 1), "interleaved gradient noise" (Jimenez 2014)
-float noise(vec2 pixel) {
-  return fract(52.9829189 * fract(dot(pixel, vec2(0.06711056, 0.00583715))));
-}
-
-void main() {
-  vec3 center = halfBlurAt(v_textureCoordinates);
-  vec2 halfBlur = center.xy;
-  vec4 centerColor = texture(colorTexture, v_textureCoordinates);
-  float extent = length(halfBlur);
-  if (extent < 0.5) {
-    out_FragColor = centerColor;
-    return;
-  }
-
-  float weight = 1.0 / extent;
-  vec4 color = centerColor * weight;
-  // the jitter turns the banding of few samples into fine noise
-  float jitter = noise(gl_FragCoord.xy) - 0.5;
-  for (int i = 0; i < SAMPLES; i++) {
-    float t = mix(-1.0, 1.0, (float(i) + jitter + 1.0) / float(SAMPLES + 1));
-    vec2 uv = v_textureCoordinates + t * halfBlur / czm_viewport.zw;
-    vec3 other = halfBlurAt(uv);
-    float gap = abs(t) * extent;
-    float front = inFront(center.z, other.z);
-    float behind = inFront(other.z, center.z);
-    // a sample in front counts when its own blur reaches this pixel, one behind when this
-    // pixel's blur reaches it, and both when they are blurred together
-    float alpha =
-      front * cone(gap, other.xy) +
-      behind * cone(gap, halfBlur) +
-      2.0 * cylinder(gap, other.xy) * cylinder(gap, halfBlur);
-    weight += alpha;
-    color += alpha * texture(colorTexture, uv);
-  }
-  out_FragColor = color / weight;
-}
-`;
-
-// Depth of field: sharp around the focal distance, the blurred image further off. Distances
-// compare as ratios, like a lens: sharp within FOCUS_RANGE factors of two of the focal distance,
-// fully blurred at twice that.
-const DEPTH_OF_FIELD_SHADER = `
-uniform sampler2D colorTexture;
-uniform sampler2D blurTexture;
-uniform sampler2D depthTexture;
-uniform float focalDistance;
-// 0 to 1, as the effect fades in and out
-uniform float fade;
-in vec2 v_textureCoordinates;
-
-// in factors of two of the focal distance
-const float FOCUS_RANGE = 0.8;
-
-${EYE_FROM_DEPTH}
-
-void main() {
-  vec4 eye = eyeAt(depthTexture, v_textureCoordinates);
-  float fromCamera = eye.w == 0.0 ? 1e30 : length(eye.xyz);
-  float blur = fade * smoothstep(FOCUS_RANGE, 2.0 * FOCUS_RANGE, abs(log2(fromCamera / focalDistance)));
-  out_FragColor = mix(texture(colorTexture, v_textureCoordinates), texture(blurTexture, v_textureCoordinates), blur);
-}
-`;
 
 /**
  * Flies the camera toward the clicked position, along the line of sight, and
@@ -302,7 +162,7 @@ export default class CesiumFlyTo {
       stages: [
         blur,
         new PostProcessStage({
-          fragmentShader: DEPTH_OF_FIELD_SHADER,
+          fragmentShader: EyeFromDepth + DepthOfField,
           uniforms: {
             blurTexture: blur.name,
             focalDistance: () => Cartesian3.distance(scene.camera.positionWC, this.target_),
@@ -317,7 +177,7 @@ export default class CesiumFlyTo {
     this.depthOfField_.uniforms.sigma = FOCUS_BLUR;
     scene.postProcessStages.add(this.depthOfField_);
     this.motionBlur_ = new PostProcessStage({
-      fragmentShader: MOTION_BLUR_SHADER,
+      fragmentShader: EyeFromDepth + MotionBlur,
       uniforms: {
         reprojection: () =>
           Matrix4.multiply(this.previousViewProjection_, scene.camera.inverseViewMatrix, this.reprojection_),

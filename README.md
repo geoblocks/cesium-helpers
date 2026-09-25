@@ -44,3 +44,7 @@ npx lerna changed
 # and a GitHub release is created for each package (requires GH_TOKEN).
 npx lerna publish
 ```
+
+The shaders are written in `packages/*/shaders/*.glsl` and converted to JavaScript modules
+next to them, as in CesiumJS. `npm install` and `npm run dev` generate these modules; run
+`npm run build-shaders` after editing a shader otherwise.

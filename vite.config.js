@@ -1,11 +1,20 @@
 import {resolve, dirname} from 'path';
 import {fileURLToPath} from 'url';
 import {defineConfig} from 'vite';
+import {buildShader, buildShaders} from './scripts/build-shaders.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   root: resolve(__dirname, 'demos'),
+  plugins: [{
+    name: 'shaders',
+    buildStart: buildShaders,
+    configureServer(server) {
+      server.watcher.add(resolve(__dirname, 'packages'));
+      server.watcher.on('change', file => file.endsWith('.glsl') && buildShader(file));
+    },
+  }],
   base: './',
   resolve: {
     alias: {

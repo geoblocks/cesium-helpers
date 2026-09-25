@@ -10,6 +10,10 @@
   },
   "main": "cesium-flyto.js",
   "module": "cesium-flyto.js",
+  "files": [
+    "cesium-flyto.js",
+    "shaders/*.js"
+  ],
   "publishConfig": {
     "access": "public"
   },
