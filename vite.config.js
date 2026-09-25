@@ -7,6 +7,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   root: resolve(__dirname, 'demos'),
   base: './',
+  resolve: {
+    alias: {
+      '@cesium/engine': resolve(__dirname, 'demos/cesium-shim.js'),
+    },
+  },
   build: {
     outDir: resolve(__dirname, 'dist'),
     emptyOutDir: true,

@@ -1,6 +1,6 @@
 import {LitElement, css, html} from 'lit';
 
-class CesiumViewCube extends LitElement {
+export default class CesiumViewCube extends LitElement {
 
   /** @override */
   static get properties() {
