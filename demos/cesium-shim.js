@@ -6,6 +6,8 @@ export const {
   CameraEventType,
   Cartesian2,
   Cartesian3,
+  Cartesian4,
+  Color,
   EasingFunction,
   Ellipsoid,
   HeadingPitchRange,

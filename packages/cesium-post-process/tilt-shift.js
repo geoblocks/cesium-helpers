@@ -1,0 +1,123 @@
+import {Cartesian4, PostProcessStage, PostProcessStageComposite, PostProcessStageLibrary} from '@cesium/engine';
+import {acquireTerrainDepth, releaseTerrainDepth} from './depth-test.js';
+import {eyeFocus} from './focus.js';
+import EyeFromDepth from './shaders/EyeFromDepth.js';
+import TiltShiftShader from './shaders/TiltShift.js';
+
+const focusScratch = new Cartesian4();
+
+/**
+ * Tilt-shift: a narrow depth of field around the focus, which makes the scene
+ * look like a scale model.
+ */
+export default class TiltShift {
+  /**
+   * @param {import('@cesium/engine').CesiumWidget} viewer
+   * @param {{focus?: import('./focus.js').Focus, range?: number, blur?: number, saturation?: number}} [options]
+   */
+  constructor(viewer, options = {}) {
+    this.viewer = viewer;
+    this.focus_ = options.focus;
+    this.range_ = options.range ?? 0.3;
+    this.blur_ = options.blur ?? 4;
+    this.saturation_ = options.saturation ?? 0.3;
+    /** @type {PostProcessStageComposite | undefined} */
+    this.stage_ = undefined;
+  }
+
+  get active() {
+    return this.stage_ !== undefined;
+  }
+
+  set active(active) {
+    if (active === this.active) {
+      return;
+    }
+    const scene = this.viewer.scene;
+    if (active) {
+      acquireTerrainDepth(scene);
+      const blur = PostProcessStageLibrary.createBlurStage();
+      this.stage_ = new PostProcessStageComposite({
+        stages: [
+          blur,
+          new PostProcessStage({
+            fragmentShader: EyeFromDepth + TiltShiftShader,
+            uniforms: {
+              blurTexture: blur.name,
+              focus: () => eyeFocus(scene, this.focus_, focusScratch),
+              range: () => this.range_,
+              saturation: () => this.saturation_,
+            },
+          }),
+        ],
+        // both read the scene
+        inputPreviousStageTexture: false,
+        uniforms: blur.uniforms,
+      });
+      this.stage_.uniforms.sigma = this.blur_;
+      scene.postProcessStages.add(this.stage_);
+    } else {
+      // removing a stage also destroys it
+      scene.postProcessStages.remove(/** @type {PostProcessStageComposite} */ (this.stage_));
+      this.stage_ = undefined;
+      releaseTerrainDepth(scene);
+    }
+    scene.requestRender();
+  }
+
+  /**
+   * What to focus on: a position, a function returning one, or undefined for
+   * what is in the middle of the screen.
+   */
+  get focus() {
+    return this.focus_;
+  }
+
+  set focus(value) {
+    this.focus_ = value;
+    this.viewer.scene.requestRender();
+  }
+
+  /**
+   * Width of the sharp band, in factors of two of the focal distance.
+   */
+  get range() {
+    return this.range_;
+  }
+
+  set range(value) {
+    this.range_ = value;
+    this.viewer.scene.requestRender();
+  }
+
+  /**
+   * Blur away from the focus, the sigma of Cesium's blur stage.
+   */
+  get blur() {
+    return this.blur_;
+  }
+
+  set blur(value) {
+    this.blur_ = value;
+    if (this.stage_) {
+      this.stage_.uniforms.sigma = value;
+    }
+    this.viewer.scene.requestRender();
+  }
+
+  /**
+   * Color and contrast boost, 0 to 1.
+   */
+  get saturation() {
+    return this.saturation_;
+  }
+
+  set saturation(value) {
+    this.saturation_ = value;
+    this.viewer.scene.requestRender();
+  }
+
+  destroy() {
+    this.active = false;
+  }
+}

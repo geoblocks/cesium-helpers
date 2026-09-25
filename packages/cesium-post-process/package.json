@@ -1,0 +1,34 @@
+{
+  "name": "@geoblocks/cesium-post-process",
+  "version": "0.0.0",
+  "license": "BSD-3-Clause",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/geoblocks/cesium-helpers/",
+    "directory": "packages/cesium-post-process"
+  },
+  "main": "cesium-post-process.js",
+  "module": "cesium-post-process.js",
+  "files": [
+    "cesium-post-process.js",
+    "color-isolation.js",
+    "depth-test.js",
+    "focus.js",
+    "height.js",
+    "infrared.js",
+    "snow-line.js",
+    "spotlight.js",
+    "super8.js",
+    "technicolor.js",
+    "tilt-shift.js",
+    "valley-fog.js",
+    "shaders/*.js"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "@cesium/engine": ">=10"
+  }
+}
