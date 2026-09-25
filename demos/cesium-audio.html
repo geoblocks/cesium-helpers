@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en" class="wa-theme-default wa-palette-default wa-light">
+
+<head>
+  <meta charset="UTF-8">
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Cesium.js"></script>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  <style>
+    html, body, #cesiumContainer {
+      height: 100%;
+      margin: 0;
+    }
+    #controls {
+      position: absolute;
+      inset-block-start: var(--wa-space-xl);
+      inset-inline-end: var(--wa-space-xl);
+      --spacing: var(--wa-space-s);
+      max-inline-size: 30ch;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="cesiumContainer"></div>
+  <wa-card id="controls">
+    <p class="wa-caption-m">Turn the sound on, then drag the map to look around and hear where the goat is. Headphones recommended: the HRTF panning model simulates how each ear hears the sound.</p>
+    <wa-switch id="sound" size="s">Sound</wa-switch>
+  </wa-card>
+  <script type="module">
+    import {createViewer} from './setup.js';
+    import CesiumSphereCamera from '../packages/cesium-sphere-camera/cesium-sphere-camera.js';
+    import CesiumAudio from '../packages/cesium-audio/cesium-audio.js';
+    import goatUrl from './goat.mp3';
+    import '@awesome.me/webawesome/dist/styles/webawesome.css';
+    import '@awesome.me/webawesome/dist/components/card/card.js';
+    import '@awesome.me/webawesome/dist/components/switch/switch.js';
+
+    createViewer('cesiumContainer').then(async viewer => {
+      // look around with the mouse to hear where the goat is
+      new CesiumSphereCamera(viewer).active = true;
+
+      const goat = Cesium.Cartographic.fromDegrees(7.897325, 46.690576);
+      await Cesium.sampleTerrainMostDetailed(viewer.terrainProvider, [goat]);
+      const position = Cesium.Cartographic.toCartesian(goat);
+      viewer.entities.add({
+        position,
+        point: {pixelSize: 12, color: Cesium.Color.WHITE, disableDepthTestDistance: Number.POSITIVE_INFINITY},
+        label: {text: 'goat', pixelOffset: new Cesium.Cartesian2(0, -20), disableDepthTestDistance: Number.POSITIVE_INFINITY},
+      });
+
+      const toggle = document.querySelector('#sound');
+      let audioContext;
+      toggle.addEventListener('change', async () => {
+        if (!audioContext) {
+          // the audio context can only start from a user gesture
+          audioContext = new AudioContext();
+          const panner = new PannerNode(audioContext, {panningModel: 'HRTF', distanceModel: 'inverse', refDistance: 1000});
+          panner.connect(audioContext.destination);
+          new CesiumAudio(viewer.scene, position, panner).active = true;
+
+          const response = await fetch(goatUrl);
+          const buffer = await audioContext.decodeAudioData(await response.arrayBuffer());
+          // a bleat every few seconds; the chain pauses while the context is suspended
+          const bleat = () => {
+            const source = new AudioBufferSourceNode(audioContext, {buffer});
+            source.connect(panner);
+            source.onended = () => setTimeout(bleat, 1000 + Math.random() * 3000);
+            source.start();
+          };
+          bleat();
+        } else if (toggle.checked) {
+          await audioContext.resume();
+        } else {
+          await audioContext.suspend();
+        }
+      });
+    });
+  </script>
+</body>
+
+</html>
