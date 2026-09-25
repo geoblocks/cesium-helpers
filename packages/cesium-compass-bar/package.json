@@ -11,8 +11,15 @@
   "main": "dist/cesium-compass-bar.js",
   "module": "dist/cesium-compass-bar.js",
   "types": "dist/cesium-compass-bar.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/cesium-compass-bar.d.ts",
+      "default": "./dist/cesium-compass-bar.js"
+    }
+  },
   "files": [
-    "dist"
+    "dist",
+    "src"
   ],
   "scripts": {
     "build": "tsc -p .",

@@ -11,9 +11,17 @@
   "main": "dist/FirstPersonCameraMode.js",
   "module": "dist/FirstPersonCameraMode.js",
   "types": "dist/FirstPersonCameraMode.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/FirstPersonCameraMode.d.ts",
+      "default": "./dist/FirstPersonCameraMode.js"
+    }
+  },
   "files": [
-    "dist"
+    "dist",
+    "src"
   ],
+  "sideEffects": false,
   "scripts": {
     "build": "tsc -p .",
     "prepack": "npm run build"

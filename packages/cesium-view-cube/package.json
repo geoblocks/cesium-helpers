@@ -11,8 +11,15 @@
   "main": "dist/cesium-view-cube.js",
   "module": "dist/cesium-view-cube.js",
   "types": "dist/cesium-view-cube.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/cesium-view-cube.d.ts",
+      "default": "./dist/cesium-view-cube.js"
+    }
+  },
   "files": [
-    "dist"
+    "dist",
+    "src"
   ],
   "scripts": {
     "build": "tsc -p .",

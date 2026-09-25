@@ -11,9 +11,17 @@
   "main": "dist/cesium-sphere-camera.js",
   "module": "dist/cesium-sphere-camera.js",
   "types": "dist/cesium-sphere-camera.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/cesium-sphere-camera.d.ts",
+      "default": "./dist/cesium-sphere-camera.js"
+    }
+  },
   "files": [
-    "dist"
+    "dist",
+    "src"
   ],
+  "sideEffects": false,
   "scripts": {
     "build": "tsc -p .",
     "prepack": "npm run build"
