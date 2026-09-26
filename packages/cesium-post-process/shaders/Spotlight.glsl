@@ -16,6 +16,11 @@ uniform float softness;
 uniform float darkness;
 // brightness of the beam in the air, 0 to 1
 uniform float beam;
+// brightness of the light, 1 for the searchlight: the pool and the beam scale with it
+uniform float power;
+// Henyey-Greenstein asymmetry of the haze, 0 to 1: it scatters mostly forward, so the beam is
+// brighter when looking toward the light
+uniform float beamAnisotropy;
 in vec2 v_textureCoordinates;
 
 const vec3 LIGHT_COLOR = vec3(1.0, 0.93, 0.8);
@@ -28,9 +33,6 @@ const float BEAM_CORE = 0.25;
 // contrast and density of the dust streaks in the beam, across its width
 const float STREAKS = 0.2;
 const float STREAK_SCALE = 4.0;
-// Henyey-Greenstein asymmetry of the haze: it scatters mostly forward, so the beam is brighter
-// when looking toward the light
-const float PHASE_G = 0.4;
 
 // light reaching a point fromLight away from the light: the cone around the axis with its
 // penumbra, and the inverse square, 1 at the focus, capped for what is close to the light
@@ -42,8 +44,14 @@ float spotAt(vec3 fromLight, vec3 axis, float height, float coneCos, float penum
 
 // Henyey-Greenstein phase, 1 across the light
 float phase(float cosTheta) {
-  float g2 = PHASE_G * PHASE_G;
-  return pow((1.0 + g2) / (1.0 + g2 - 2.0 * PHASE_G * cosTheta), 1.5);
+  float g2 = beamAnisotropy * beamAnisotropy;
+  return pow((1.0 + g2) / (1.0 + g2 - 2.0 * beamAnisotropy * cosTheta), 1.5);
+}
+
+// a filmic roll-off (ACES, Narkowicz's fit): the light is added to a picture Cesium has already
+// tone mapped, so the pool and the beam would clip to flat white without it
+vec3 filmic(vec3 x) {
+  return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0);
 }
 
 // the part of the view ray, from the camera at the origin up to the scene, inside the light's
@@ -126,15 +134,20 @@ void main() {
   // eye.w is 0 for the sky, where the view ray goes on
   float sceneDistance = eye.w == 0.0 ? 1e30 : length(eye.xyz);
   float scattered = beam > 0.0 ? beamAlong(normalize(eye.xyz), sceneDistance, lightPosition, up, height, coneCos, penumbraCos) : 0.0;
-  vec3 haze = LIGHT_COLOR * (beam * scattered);
+  vec3 haze = LIGHT_COLOR * (power * beam * scattered);
   if (eye.w == 0.0) {
-    out_FragColor = vec4(ambient + haze, sceneColor.a);
+    out_FragColor = vec4(filmic(ambient + haze), sceneColor.a);
     return;
   }
 
   vec3 toLight = lightPosition - eye.xyz;
-  vec3 normal = smoothNormalAt(depthTexture, v_textureCoordinates, eye.xyz);
+  // the normal over wider steps where the surface is seen at a grazing angle, where the facets
+  // of the terrain mesh would show as blotches; over fine ones elsewhere, for the relief
+  vec3 coarse = normalize(normalAt(depthTexture, v_textureCoordinates, eye.xyz, 6.0 * czm_pixelRatio)
+    + normalAt(depthTexture, v_textureCoordinates, eye.xyz, 18.0 * czm_pixelRatio));
+  float grazing = smoothstep(0.7, 0.95, 1.0 - abs(dot(coarse, normalize(-eye.xyz))));
+  vec3 normal = normalize(mix(smoothNormalAt(depthTexture, v_textureCoordinates, eye.xyz), coarse, grazing));
   float lambert = max(dot(normal, normalize(toLight)), 0.0);
-  vec3 light = LIGHT_COLOR * (INTENSITY * spotAt(-toLight, up, height, coneCos, penumbraCos) * lambert);
-  out_FragColor = vec4(ambient + color * light + haze, sceneColor.a);
+  vec3 light = LIGHT_COLOR * (power * INTENSITY * spotAt(-toLight, up, height, coneCos, penumbraCos) * lambert);
+  out_FragColor = vec4(filmic(ambient + color * light + haze), sceneColor.a);
 }

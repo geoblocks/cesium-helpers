@@ -42,10 +42,12 @@ const focus = () => marker.position;
 
 const spotlight = new Spotlight(viewer, {
   focus,
+  power: 1,      // brightness of the light, 1 for the searchlight: the pool and the beam scale with it
   radius: 200,   // radius of the pool of light on flat ground, in meters
   softness: 0.5, // width of the penumbra, as a fraction of the radius
   darkness: 0.8, // darkening and desaturation outside the light, 0 to 1
   beam: 0.25,    // brightness of the beam in the air, 0 to 1
+  beamAnisotropy: 0.4, // Henyey-Greenstein asymmetry of the haze, 0 to 1: brighter looking toward the light
 });
 spotlight.active = true;
 
