@@ -10,6 +10,7 @@
   },
   "main": "cesium-flyto.js",
   "module": "cesium-flyto.js",
+  "sideEffects": false,
   "files": [
     "cesium-flyto.js",
     "shaders/*.js"
