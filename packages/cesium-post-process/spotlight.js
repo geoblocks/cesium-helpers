@@ -18,15 +18,17 @@ const focusScratch = new Cartesian4();
 export default class Spotlight extends Effect {
   /**
    * @param {import('@cesium/engine').CesiumWidget} viewer
-   * @param {{focus?: import('./focus.js').Focus, radius?: number, softness?: number, darkness?: number, beam?: number}} [options]
+   * @param {{focus?: import('./focus.js').Focus, power?: number, radius?: number, softness?: number, darkness?: number, beam?: number, beamAnisotropy?: number}} [options]
    */
   constructor(viewer, options = {}) {
     super(viewer);
     this.focus_ = options.focus;
+    this.power_ = options.power ?? 1;
     this.radius_ = options.radius ?? 200;
     this.softness_ = options.softness ?? 0.5;
     this.darkness_ = options.darkness ?? 0.8;
     this.beam_ = options.beam ?? 0.25;
+    this.beamAnisotropy_ = options.beamAnisotropy ?? 0.4;
   }
 
   /**
@@ -43,6 +45,8 @@ export default class Spotlight extends Effect {
         softness: () => this.softness_,
         darkness: () => this.darkness_,
         beam: () => this.beam_,
+        power: () => this.power_,
+        beamAnisotropy: () => this.beamAnisotropy_,
       },
     });
   }
@@ -73,6 +77,19 @@ export default class Spotlight extends Effect {
 
   set focus(value) {
     this.focus_ = value;
+    this.viewer.scene.requestRender();
+  }
+
+  /**
+   * Brightness of the light, 1 for the searchlight: the pool on the scene
+   * and the beam in the air scale with it.
+   */
+  get power() {
+    return this.power_;
+  }
+
+  set power(value) {
+    this.power_ = value;
     this.viewer.scene.requestRender();
   }
 
@@ -122,6 +139,19 @@ export default class Spotlight extends Effect {
 
   set beam(value) {
     this.beam_ = value;
+    this.viewer.scene.requestRender();
+  }
+
+  /**
+   * Henyey-Greenstein asymmetry of the haze, 0 to 1: it scatters mostly
+   * forward, so the beam is brighter when looking toward the light.
+   */
+  get beamAnisotropy() {
+    return this.beamAnisotropy_;
+  }
+
+  set beamAnisotropy(value) {
+    this.beamAnisotropy_ = value;
     this.viewer.scene.requestRender();
   }
 }

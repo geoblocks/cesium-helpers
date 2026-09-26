@@ -71,6 +71,7 @@
       <wa-details name="effects" data-effect="spotlight">
         <wa-switch slot="summary" name="active" size="s">Spotlight</wa-switch>
         <div class="wa-stack wa-gap-xs">
+          <wa-slider name="power" size="s" label="Power" min="0" max="4" step="0.1" value="1" with-tooltip></wa-slider>
           <wa-slider name="radius" size="s" label="Radius" min="20" max="2000" step="10" value="200" with-tooltip data-unit="m"></wa-slider>
           <wa-slider name="softness" size="s" label="Softness" min="0" max="1" step="0.05" value="0.5" with-tooltip data-unit="percent"></wa-slider>
           <wa-slider name="darkness" size="s" label="Darkness" min="0" max="1" step="0.05" value="0.8" with-tooltip data-unit="percent"></wa-slider>
