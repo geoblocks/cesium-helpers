@@ -19,6 +19,7 @@
     "depth-test.js",
     "digital-video.js",
     "drone-display.js",
+    "flashlight.js",
     "focus.js",
     "frame-clock.js",
     "height.js",

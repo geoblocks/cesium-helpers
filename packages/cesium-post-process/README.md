@@ -18,7 +18,7 @@ Each effect is inactive after construction. Every option is also a property, app
 
 ```javascript
 import {Color} from '@cesium/engine';
-import {AnalogVideo, ColorIsolation, DigitalVideo, DroneDisplay, Infrared, Jello, LensDistortion, MotionBlur, SnowLine, SpeedLines, Spotlight, Super8, Technicolor, TiltShift, ValleyFog} from '@geoblocks/cesium-post-process';
+import {AnalogVideo, ColorIsolation, DigitalVideo, DroneDisplay, Flashlight, Infrared, Jello, LensDistortion, MotionBlur, SnowLine, SpeedLines, Spotlight, Super8, Technicolor, TiltShift, ValleyFog} from '@geoblocks/cesium-post-process';
 
 const snowLine = new SnowLine(viewer, {
   altitude: 2000,  // meters above the ellipsoid where the snow is half covering
@@ -48,6 +48,20 @@ const spotlight = new Spotlight(viewer, {
   beam: 0.25,    // brightness of the beam in the air, 0 to 1
 });
 spotlight.active = true;
+
+const flashlight = new Flashlight(viewer, {
+  power: 1,      // brightness of the LED, 1 for a pocket torch: the pool and the beam scale with it
+  angle: 20,     // half angle of the cone of the dim spill, in degrees
+  range: 40,     // distance at which the light has fallen to a half, in meters
+  darkness: 0.9, // darkening and desaturation outside the light, 0 to 1
+  beam: 0.5,     // brightness of the beam in the air, 0 to 1
+  beamAngle: 5,  // half angle of the hotspot, in degrees: the bright core of the pool and the beam in the air
+  beamWidth: 0.02, // radius of the shaft at the torch, in meters: the lens of an LED torch
+  beamReach: 80, // how far the beam lights the haze, in meters
+  beamDensity: 2.5,    // brightness of the lit haze
+  beamAnisotropy: 0.6, // Henyey-Greenstein asymmetry of the haze, 0 to 1: brightest looking along the beam
+});
+flashlight.active = true;
 
 const tiltShift = new TiltShift(viewer, {
   focus,
@@ -140,7 +154,7 @@ super8.destroy();
 
 ### Order of the effects
 
-Cesium runs the stages in the order they are added and cannot insert one elsewhere. Activate the effects in this order: `SnowLine`, `ValleyFog`, `Spotlight`, `TiltShift`, `MotionBlur`, `SpeedLines`, `ColorIsolation`, `Infrared`, `Technicolor`, `Super8`, `LensDistortion`, `Jello`, `DroneDisplay`, `AnalogVideo` or `DigitalVideo`. The snow is then under the fog, the lens effects apply to the whole scene, and the film looks apply to everything, their black bars included. The drone camera comes last, in the order of a real one: its lens bends the picture, its sensor reads it with the jello of its shake, its display is drawn over the picture and stays straight, and the video signal, analog or digital, disturbs both. To activate an effect later, deactivate and activate again the active effects that come after it.
+Cesium runs the stages in the order they are added and cannot insert one elsewhere. Activate the effects in this order: `SnowLine`, `ValleyFog`, `Spotlight`, `Flashlight`, `TiltShift`, `MotionBlur`, `SpeedLines`, `ColorIsolation`, `Infrared`, `Technicolor`, `Super8`, `LensDistortion`, `Jello`, `DroneDisplay`, `AnalogVideo` or `DigitalVideo`. The snow is then under the fog, the lens effects apply to the whole scene, and the film looks apply to everything, their black bars included. The drone camera comes last, in the order of a real one: its lens bends the picture, its sensor reads it with the jello of its shake, its display is drawn over the picture and stays straight, and the video signal, analog or digital, disturbs both. To activate an effect later, deactivate and activate again the active effects that come after it.
 
 ### Notes
 
@@ -154,6 +168,8 @@ Cesium runs the stages in the order they are added and cannot insert one elsewhe
 
 `SpeedLines` draws new streaks, 24 times per second, only when the scene renders: it does not render the scene by itself, so the streaks move while the camera does, or with any animation that renders the scene. At strength 0 its stage is disabled and costs nothing.
 
+`Flashlight` is a torch held to the right of, below and a little behind the eye, pointing where the camera looks, converging on the middle of the screen 20 m ahead: a narrow hotspot, `beamAngle`, and a dim spill out to `angle`, an inverse square falloff softened around the torch, and the relief shaded by the normal rebuilt from the depth buffer over wider steps than the spotlight's, since at the torch's grazing angles the mesh facets would show as blotches, with a wrapped Lambert term, since a torch at chest height lights the ground at a grazing angle where Lambert's law alone would leave it dark. It has no focus, so it stays on toward the sky and lights whatever comes into its cone. Its beam in the haze is raymarched: 16 samples along the part of each view ray inside the shaft, found analytically and cut at `beamReach`, dense near the torch and sparse far out, dithered per pixel against banding, each weighted by the hotspot's shaft (`beamAngle` wide, the light that makes the bright circle on the scene, and `beamWidth` at the torch, a cone from the virtual source those two place behind the hand, with a soft edge and a hot core), by a quadratic falloff from the torch over a short reference distance, so that the shaft is as bright at its root as at its far end, and by the extinction of the haze so far; the sum, times `beamDensity`, is scattered toward the camera with a Henyey-Greenstein phase of asymmetry `beamAnisotropy`, mostly forward, so the beam is brightest looking along it, and fades in over the first meters of the view ray so that the root of the beam does not stand as a wall of light in the corner. The torch adds its light to a picture Cesium has already tone mapped, so the output goes through a filmic roll-off (ACES) rather than clipping to flat white.
+
 `SnowLine` and `ValleyFog` compute each pixel's height relative to the camera, in double precision on the CPU for the camera, so they stay accurate far from the origin. The snow's slope comes from the normal rebuilt from the neighboring pixels. The fog is lit by the sun like Cesium's own fog: its color during the day, a moonlit blue at night, as bright as `scene.fog.minimumBrightness`. Both work in 3D only.
 
-`SnowLine`, `ValleyFog`, `TiltShift`, `Spotlight` and `MotionBlur` read the depth buffer. The post-process stages only get the terrain's depth when it is depth tested, so `globe.depthTestAgainstTerrain` is on while any of them is active and restored when the last one is deactivated: billboards and labels that show through the terrain can be hidden by it meanwhile.
+`SnowLine`, `ValleyFog`, `TiltShift`, `Spotlight`, `Flashlight` and `MotionBlur` read the depth buffer. The post-process stages only get the terrain's depth when it is depth tested, so `globe.depthTestAgainstTerrain` is on while any of them is active and restored when the last one is deactivated: billboards and labels that show through the terrain can be hidden by it meanwhile.

@@ -9,7 +9,7 @@ A collection of helpers and web component for working with [CesiumJS](https://ce
 * [cesium-flyto](packages/cesium-flyto): a camera mode that flies toward the double-clicked position, with motion blur and depth of field
 * [cesium-sphere-camera](packages/cesium-sphere-camera): a camera mode that allows the user to rotate the camera around a position
 * [cesium-binoculars](packages/cesium-binoculars): a camera mode that allows the user to use binoculars with the mouse wheel
-* [cesium-post-process](packages/cesium-post-process): screen-space effects (Technicolor and Super 8 film looks, infrared, color isolation, tilt-shift, motion blur, speed lines, a spotlight, valley fog, a snow line, and a drone camera: wide lens, jello, display, analog and digital video)
+* [cesium-post-process](packages/cesium-post-process): screen-space effects (Technicolor and Super 8 film looks, infrared, color isolation, tilt-shift, motion blur, speed lines, a spotlight, a flashlight, valley fog, a snow line, and a drone camera: wide lens, jello, display, analog and digital video)
 * [cesium-path-flyover](packages/cesium-path-flyover): a camera animation that follows a GPX or GeoJSON track
 * [cesium-walk](packages/cesium-walk): a camera mode that allows the user to walk around the scene with the keyboard
 * [cesium-audio](packages/cesium-audio): a spatialized sound located on the globe, using the Web Audio API
