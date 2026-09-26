@@ -1,9 +1,12 @@
 import {Math as CesiumMath, PostProcessStage} from '@cesium/engine';
 import {acquireTerrainDepth, releaseTerrainDepth} from './depth-test.js';
 import Effect from './effect.js';
+import Beam from './shaders/Beam.js';
 import EyeFromDepth from './shaders/EyeFromDepth.js';
+import Filmic from './shaders/Filmic.js';
 import FlashlightShader from './shaders/Flashlight.js';
 import Hash from './shaders/Hash.js';
+import Noise from './shaders/Noise.js';
 import Normal from './shaders/Normal.js';
 
 /**
@@ -37,7 +40,7 @@ export default class Flashlight extends Effect {
    */
   createStage_(_scene) {
     return new PostProcessStage({
-      fragmentShader: EyeFromDepth + Hash + Normal + FlashlightShader,
+      fragmentShader: EyeFromDepth + Hash + Noise + Normal + Beam + Filmic + FlashlightShader,
       uniforms: {
         power: () => this.power_,
         angle: () => CesiumMath.toRadians(this.angle_),

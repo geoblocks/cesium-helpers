@@ -46,8 +46,6 @@ const float SPILL = 0.3;
 // that a wide shaft looks almost parallel; a hot core over this fraction of its angle, the edge
 // soft outside it, crisp
 const float BEAM_CORE = 0.8;
-// samples along the part of the view ray inside the shaft
-const int BEAM_SAMPLES = 16;
 // the distance from the torch at which the lit haze has fallen to a quarter, meters: short, so
 // that the shaft is as bright at its root, which the view rays cross over a few centimeters, as
 // at its far end, which they follow for meters
@@ -57,82 +55,6 @@ const float BEAM_EXTINCTION = 0.02;
 // the lit haze fades in over the first meters of the view ray, so that the root of the beam does
 // not stand as a wall of light in the corner of the picture
 const vec2 BEAM_NEAR_FADE = vec2(0.5, 2.0);
-
-// a filmic roll-off (ACES, Narkowicz's fit): the torch adds its light to a picture Cesium has
-// already tone mapped, so the pool and the beam would clip to flat white without it
-vec3 filmic(vec3 x) {
-  return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0);
-}
-
-float henyeyGreenstein(float cosTheta) {
-  float g2 = beamAnisotropy * beamAnisotropy;
-  return (1.0 - g2) / (4.0 * czm_pi * pow(1.0 + g2 - 2.0 * beamAnisotropy * cosTheta, 1.5));
-}
-
-// the part of the view ray, from the camera at the origin, inside the shaft: a cone from apex
-// along forward whose half angle has the cosine edgeCos. Entry and exit distances, exit before
-// entry when the ray misses the shaft.
-vec2 shaftSegment(vec3 ray, vec3 apex, vec3 forward, float edgeCos) {
-  // points t * ray in the cone: dot(p, forward)^2 >= edgeCos^2 dot(p, p), with p from the apex
-  vec3 v = -apex;
-  float k2 = edgeCos * edgeCos;
-  float rd = dot(ray, forward);
-  float vd = dot(v, forward);
-  float a = rd * rd - k2;
-  // a ray along the surface of the cone would divide by zero
-  a = abs(a) < 1e-7 ? -1e-7 : a;
-  float b = rd * vd - k2 * dot(ray, v);
-  float c = vd * vd - k2 * dot(v, v);
-  float discriminant = b * b - a * c;
-  if (discriminant < 0.0) {
-    return vec2(1.0, 0.0);
-  }
-  float root = sqrt(discriminant);
-  float t1 = (-b - root) / a;
-  float t2 = (-b + root) / a;
-  vec2 segment = a < 0.0 ? vec2(min(t1, t2), max(t1, t2))
-    // a ray steeper than the cone stays in it on one side, of the lit nappe or the other one
-    : rd > 0.0 ? vec2(max(t1, t2), 1e30) : vec2(-1e30, min(t1, t2));
-  // ahead of the apex, not in the mirrored cone behind it
-  return vd + 0.5 * (segment.x + segment.y) * rd > 0.0 ? segment : vec2(1.0, 0.0);
-}
-
-// the haze lit by the beam along the view ray up to sceneDistance: samples over the part of the
-// ray inside the shaft, so that none is wasted and pixels next to each other see the same
-// stretch of it, each weighted by the softness of the cone with its hot core, the falloff from
-// the torch and what the haze has dimmed so far, dithered per pixel so that they do not band
-float beamAlong(vec3 ray, float sceneDistance, vec3 axis) {
-  vec3 apex = HAND + axis * (beamWidth / tan(beamAngle));
-  vec3 forward = -axis;
-  float edgeCos = cos(beamAngle);
-  float coreCos = cos(beamAngle * BEAM_CORE);
-  vec2 segment = shaftSegment(ray, apex, forward, edgeCos);
-  float start = max(segment.x, 0.0);
-  float end = min(min(segment.y, sceneDistance), beamReach);
-  if (end <= start) {
-    return 0.0;
-  }
-  float length_ = end - start;
-  float jitter = pixelNoise(gl_FragCoord.xy);
-  float scattered = 0.0;
-  float transmittance = exp(-BEAM_EXTINCTION * start);
-  for (int i = 0; i < BEAM_SAMPLES; i++) {
-    // samples dense near the torch, where the falloff changes fastest, sparse far out
-    float u = (float(i) + jitter) / float(BEAM_SAMPLES);
-    float t = start + length_ * u * u;
-    float step = length_ * 2.0 * u / float(BEAM_SAMPLES);
-    vec3 p = ray * t;
-    vec3 fromApex = p - apex;
-    float cosine = dot(fromApex, forward) / length(fromApex);
-    float cone = smoothstep(edgeCos, coreCos, cosine) + smoothstep(coreCos, 1.0, cosine);
-    vec3 fromHand = p - HAND;
-    float falloff = 1.0 / (1.0 + dot(fromHand, fromHand) / (BEAM_REFERENCE * BEAM_REFERENCE));
-    float nearFade = smoothstep(BEAM_NEAR_FADE.x, BEAM_NEAR_FADE.y, t);
-    scattered += transmittance * cone * falloff * nearFade * step;
-    transmittance *= exp(-BEAM_EXTINCTION * step);
-  }
-  return beamDensity * scattered * henyeyGreenstein(dot(ray, forward));
-}
 
 void main() {
   vec4 sceneColor = texture(colorTexture, v_textureCoordinates);
@@ -146,7 +68,26 @@ void main() {
 
   // eye.w is 0 for the sky, where the view ray goes on
   float sceneDistance = eye.w == 0.0 ? 1e30 : length(eye.xyz);
-  float scattered = beam > 0.0 ? beamAlong(normalize(eye.xyz), sceneDistance, axis) : 0.0;
+  float scattered = 0.0;
+  if (beam > 0.0) {
+    Beam shaft;
+    shaft.apex = HAND + axis * (beamWidth / tan(beamAngle));
+    shaft.forward = -axis;
+    shaft.edgeCos = cos(beamAngle);
+    shaft.coreCos = cos(beamAngle * BEAM_CORE);
+    shaft.hotCore = 1.0;
+    shaft.light = HAND;
+    shaft.reference = BEAM_REFERENCE;
+    shaft.core = BEAM_REFERENCE;
+    shaft.reach = beamReach;
+    shaft.extinction = BEAM_EXTINCTION;
+    shaft.anisotropy = beamAnisotropy;
+    shaft.spacing = 2.0;
+    shaft.nearFade = BEAM_NEAR_FADE;
+    shaft.dust = 0.0;
+    shaft.dustScale = 1.0;
+    scattered = beamDensity * beamAlong(normalize(eye.xyz), sceneDistance, shaft);
+  }
   vec3 haze = LIGHT_COLOR * (power * beam * scattered);
   if (eye.w == 0.0) {
     out_FragColor = vec4(filmic(ambient + haze), sceneColor.a);

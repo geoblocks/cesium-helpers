@@ -3,7 +3,10 @@ import {acquireTerrainDepth, releaseTerrainDepth} from './depth-test.js';
 import Effect from './effect.js';
 import {eyeFocus} from './focus.js';
 import {heightUniforms} from './height.js';
+import Beam from './shaders/Beam.js';
 import EyeFromDepth from './shaders/EyeFromDepth.js';
+import Filmic from './shaders/Filmic.js';
+import Hash from './shaders/Hash.js';
 import Noise from './shaders/Noise.js';
 import Normal from './shaders/Normal.js';
 import SpotlightShader from './shaders/Spotlight.js';
@@ -37,7 +40,7 @@ export default class Spotlight extends Effect {
    */
   createStage_(scene) {
     return new PostProcessStage({
-      fragmentShader: EyeFromDepth + Noise + Normal + SpotlightShader,
+      fragmentShader: EyeFromDepth + Hash + Noise + Normal + Beam + Filmic + SpotlightShader,
       uniforms: {
         focus: () => eyeFocus(scene, this.focus_, focusScratch),
         up: heightUniforms(scene).up,
