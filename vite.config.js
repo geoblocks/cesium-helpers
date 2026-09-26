@@ -27,6 +27,7 @@ export default defineConfig({
     rolldownOptions: {
       input: {
         index: resolve(__dirname, 'demos/index.html'),
+        'cesium-audio': resolve(__dirname, 'demos/cesium-audio.html'),
         'cesium-binoculars': resolve(__dirname, 'demos/cesium-binoculars.html'),
         'cesium-compass': resolve(__dirname, 'demos/cesium-compass.html'),
         'cesium-compass-bar': resolve(__dirname, 'demos/cesium-compass-bar.html'),

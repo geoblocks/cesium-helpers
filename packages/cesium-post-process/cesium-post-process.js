@@ -2,6 +2,7 @@ export {default as AnalogVideo} from './analog-video.js';
 export {default as ColorIsolation} from './color-isolation.js';
 export {default as DigitalVideo} from './digital-video.js';
 export {default as DroneDisplay} from './drone-display.js';
+export {default as Flashlight} from './flashlight.js';
 export {default as Infrared} from './infrared.js';
 export {default as Jello} from './jello.js';
 export {default as LensDistortion} from './lens-distortion.js';

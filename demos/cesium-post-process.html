@@ -71,11 +71,22 @@
       <wa-details name="effects" data-effect="spotlight">
         <wa-switch slot="summary" name="active" size="s">Spotlight</wa-switch>
         <div class="wa-stack wa-gap-xs">
+          <wa-slider name="power" size="s" label="Power" min="0" max="4" step="0.1" value="1" with-tooltip></wa-slider>
           <wa-slider name="radius" size="s" label="Radius" min="20" max="2000" step="10" value="200" with-tooltip data-unit="m"></wa-slider>
           <wa-slider name="softness" size="s" label="Softness" min="0" max="1" step="0.05" value="0.5" with-tooltip data-unit="percent"></wa-slider>
           <wa-slider name="darkness" size="s" label="Darkness" min="0" max="1" step="0.05" value="0.8" with-tooltip data-unit="percent"></wa-slider>
           <wa-slider name="beam" size="s" label="Beam" min="0" max="1" step="0.05" value="0.25" with-tooltip data-unit="percent"></wa-slider>
           <wa-switch name="followCursor" size="s">Follow the cursor</wa-switch>
+        </div>
+      </wa-details>
+      <wa-details name="effects" data-effect="flashlight">
+        <wa-switch slot="summary" name="active" size="s">Flashlight</wa-switch>
+        <div class="wa-stack wa-gap-xs">
+          <wa-slider name="power" size="s" label="Power" min="0" max="4" step="0.1" value="1" with-tooltip></wa-slider>
+          <wa-slider name="angle" size="s" label="Angle" min="2" max="45" step="1" value="20" with-tooltip data-unit="deg"></wa-slider>
+          <wa-slider name="range" size="s" label="Range" min="100" max="10000" step="100" value="5000" with-tooltip data-unit="m"></wa-slider>
+          <wa-slider name="darkness" size="s" label="Darkness" min="0" max="1" step="0.05" value="0.9" with-tooltip data-unit="percent"></wa-slider>
+          <wa-slider name="beam" size="s" label="Beam" min="0" max="1" step="0.05" value="0.5" with-tooltip data-unit="percent"></wa-slider>
         </div>
       </wa-details>
       <wa-details name="effects" data-effect="colorIsolation">
@@ -160,7 +171,7 @@
   </wa-card>
   <script type="module">
     import {createViewer} from './setup.js';
-    import {AnalogVideo, ColorIsolation, DigitalVideo, DroneDisplay, Infrared, Jello, LensDistortion, MotionBlur, SnowLine, SpeedLines, Spotlight, Super8, Technicolor, TiltShift, ValleyFog} from '../packages/cesium-post-process/cesium-post-process.js';
+    import {AnalogVideo, ColorIsolation, DigitalVideo, DroneDisplay, Flashlight, Infrared, Jello, LensDistortion, MotionBlur, SnowLine, SpeedLines, Spotlight, Super8, Technicolor, TiltShift, ValleyFog} from '../packages/cesium-post-process/cesium-post-process.js';
     import '@awesome.me/webawesome/dist/styles/webawesome.css';
     import '@awesome.me/webawesome/dist/components/card/card.js';
     import '@awesome.me/webawesome/dist/components/details/details.js';
@@ -187,7 +198,7 @@
     // snow under the fog, the lens effects on the whole scene, then the colors and the film looks;
     // last the drone camera: its lens, its sensor's jello, its display drawn over the picture, and
     // the video signal, analog or digital
-    const ORDER = ['snowLine', 'valleyFog', 'spotlight', 'tiltShift', 'motionBlur', 'speedLines', 'colorIsolation', 'infrared', 'technicolor', 'super8', 'lensDistortion', 'jello', 'droneDisplay', 'analogVideo', 'digitalVideo'];
+    const ORDER = ['snowLine', 'valleyFog', 'spotlight', 'flashlight', 'tiltShift', 'motionBlur', 'speedLines', 'colorIsolation', 'infrared', 'technicolor', 'super8', 'lensDistortion', 'jello', 'droneDisplay', 'analogVideo', 'digitalVideo'];
 
     createViewer('cesiumContainer').then(viewer => {
       // an early autumn afternoon, for the light
@@ -201,6 +212,8 @@
         motionBlur: new MotionBlur(viewer, {exposure: 0.04}),
         speedLines: new SpeedLines(viewer),
         spotlight: new Spotlight(viewer),
+        // seen from the air: a torch with a far longer range than a real one
+        flashlight: new Flashlight(viewer, {range: 5000}),
         colorIsolation: new ColorIsolation(viewer),
         infrared: new Infrared(viewer),
         technicolor: new Technicolor(viewer),

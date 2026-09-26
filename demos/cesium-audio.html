@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en" class="wa-theme-default wa-palette-default wa-light">
+
+<head>
+  <meta charset="UTF-8">
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Cesium.js"></script>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  <style>
+    html, body, #cesiumContainer {
+      height: 100%;
+      margin: 0;
+    }
+    #controls {
+      position: absolute;
+      inset-block-start: var(--wa-space-xl);
+      inset-inline-end: var(--wa-space-xl);
+      --spacing: var(--wa-space-s);
+      max-inline-size: 30ch;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="cesiumContainer"></div>
+  <wa-card id="controls">
+    <p id="caption" class="wa-caption-m">Your goat is lost in the night. Turn the sound on, listen, and drag the map to point your torch toward the bleating. Headphones recommended: the HRTF panning model simulates how each ear hears the sound.</p>
+    <wa-switch id="sound" size="s">Sound</wa-switch>
+    <wa-button id="hide" size="s" variant="brand" hidden>Hide it again</wa-button>
+  </wa-card>
+  <script type="module">
+    import {createViewer} from './setup.js';
+    import CesiumSphereCamera from '../packages/cesium-sphere-camera/cesium-sphere-camera.js';
+    import CesiumAudio from '../packages/cesium-audio/cesium-audio.js';
+    import {Flashlight} from '../packages/cesium-post-process/cesium-post-process.js';
+    import goatUrl from './goat.mp3';
+    import '@awesome.me/webawesome/dist/styles/webawesome.css';
+    import '@awesome.me/webawesome/dist/components/button/button.js';
+    import '@awesome.me/webawesome/dist/components/card/card.js';
+    import '@awesome.me/webawesome/dist/components/switch/switch.js';
+
+    const PLAYER = Cesium.Cartographic.fromDegrees(7.863775, 46.686447);
+    const EYE_HEIGHT = 1.7; // meters
+    const TORCH_ANGLE = 20; // half angle of the cone, degrees
+    const TORCH_RANGE = 40; // meters
+    const GOAT_DISTANCE = [20, 50]; // from the player, meters
+
+    // the height of the rendered terrain, once its tiles are loaded
+    const groundHeight = async (scene, cartographic) => {
+      for (;;) {
+        scene.requestRender();
+        await new Promise(resolve => setTimeout(resolve, 200));
+        const height = scene.globe.getHeight(cartographic);
+        if (height !== undefined && scene.globe.tilesLoaded) {
+          return height;
+        }
+      }
+    };
+
+    createViewer('cesiumContainer').then(async viewer => {
+      const scene = viewer.scene;
+      // night sky; the torch's darkening makes the night on the ground, where the sun's lighting
+      // would leave nothing for the torch to light
+      viewer.clock.currentTime = Cesium.JulianDate.fromIso8601('2026-09-25T23:00:00+02:00');
+      scene.globe.enableLighting = false;
+
+      // seat the player on the rendered terrain, and keep them there on every frame: the tiles
+      // refine as the camera comes down, and a refinement can move the ground by more than the
+      // eye height
+      PLAYER.height = await groundHeight(scene, PLAYER);
+      scene.camera.setView({
+        destination: Cesium.Cartesian3.fromRadians(PLAYER.longitude, PLAYER.latitude, PLAYER.height + EYE_HEIGHT),
+        orientation: {heading: 0, pitch: Cesium.Math.toRadians(-10)},
+      });
+      scene.preRender.addEventListener(() => {
+        const height = scene.globe.getHeight(PLAYER);
+        if (height !== undefined && Math.abs(height - PLAYER.height) > 0.05) {
+          PLAYER.height = height;
+          scene.camera.position = Cesium.Cartesian3.fromRadians(PLAYER.longitude, PLAYER.latitude, PLAYER.height + EYE_HEIGHT);
+          scene.requestRender();
+        }
+      });
+      const playerPosition = Cesium.Cartographic.toCartesian(PLAYER);
+      const playerFrame = Cesium.Transforms.eastNorthUpToFixedFrame(playerPosition);
+      new CesiumSphereCamera(viewer).active = true;
+      // pitch black outside the torch
+      new Flashlight(viewer, {angle: TORCH_ANGLE, range: TORCH_RANGE, darkness: 1}).active = true;
+
+      // the goat: somewhere on the terrain around the player, in the dark
+      let goatPosition = playerPosition;
+      let marker;
+      const hideGoat = async () => {
+        const distance = GOAT_DISTANCE[0] + Math.random() * (GOAT_DISTANCE[1] - GOAT_DISTANCE[0]);
+        const bearing = Math.random() * 2 * Math.PI;
+        const local = new Cesium.Cartesian3(distance * Math.sin(bearing), distance * Math.cos(bearing), 0);
+        const goat = Cesium.Cartographic.fromCartesian(Cesium.Matrix4.multiplyByPoint(playerFrame, local, new Cesium.Cartesian3()));
+        goat.height = await groundHeight(scene, goat);
+        goatPosition = Cesium.Cartographic.toCartesian(goat);
+        if (marker) {
+          viewer.entities.remove(marker);
+          marker = undefined;
+        }
+        caption.textContent = 'Your goat is lost in the night. Listen, and drag the map to point your torch toward the bleating.';
+        hide.hidden = true;
+        scene.requestRender();
+      };
+      const caption = document.querySelector('#caption');
+      const hide = document.querySelector('#hide');
+      hide.addEventListener('click', hideGoat);
+      await hideGoat();
+
+      // found once the goat is in the torch's cone, within its range
+      const toGoatScratch = new Cesium.Cartesian3();
+      scene.postRender.addEventListener(() => {
+        if (marker) {
+          return;
+        }
+        const toGoat = Cesium.Cartesian3.subtract(goatPosition, scene.camera.position, toGoatScratch);
+        const distance = Cesium.Cartesian3.magnitude(toGoat);
+        const angle = Cesium.Math.acosClamped(Cesium.Cartesian3.dot(toGoat, scene.camera.direction) / distance);
+        if (distance <= TORCH_RANGE && angle <= Cesium.Math.toRadians(TORCH_ANGLE)) {
+          marker = viewer.entities.add({
+            position: goatPosition,
+            point: {pixelSize: 12, color: Cesium.Color.WHITE, disableDepthTestDistance: Number.POSITIVE_INFINITY},
+            label: {text: 'goat', pixelOffset: new Cesium.Cartesian2(0, -20), disableDepthTestDistance: Number.POSITIVE_INFINITY},
+          });
+          caption.textContent = 'You found the goat!';
+          hide.hidden = false;
+        }
+      });
+
+      const toggle = document.querySelector('#sound');
+      let audioContext;
+      toggle.addEventListener('change', async () => {
+        if (!audioContext) {
+          // the audio context can only start from a user gesture
+          audioContext = new AudioContext();
+          const panner = new PannerNode(audioContext, {panningModel: 'HRTF', distanceModel: 'inverse', refDistance: 10});
+          panner.connect(audioContext.destination);
+          const audio = new CesiumAudio(scene, goatPosition, panner);
+          audio.active = true;
+          scene.preRender.addEventListener(() => audio.position = goatPosition);
+
+          const response = await fetch(goatUrl);
+          const buffer = await audioContext.decodeAudioData(await response.arrayBuffer());
+          // a bleat every few seconds; the chain pauses while the context is suspended
+          const bleat = () => {
+            const source = new AudioBufferSourceNode(audioContext, {buffer});
+            source.connect(panner);
+            source.onended = () => setTimeout(bleat, 1000 + Math.random() * 3000);
+            source.start();
+          };
+          bleat();
+        } else if (toggle.checked) {
+          await audioContext.resume();
+        } else {
+          await audioContext.suspend();
+        }
+      });
+    });
+  </script>
+</body>
+
+</html>
