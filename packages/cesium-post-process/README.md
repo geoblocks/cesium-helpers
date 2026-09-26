@@ -18,7 +18,7 @@ Each effect is inactive after construction. Every option is also a property, app
 
 ```javascript
 import {Color} from '@cesium/engine';
-import {AnalogVideo, ColorIsolation, DigitalVideo, DroneDisplay, Infrared, Jello, LensDistortion, MotionBlur, SnowLine, SpeedLines, Spotlight, Super8, Technicolor, TiltShift, ValleyFog} from '@geoblocks/cesium-post-process';
+import {AnalogVideo, ColorIsolation, DigitalVideo, DroneDisplay, Infrared, Jello, LensDistortion, MotionBlur, Shockwave, SnowLine, SpeedLines, Spotlight, Super8, Technicolor, TiltShift, Trails, ValleyFog} from '@geoblocks/cesium-post-process';
 
 const snowLine = new SnowLine(viewer, {
   altitude: 2000,  // meters above the ellipsoid where the snow is half covering
@@ -68,6 +68,23 @@ const speedLines = new SpeedLines(viewer, {
   strength: 1, // zoom blur toward the focus and streaks radiating from it, 0 to 1
 });
 speedLines.active = true;
+
+// the moving things
+const shockwave = new Shockwave(viewer, {
+  strength: 1,   // displacement and brightness of the rings, 0 to 1
+  speed: 12,     // growth of a ring, in meters per second
+  duration: 0.5, // life of a ring, in seconds
+});
+shockwave.active = true;
+shockwave.impact(position); // a ring spreads from this position, up to 8 at once
+
+const trails = new Trails(viewer, {
+  trails: () => things.map(thing => thing.trail), // per moving thing, its recent {position, time: performance.now()} points, oldest first, read every frame
+  fade: 0.4,     // age at which a point has faded out, in seconds
+  width: 0.05,   // half width of a streak, in meters at its depth, at least a few pixels
+  color: new Color(1, 0.35, 0.15, 1),
+});
+trails.active = true;
 
 // the colors
 const colorIsolation = new ColorIsolation(viewer, {
@@ -140,7 +157,7 @@ super8.destroy();
 
 ### Order of the effects
 
-Cesium runs the stages in the order they are added and cannot insert one elsewhere. Activate the effects in this order: `SnowLine`, `ValleyFog`, `Spotlight`, `TiltShift`, `MotionBlur`, `SpeedLines`, `ColorIsolation`, `Infrared`, `Technicolor`, `Super8`, `LensDistortion`, `Jello`, `DroneDisplay`, `AnalogVideo` or `DigitalVideo`. The snow is then under the fog, the lens effects apply to the whole scene, and the film looks apply to everything, their black bars included. The drone camera comes last, in the order of a real one: its lens bends the picture, its sensor reads it with the jello of its shake, its display is drawn over the picture and stays straight, and the video signal, analog or digital, disturbs both. To activate an effect later, deactivate and activate again the active effects that come after it.
+Cesium runs the stages in the order they are added and cannot insert one elsewhere. Activate the effects in this order: `SnowLine`, `ValleyFog`, `Spotlight`, `TiltShift`, `MotionBlur`, `SpeedLines`, `Trails`, `Shockwave`, `ColorIsolation`, `Infrared`, `Technicolor`, `Super8`, `LensDistortion`, `Jello`, `DroneDisplay`, `AnalogVideo` or `DigitalVideo`. The snow is then under the fog, the lens effects apply to the whole scene, and the film looks apply to everything, their black bars included. The drone camera comes last, in the order of a real one: its lens bends the picture, its sensor reads it with the jello of its shake, its display is drawn over the picture and stays straight, and the video signal, analog or digital, disturbs both. To activate an effect later, deactivate and activate again the active effects that come after it.
 
 ### Notes
 
@@ -154,6 +171,8 @@ Cesium runs the stages in the order they are added and cannot insert one elsewhe
 
 `SpeedLines` draws new streaks, 24 times per second, only when the scene renders: it does not render the scene by itself, so the streaks move while the camera does, or with any animation that renders the scene. At strength 0 its stage is disabled and costs nothing.
 
+`Shockwave` and `Trails` draw moving things that the scene itself does not animate. `Shockwave` measures its rings in meters at the impact's depth, so a far impact makes a small ring, and pushes the picture outward along a narrow band with a faint bright rim; a ring behind the scene at its center is hidden. `Trails` takes its points from a function called every frame, so that the caller keeps the positions of its moving things however it likes, and draws a Gaussian streak along the segments between consecutive points, at most 64 points in all across the trails, the rest dropped; a streak is measured in meters at its depth with a floor of two pixels, and is hidden where the scene is in front of it. Both read the depth buffer, and both render the scene 60 times per second while something is showing, also with `requestRenderMode`: the shockwave until its last ring has died out, the trails until the last point has faded.
+
 `SnowLine` and `ValleyFog` compute each pixel's height relative to the camera, in double precision on the CPU for the camera, so they stay accurate far from the origin. The snow's slope comes from the normal rebuilt from the neighboring pixels. The fog is lit by the sun like Cesium's own fog: its color during the day, a moonlit blue at night, as bright as `scene.fog.minimumBrightness`. Both work in 3D only.
 
-`SnowLine`, `ValleyFog`, `TiltShift`, `Spotlight` and `MotionBlur` read the depth buffer. The post-process stages only get the terrain's depth when it is depth tested, so `globe.depthTestAgainstTerrain` is on while any of them is active and restored when the last one is deactivated: billboards and labels that show through the terrain can be hidden by it meanwhile.
+`SnowLine`, `ValleyFog`, `TiltShift`, `Spotlight`, `MotionBlur`, `Shockwave` and `Trails` read the depth buffer. The post-process stages only get the terrain's depth when it is depth tested, so `globe.depthTestAgainstTerrain` is on while any of them is active and restored when the last one is deactivated: billboards and labels that show through the terrain can be hidden by it meanwhile.
