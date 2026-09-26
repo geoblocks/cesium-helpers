@@ -4,12 +4,18 @@ import {
   Cartographic,
   Color,
   ConstantPositionProperty,
+  Event,
 } from "@cesium/engine";
 
 // a backgrounded tab must not integrate a multi-second step on return
 const MAX_STEP_SECONDS = 0.1;
 // an apple over terrain that never loads must not tick forever
 const MAX_FLIGHT_SECONDS = 30;
+// the recent positions kept for a trail effect
+const TRAIL_INTERVAL_SECONDS = 0.04;
+const TRAIL_POINTS = 16;
+// a landed apple's trail is available for this long after landing
+const TRAIL_KEEP_SECONDS = 1;
 
 const normalScratch = new Cartesian3();
 const deltaScratch = new Cartesian3();
@@ -21,7 +27,11 @@ const cartographicScratch = new Cartographic();
  * @property {Cartesian3} velocity
  * @property {import('@cesium/engine').Entity} entity
  * @property {number} thrownAt performance.now() timestamp
+ * @property {TrailPoint[]} trail the most recent positions, oldest first
+ * @property {number} trailSampledAt performance.now() timestamp
  */
+
+/** @typedef {import('../packages/cesium-post-process/trails.js').TrailPoint} TrailPoint */
 
 export default class Apples {
   /**
@@ -36,6 +46,10 @@ export default class Apples {
 
     /** @type {Apple[]} */
     this.inFlight_ = [];
+    /** @type {Apple[]} landed recently, their trail still available */
+    this.landedRecently_ = [];
+    /** Raised with the position of each apple as it lands. */
+    this.landed = new Event();
     this.lastTick_ = 0;
     this.handleTickFunction = this.handleTick.bind(this);
   }
@@ -49,6 +63,17 @@ export default class Apples {
   }
 
   /**
+   * The trails of the apples in flight and of those landed in the last second, one array of
+   * points per apple, oldest point first.
+   * @return {TrailPoint[][]}
+   */
+  get trails() {
+    const cutoff = performance.now() - TRAIL_KEEP_SECONDS * 1000;
+    this.landedRecently_ = this.landedRecently_.filter((apple) => apple.trailSampledAt > cutoff);
+    return [...this.inFlight_, ...this.landedRecently_].map((apple) => apple.trail);
+  }
+
+  /**
    * @param {Cartesian3} position World coordinates.
    * @param {Cartesian3} velocity World coordinates, meters per second.
    */
@@ -59,6 +84,8 @@ export default class Apples {
       thrownAt: performance.now(),
       /** @type {import('@cesium/engine').Entity} */
       entity: /** @type {any} */ (undefined),
+      trail: [{position: Cartesian3.clone(position), time: performance.now()}],
+      trailSampledAt: performance.now(),
     };
     apple.entity = this.viewer.entities.add({
       position: new CallbackProperty(() => apple.position, false),
@@ -96,8 +123,16 @@ export default class Apples {
         Cartographic.toCartesian(cartographic, ellipsoid, apple.position);
         // static from now on, so the entity system stops re-evaluating it
         apple.entity.position = new ConstantPositionProperty(apple.position);
+        this.sampleTrail_(apple, now);
         this.inFlight_.splice(i, 1);
-      } else if (now - apple.thrownAt > MAX_FLIGHT_SECONDS * 1000) {
+        this.landedRecently_.push(apple);
+        this.landed.raiseEvent(apple.position);
+        continue;
+      }
+      if (now - apple.trailSampledAt >= TRAIL_INTERVAL_SECONDS * 1000) {
+        this.sampleTrail_(apple, now);
+      }
+      if (now - apple.thrownAt > MAX_FLIGHT_SECONDS * 1000) {
         this.viewer.entities.remove(apple.entity);
         this.inFlight_.splice(i, 1);
       }
@@ -107,5 +142,17 @@ export default class Apples {
     if (this.inFlight_.length === 0) {
       this.viewer.clock.onTick.removeEventListener(this.handleTickFunction);
     }
+  }
+
+  /**
+   * @param {Apple} apple
+   * @param {number} now
+   */
+  sampleTrail_(apple, now) {
+    if (apple.trail.length === TRAIL_POINTS) {
+      apple.trail.shift();
+    }
+    apple.trail.push({position: Cartesian3.clone(apple.position), time: now});
+    apple.trailSampledAt = now;
   }
 }

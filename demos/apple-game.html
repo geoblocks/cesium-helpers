@@ -49,6 +49,7 @@
     import CesiumWalk from '../packages/cesium-walk/cesium-walk.js';
     import FirstPersonCameraMode from '../packages/FirstPersonCameraMode/FirstPersonCameraMode.js';
     import Apples from './apples.js';
+    import {Shockwave, Trails} from '../packages/cesium-post-process/cesium-post-process.js';
     import '@awesome.me/webawesome/dist/styles/webawesome.css';
     import '@awesome.me/webawesome/dist/components/card/card.js';
 
@@ -72,6 +73,11 @@
       const walk = new CesiumWalk(viewer, WALK_SPEED, EYE_HEIGHT);
       const look = new FirstPersonCameraMode(viewer);
       const apples = new Apples(viewer);
+      const shockwave = new Shockwave(viewer);
+      shockwave.active = true;
+      apples.landed.addEventListener(position => shockwave.impact(position));
+      const trails = new Trails(viewer, {trails: () => apples.trails});
+      trails.active = true;
 
       // the first walk clamp must land on real terrain, not a placeholder tile;
       // tilesLoaded is true before the first frame, so always render and wait once
