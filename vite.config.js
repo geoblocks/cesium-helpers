@@ -36,6 +36,7 @@ export default defineConfig({
         'cesium-post-process': resolve(__dirname, 'demos/cesium-post-process.html'),
         'cesium-sphere-camera': resolve(__dirname, 'demos/cesium-sphere-camera.html'),
         'cesium-view-cube': resolve(__dirname, 'demos/cesium-view-cube.html'),
+        'cesium-walk': resolve(__dirname, 'demos/cesium-walk.html'),
       },
     },
   },

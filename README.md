@@ -11,6 +11,7 @@ A collection of helpers and web component for working with [CesiumJS](https://ce
 * [cesium-binoculars](packages/cesium-binoculars): a camera mode that allows the user to use binoculars with the mouse wheel
 * [cesium-post-process](packages/cesium-post-process): screen-space effects (Technicolor and Super 8 film looks, infrared, color isolation, tilt-shift, motion blur, speed lines, a spotlight, valley fog, a snow line, and a drone camera: wide lens, jello, display, analog and digital video)
 * [cesium-path-flyover](packages/cesium-path-flyover): a camera animation that follows a GPX or GeoJSON track
+* [cesium-walk](packages/cesium-walk): a camera mode that allows the user to walk around the scene with the keyboard
 
 ## Sponsorship
 

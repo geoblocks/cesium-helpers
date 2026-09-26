@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en" class="wa-theme-default wa-palette-default wa-light">
+
+<head>
+  <meta charset="UTF-8">
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Cesium.js"></script>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  <style>
+    html, body, #cesiumContainer {
+      height: 100%;
+      margin: 0;
+    }
+    #controls {
+      position: absolute;
+      inset-block-start: var(--wa-space-xl);
+      inset-inline-end: var(--wa-space-xl);
+      --spacing: var(--wa-space-s);
+      max-inline-size: 30ch;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="cesiumContainer"></div>
+  <wa-card id="controls">
+    <p class="wa-caption-m">Turn the switch on, then use the W, A, S and D keys to walk. The camera stays 2 m above the terrain.</p>
+    <wa-switch id="activate" size="s">Walk</wa-switch>
+  </wa-card>
+  <script type="module">
+    import {createViewer} from './setup.js';
+    import CesiumWalk from '../packages/cesium-walk/cesium-walk.js';
+    import '@awesome.me/webawesome/dist/styles/webawesome.css';
+    import '@awesome.me/webawesome/dist/components/card/card.js';
+    import '@awesome.me/webawesome/dist/components/switch/switch.js';
+
+    createViewer('cesiumContainer').then(viewer => {
+      const mode = new CesiumWalk(viewer);
+      const toggle = document.querySelector('#activate');
+      toggle.addEventListener('change', () => mode.active = toggle.checked);
+    });
+  </script>
+</body>
+
+</html>
