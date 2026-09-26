@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en" class="wa-theme-default wa-palette-default wa-light">
+
+<head>
+  <meta charset="UTF-8">
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Cesium.js"></script>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  <style>html,body,#cesiumContainer{height:100%;margin:0}#controls{inline-size:30ch;max-block-size:calc(100% - 2 * var(--wa-space-xl));--spacing:var(--wa-space-m);position:absolute;inset-block-start:var(--wa-space-xl);inset-inline-end:var(--wa-space-xl);overflow:auto}#controls h2{font-size:var(--wa-font-size-m);margin:0}</style>
+  <script type="module" crossorigin src="./assets/cesium-post-process-DtPInF6X.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/lit-BFn1CURT.js">
+  <link rel="modulepreload" crossorigin href="./assets/directive-BSZPiF1A.js">
+  <link rel="modulepreload" crossorigin href="./assets/card-58mEaPX-.js">
+  <link rel="modulepreload" crossorigin href="./assets/directive-helpers-B5gL4DMf.js">
+  <link rel="modulepreload" crossorigin href="./assets/setup-DYuWPPM-.js">
+  <link rel="modulepreload" crossorigin href="./assets/switch-BktEAscN.js">
+  <link rel="modulepreload" crossorigin href="./assets/button-C4a7i2eR.js">
+  <link rel="modulepreload" crossorigin href="./assets/cesium-shim-Dw5GLahM.js">
+  <link rel="modulepreload" crossorigin href="./assets/cesium-post-process-Czdn4zn-.js">
+  <link rel="modulepreload" crossorigin href="./assets/style-map-ly-_uhSr.js">
+  <link rel="modulepreload" crossorigin href="./assets/slider-C4R-zmeo.js">
+  <link rel="stylesheet" crossorigin href="./assets/card-DfFS4Dmy.css">
+</head>
+
+<body>
+  <div id="cesiumContainer"></div>
+  <wa-card id="controls">
+    <h2 slot="header">Post-process</h2>
+    <div class="wa-stack wa-gap-xs">
+      <wa-details name="effects" data-effect="snowLine">
+        <wa-switch slot="summary" name="active" size="s">Snow line</wa-switch>
+        <div class="wa-stack wa-gap-xs">
+          <wa-slider name="altitude" size="s" label="Altitude" min="500" max="4000" step="50" value="2000" with-tooltip data-unit="m"></wa-slider>
+          <wa-slider name="transition" size="s" label="Transition" min="0" max="1000" step="10" value="200" with-tooltip data-unit="m"></wa-slider>
+          <wa-slider name="maxSlope" size="s" label="Max slope" min="10" max="80" step="1" value="40" with-tooltip data-unit="deg"></wa-slider>
+        </div>
+      </wa-details>
+      <wa-details name="effects" data-effect="valleyFog">
+        <wa-switch slot="summary" name="active" size="s">Valley fog</wa-switch>
+        <div class="wa-stack wa-gap-xs">
+          <wa-slider name="top" size="s" label="Top" min="400" max="3000" step="10" value="1500" with-tooltip data-unit="m"></wa-slider>
+          <wa-slider name="density" size="s" label="Density" min="0.0005" max="0.02" step="0.0005" value="0.005" with-tooltip data-unit="per-m"></wa-slider>
+          <wa-slider name="softness" size="s" label="Softness" min="0" max="500" step="10" value="100" with-tooltip data-unit="m"></wa-slider>
+        </div>
+      </wa-details>
+      <wa-details name="effects" data-effect="tiltShift">
+        <wa-switch slot="summary" name="active" size="s">Tilt-shift</wa-switch>
+        <div class="wa-stack wa-gap-xs">
+          <wa-slider name="range" size="s" label="Sharp band" min="0.05" max="1" step="0.05" value="0.3" with-tooltip></wa-slider>
+          <wa-slider name="blur" size="s" label="Blur" min="1" max="10" step="0.5" value="4" with-tooltip></wa-slider>
+          <wa-slider name="saturation" size="s" label="Saturation" min="0" max="1" step="0.05" value="0.3" with-tooltip data-unit="percent"></wa-slider>
+        </div>
+      </wa-details>
+      <wa-details name="effects" data-effect="motionBlur">
+        <wa-switch slot="summary" name="active" size="s">Motion blur</wa-switch>
+        <div class="wa-stack wa-gap-xs">
+          <wa-slider name="strength" size="s" label="Strength" min="0" max="1" step="0.05" value="1" with-tooltip data-unit="percent"></wa-slider>
+          <wa-slider name="exposure" size="s" label="Exposure (s)" min="0.005" max="0.1" step="0.005" value="0.04" with-tooltip data-unit="shutter"></wa-slider>
+        </div>
+      </wa-details>
+      <wa-details name="effects" data-effect="speedLines">
+        <wa-switch slot="summary" name="active" size="s">Speed lines</wa-switch>
+        <div class="wa-stack wa-gap-xs">
+          <wa-slider name="strength" size="s" label="Strength" min="0" max="1" step="0.05" value="1" with-tooltip data-unit="percent"></wa-slider>
+        </div>
+      </wa-details>
+      <wa-details name="effects" data-effect="spotlight">
+        <wa-switch slot="summary" name="active" size="s">Spotlight</wa-switch>
+        <div class="wa-stack wa-gap-xs">
+          <wa-slider name="radius" size="s" label="Radius" min="20" max="2000" step="10" value="200" with-tooltip data-unit="m"></wa-slider>
+          <wa-slider name="softness" size="s" label="Softness" min="0" max="1" step="0.05" value="0.5" with-tooltip data-unit="percent"></wa-slider>
+          <wa-slider name="darkness" size="s" label="Darkness" min="0" max="1" step="0.05" value="0.8" with-tooltip data-unit="percent"></wa-slider>
+          <wa-slider name="beam" size="s" label="Beam" min="0" max="1" step="0.05" value="0.25" with-tooltip data-unit="percent"></wa-slider>
+          <wa-switch name="followCursor" size="s">Follow the cursor</wa-switch>
+        </div>
+      </wa-details>
+      <wa-details name="effects" data-effect="colorIsolation">
+        <wa-switch slot="summary" name="active" size="s">Color isolation</wa-switch>
+        <div class="wa-stack wa-gap-xs">
+          <wa-slider name="hue" size="s" label="Hue" min="0" max="359" step="1" value="0" with-tooltip data-unit="deg"></wa-slider>
+          <wa-slider name="range" size="s" label="Range" min="5" max="120" step="1" value="60" with-tooltip data-unit="deg"></wa-slider>
+        </div>
+      </wa-details>
+      <wa-details name="effects" data-effect="infrared">
+        <wa-switch slot="summary" name="active" size="s">Infrared</wa-switch>
+        <div class="wa-stack wa-gap-xs">
+          <wa-slider name="strength" size="s" label="Strength" min="0" max="1" step="0.05" value="1" with-tooltip data-unit="percent"></wa-slider>
+        </div>
+      </wa-details>
+      <wa-details name="effects" data-effect="technicolor">
+        <wa-switch slot="summary" name="active" size="s">Technicolor</wa-switch>
+        <div class="wa-stack wa-gap-xs">
+          <wa-slider name="strength" size="s" label="Strength" min="0" max="1" step="0.05" value="1" with-tooltip data-unit="percent"></wa-slider>
+          <wa-select name="aspectRatio" size="s" label="Aspect ratio" value="0">
+            <wa-option value="0">none</wa-option>
+            <wa-option value="1.37">1.37</wa-option>
+          </wa-select>
+        </div>
+      </wa-details>
+      <wa-details name="effects" data-effect="super8">
+        <wa-switch slot="summary" name="active" size="s">Super 8</wa-switch>
+        <div class="wa-stack wa-gap-xs">
+          <wa-slider name="fade" size="s" label="Fade" min="0" max="1" step="0.05" value="0.5" with-tooltip data-unit="percent"></wa-slider>
+          <wa-slider name="halation" size="s" label="Halation" min="0" max="1" step="0.05" value="0.5" with-tooltip data-unit="percent"></wa-slider>
+          <wa-slider name="grain" size="s" label="Grain" min="0" max="0.5" step="0.01" value="0.15" with-tooltip data-unit="percent"></wa-slider>
+          <wa-slider name="weave" size="s" label="Weave" min="0" max="5" step="0.1" value="1.5" with-tooltip data-unit="px"></wa-slider>
+          <wa-slider name="flicker" size="s" label="Flicker" min="0" max="0.3" step="0.01" value="0.08" with-tooltip data-unit="percent"></wa-slider>
+          <wa-slider name="lightLeaks" size="s" label="Light leaks" min="0" max="1" step="0.05" value="0.5" with-tooltip data-unit="percent"></wa-slider>
+          <wa-select name="aspectRatio" size="s" label="Aspect ratio" value="1.3333">
+            <wa-option value="0">none</wa-option>
+            <wa-option value="1.3333">4:3</wa-option>
+          </wa-select>
+        </div>
+      </wa-details>
+      <wa-details name="effects" data-effect="lensDistortion">
+        <wa-switch slot="summary" name="active" size="s">Wide lens</wa-switch>
+        <div class="wa-stack wa-gap-xs">
+          <wa-slider name="distortion" size="s" label="Distortion" min="0" max="1" step="0.05" value="0.5" with-tooltip data-unit="percent"></wa-slider>
+          <wa-slider name="vignette" size="s" label="Vignette" min="0" max="1" step="0.05" value="0.5" with-tooltip data-unit="percent"></wa-slider>
+        </div>
+      </wa-details>
+      <wa-details name="effects" data-effect="jello">
+        <wa-switch slot="summary" name="active" size="s">Jello</wa-switch>
+        <div class="wa-stack wa-gap-xs">
+          <wa-slider name="amount" size="s" label="Amount" min="0" max="1" step="0.05" value="0.1" with-tooltip data-unit="percent"></wa-slider>
+          <wa-slider name="frequency" size="s" label="Frequency" min="2" max="80" step="1" value="30" with-tooltip data-unit="hz"></wa-slider>
+        </div>
+      </wa-details>
+      <wa-details name="effects" data-effect="droneDisplay">
+        <wa-switch slot="summary" name="active" size="s">Drone display</wa-switch>
+        <div class="wa-stack wa-gap-xs">
+          <wa-slider name="opacity" size="s" label="Opacity" min="0" max="1" step="0.05" value="1" with-tooltip data-unit="percent"></wa-slider>
+          <wa-select name="reticle" size="s" label="Reticle" value="v">
+            <wa-option value="ring">ring</wa-option>
+            <wa-option value="v">V</wa-option>
+            <wa-option value="heart">heart</wa-option>
+          </wa-select>
+        </div>
+      </wa-details>
+      <wa-details name="effects" data-effect="analogVideo">
+        <wa-switch slot="summary" name="active" size="s">Analog video</wa-switch>
+        <div class="wa-stack wa-gap-xs">
+          <wa-slider name="noise" size="s" label="Noise" min="0" max="1" step="0.05" value="0.5" with-tooltip data-unit="percent"></wa-slider>
+          <wa-slider name="interference" size="s" label="Interference" min="0" max="1" step="0.05" value="0.15" with-tooltip data-unit="percent"></wa-slider>
+        </div>
+      </wa-details>
+      <wa-details name="effects" data-effect="digitalVideo">
+        <wa-switch slot="summary" name="active" size="s">Digital video</wa-switch>
+        <div class="wa-stack wa-gap-xs">
+          <wa-slider name="breakup" size="s" label="Breakup" min="0" max="1" step="0.05" value="0.5" with-tooltip data-unit="percent"></wa-slider>
+        </div>
+      </wa-details>
+      <p class="wa-caption-m">Click the map to focus the tilt-shift, the spotlight and the speed lines there.</p>
+      <wa-button id="center" size="s">Focus the middle</wa-button>
+    </div>
+  </wa-card>
+</body>
+
+</html>

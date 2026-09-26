@@ -1,4 +1,4 @@
-import{t as e}from"./setup-Bj0t9lPR.js";import{a as t,r as n,t as r}from"./lit-DfHKIwhG.js";var i=class extends r{static get properties(){return{scene:{type:Object},heading:{type:Number}}}static get styles(){return t`
+import{a as e,t,u as n}from"./lit-BFn1CURT.js";import{t as r}from"./setup-DYuWPPM-.js";var i=class extends t{static get properties(){return{scene:{type:Object},heading:{type:Number}}}static get styles(){return n`
       :host {
         --cesium-compass-bar-tick-color: #000;
         --cesium-compass-bar-intercardinal-width: 100px;
@@ -43,46 +43,46 @@ import{t as e}from"./setup-Bj0t9lPR.js";import{a as t,r as n,t as r}from"./lit-D
         border-radius: 50%;
         background-color: var(--cesium-compass-bar-tick-color);
       }
-    `}constructor(){super(),this.scene=void 0,this.intercardinalWidth=0,this.heading=0,this.unlistenFromPostRender=null}updated(){this.scene&&!this.unlistenFromPostRender&&(this.unlistenFromPostRender=this.scene.postRender.addEventListener(()=>{this.heading=this.scene.camera.heading}),this.intercardinalWidth=parseFloat(getComputedStyle(this).getPropertyValue(`--cesium-compass-bar-intercardinal-width`)))}disconnectedCallback(){this.unlistenFromPostRender&&=(this.unlistenFromPostRender(),null),super.disconnectedCallback()}getTransform(e){let t=this.intercardinalWidth,n=-t/2,r=-this.heading/(Math.PI/4)+4,i=r-e;return i<-4&&(n+=8*t),i>4&&(n-=8*t),`transform: translate(${r*t+n}px)`}render(){let e=n`
+    `}constructor(){super(),this.scene=void 0,this.intercardinalWidth=0,this.heading=0,this.unlistenFromPostRender=null}updated(){this.scene&&!this.unlistenFromPostRender&&(this.unlistenFromPostRender=this.scene.postRender.addEventListener(()=>{this.heading=this.scene.camera.heading}),this.intercardinalWidth=parseFloat(getComputedStyle(this).getPropertyValue(`--cesium-compass-bar-intercardinal-width`)))}disconnectedCallback(){this.unlistenFromPostRender&&=(this.unlistenFromPostRender(),null),super.disconnectedCallback()}getTransform(e){let t=this.intercardinalWidth,n=-t/2,r=-this.heading/(Math.PI/4)+4,i=r-e;return i<-4&&(n+=8*t),i>4&&(n-=8*t),`transform: translate(${r*t+n}px)`}render(){let t=e`
       <div class="ticks">
-        ${Array(7).fill(void 0).map((e,t,r)=>n`<div part="tick ${t===Math.floor(r.length/2)?`major`:`minor`}"></div>`)}
+        ${Array(7).fill(void 0).map((t,n,r)=>e`<div part="tick ${n===Math.floor(r.length/2)?`major`:`minor`}"></div>`)}
       </div>
-    `;return n`
+    `;return e`
       <div class="container">
         <div class="compass-bar">
           <div style=${this.getTransform(4)}>
             <div class="label" part="label major">N</div>
-            ${e}
+            ${t}
           </div>
           <div style=${this.getTransform(3)}>
             <div class="label" part="label minor">NE</div>
-            ${e}
+            ${t}
           </div>
           <div style=${this.getTransform(2)}>
             <div class="label" part="label major">E</div>
-            ${e}
+            ${t}
           </div>
           <div style=${this.getTransform(1)}>
             <div class="label" part="label minor">SE</div>
-            ${e}
+            ${t}
           </div>
           <div style=${this.getTransform(0)}>
             <div class="label" part="label major">S</div>
-            ${e}
+            ${t}
           </div>
           <div style=${this.getTransform(-1)}>
             <div class="label" part="label minor">SW</div>
-            ${e}
+            ${t}
           </div>
           <div style=${this.getTransform(-2)}>
             <div class="label" part="label major">W</div>
-            ${e}
+            ${t}
           </div>
           <div style=${this.getTransform(-3)}>
             <div class="label" part="label minor">NW</div>
-            ${e}
+            ${t}
           </div>
         </div>
       </div>
       <div class="center-tick" part="center-tick"></div>
-    `}};customElements.define(`cesium-compass-bar`,i),e(`cesiumContainer`).then(e=>{let t=document.querySelector(`cesium-compass-bar`);t.scene=e.scene});
+    `}};customElements.define(`cesium-compass-bar`,i),r(`cesiumContainer`).then(e=>{let t=document.querySelector(`cesium-compass-bar`);t.scene=e.scene});

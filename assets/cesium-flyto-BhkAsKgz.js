@@ -1,0 +1,22 @@
+import"./lit-BFn1CURT.js";import"./card-58mEaPX-.js";import{t as e}from"./setup-DYuWPPM-.js";import{A as t,C as n,T as r,b as i,g as a,i as o,j as s,l as c,t as l,w as u}from"./cesium-shim-Dw5GLahM.js";import"./switch-BktEAscN.js";import{c as d,l as f}from"./cesium-post-process-Czdn4zn-.js";var p=`// Depth of field: sharp around the focal distance, the blurred image further off. Distances
+// compare as ratios, like a lens: sharp within FOCUS_RANGE factors of two of the focal distance,
+// fully blurred at twice that.
+uniform sampler2D colorTexture;
+uniform sampler2D blurTexture;
+uniform sampler2D depthTexture;
+uniform float focalDistance;
+// 0 to 1, as the effect fades in and out
+uniform float fade;
+in vec2 v_textureCoordinates;
+
+// in factors of two of the focal distance
+const float FOCUS_RANGE = 0.8;
+
+
+void main() {
+  vec4 eye = eyeAt(depthTexture, v_textureCoordinates);
+  float fromCamera = eye.w == 0.0 ? 1e30 : length(eye.xyz);
+  float blur = fade * smoothstep(FOCUS_RANGE, 2.0 * FOCUS_RANGE, abs(log2(fromCamera / focalDistance)));
+  out_FragColor = mix(texture(colorTexture, v_textureCoordinates), texture(blurTexture, v_textureCoordinates), blur);
+}
+`,m=new o,h=new i,g=.5,_=1/48,v=2,y=class{constructor(e,n=t.LEFT_DOUBLE_CLICK,r=300,i=void 0,a=c.SINUSOIDAL_IN_OUT){this.viewer=e,this.eventType=n,this.range=r,this.duration=i,this.easingFunction=a,this.active_=!1,this.previousAction_=void 0,this.onInputAction_=this.onInputAction.bind(this),this.motionBlur_=void 0,this.depthOfField_=void 0,this.target_=new o,this.fade_=0,this.fadeTarget_=0,this.fadeTime_=0,this.flight_=0,this.onPreRender_=this.onPreRender.bind(this),this.onPostRender_=this.onPostRender.bind(this)}get active(){return this.active_}set active(e){if(e===this.active_)return;this.active_=e;let t=this.viewer.screenSpaceEventHandler;e?(this.previousAction_=t.getInputAction(this.eventType),t.setInputAction(this.onInputAction_,this.eventType)):this.previousAction_?t.setInputAction(this.previousAction_,this.eventType):t.removeInputAction(this.eventType)}onInputAction(e){let t=this.viewer.scene,n=t.camera,r=t.pickPositionSupported?t.pickPosition(e.position):void 0;if(!r){let i=n.getPickRay(e.position);r=i&&t.globe?.pick(i,t)}if(!r)return;let c=o.subtract(r,n.positionWC,m),u=o.magnitude(c),d=s.eastNorthUpToFixedFrame(r,t.ellipsoid,h),f=i.multiplyByPointAsVector(i.inverseTransformation(d,d),c,c);o.normalize(f,f);let p=Math.atan2(f.x,f.y),g=Math.asin(f.z);o.clone(r,this.target_),this.startEffects_();let _=++this.flight_,v=()=>{_===this.flight_&&(this.fadeTarget_=0,this.viewer.scene.requestRender())};n.flyToBoundingSphere(new l(r,0),{offset:new a(p,g,u>this.range?this.range:u/2),...this.duration===void 0?{}:{duration:this.duration},easingFunction:this.easingFunction,complete:v,cancel:v})}startEffects_(){let e=this.viewer.scene;if(this.fadeTarget_=1,this.motionBlur_||!r.isDepthOfFieldSupported(e))return;this.fade_=0,this.fadeTime_=performance.now();let t=r.createBlurStage();this.depthOfField_=new u({stages:[t,new n({fragmentShader:f+p,uniforms:{blurTexture:t.name,focalDistance:()=>o.distance(e.camera.positionWC,this.target_),fade:()=>this.fade_}})],inputPreviousStageTexture:!1,uniforms:t.uniforms}),this.depthOfField_.uniforms.sigma=v,e.postProcessStages.add(this.depthOfField_),this.motionBlur_=new d(this.viewer,{exposure:_,strength:this.fade_}),this.motionBlur_.active=!0,e.preRender.addEventListener(this.onPreRender_),e.postRender.addEventListener(this.onPostRender_)}stopEffects_(){let e=this.viewer.scene;this.motionBlur_&&(e.preRender.removeEventListener(this.onPreRender_),e.postRender.removeEventListener(this.onPostRender_),this.motionBlur_.destroy(),e.postProcessStages.remove(this.depthOfField_),this.motionBlur_=void 0,this.depthOfField_=void 0,e.requestRender())}onPreRender(){let e=performance.now(),t=(e-this.fadeTime_)/1e3/g;this.fadeTime_=e,this.fadeTarget_>this.fade_?this.fade_=Math.min(this.fade_+t,1):this.fadeTarget_<this.fade_&&(this.fade_=Math.max(this.fade_-t,0)),this.motionBlur_&&this.motionBlur_.strength!==this.fade_&&(this.motionBlur_.strength=this.fade_),this.fade_!==this.fadeTarget_&&this.viewer.scene.requestRender()}onPostRender(){this.motionBlur_&&this.fadeTarget_===0&&this.fade_===0&&this.stopEffects_()}};e(`cesiumContainer`).then(e=>{let t=new y(e),n=document.querySelector(`#activate`);t.active=n.checked,n.addEventListener(`change`,()=>t.active=n.checked)});

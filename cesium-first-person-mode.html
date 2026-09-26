@@ -1,19 +1,32 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="wa-theme-default wa-palette-default wa-light">
 
 <head>
   <meta charset="UTF-8">
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Cesium.js"></script>
   <link href="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
-  <style>html,body,#cesiumContainer{height:100%;margin:0}#activate{font-family:monospace;font-size:1.6em;font-weight:700;position:absolute;top:30px;right:30px}</style>
-  <script type="module" crossorigin src="./assets/cesium-first-person-mode-BX2qRxiV.js"></script>
-  <link rel="modulepreload" crossorigin href="./assets/setup-Bj0t9lPR.js">
-  <link rel="modulepreload" crossorigin href="./assets/cesium-shim-CeFSXhXS.js">
+  <style>html,body,#cesiumContainer{height:100%;margin:0}#controls{--spacing:var(--wa-space-s);max-inline-size:30ch;position:absolute;inset-block-start:var(--wa-space-xl);inset-inline-end:var(--wa-space-xl)}</style>
+  <script type="module" crossorigin src="./assets/cesium-first-person-mode-ZAbGrmNp.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/lit-BFn1CURT.js">
+  <link rel="modulepreload" crossorigin href="./assets/directive-BSZPiF1A.js">
+  <link rel="modulepreload" crossorigin href="./assets/card-58mEaPX-.js">
+  <link rel="modulepreload" crossorigin href="./assets/setup-DYuWPPM-.js">
+  <link rel="modulepreload" crossorigin href="./assets/cesium-shim-Dw5GLahM.js">
+  <link rel="modulepreload" crossorigin href="./assets/directive-helpers-B5gL4DMf.js">
+  <link rel="modulepreload" crossorigin href="./assets/button-C4a7i2eR.js">
+  <link rel="modulepreload" crossorigin href="./assets/icon-BW2R3MNz.js">
+  <link rel="stylesheet" crossorigin href="./assets/card-DfFS4Dmy.css">
 </head>
 
 <body>
   <div id="cesiumContainer"></div>
-  <button id="activate" type="button">Activate !</button>
+  <wa-card id="controls">
+    <p class="wa-caption-m">Click the button, then move the mouse to look around and use the wheel to zoom. Press Esc to leave.</p>
+    <wa-button id="activate" size="s" variant="brand">
+      <wa-icon slot="start" name="person-walking"></wa-icon>
+      First person mode
+    </wa-button>
+  </wa-card>
 </body>
 
 </html>

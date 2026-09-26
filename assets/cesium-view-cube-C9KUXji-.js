@@ -1,4 +1,4 @@
-import{t as e}from"./setup-Bj0t9lPR.js";import{a as t,r as n,t as r}from"./lit-DfHKIwhG.js";var i=class extends r{static get properties(){return{scene:{type:Object}}}static get styles(){return t`
+import{a as e,t,u as n}from"./lit-BFn1CURT.js";import{t as r}from"./setup-DYuWPPM-.js";var i=class extends t{static get properties(){return{scene:{type:Object}}}static get styles(){return n`
       :host {
         --cesium-view-cube-stroke-color: rgba(0, 0, 0, 0.6);
         --cesium-view-cube-fill-color: rgb(224, 225, 226);
@@ -55,7 +55,7 @@ import{t as e}from"./setup-Bj0t9lPR.js";import{a as t,r as n,t as r}from"./lit-D
         border-top: 2px solid red !important;
         border-left: 2px solid green !important;
       }
-    `}constructor(){super(),this.scene=void 0,this.cubeElement=void 0,this.unlistenPostRender=null}firstUpdated(){this.cubeElement=this.renderRoot.querySelector(`#cube`)}updated(){this.scene&&!this.unlistenPostRender&&(this.unlistenPostRender=this.scene.postRender.addEventListener(()=>this.updateFromCamera()))}disconnectedCallback(){this.unlistenPostRender&&this.unlistenPostRender(),super.disconnectedCallback()}updateFromCamera(){if(this.cubeElement){let e=this.scene.camera;this.cubeElement.style.transform=`rotateX(${e.pitch}rad) rotateY(${e.heading}rad)`}}render(){return n`
+    `}constructor(){super(),this.scene=void 0,this.cubeElement=void 0,this.unlistenPostRender=null}firstUpdated(){this.cubeElement=this.renderRoot.querySelector(`#cube`)}updated(){this.scene&&!this.unlistenPostRender&&(this.unlistenPostRender=this.scene.postRender.addEventListener(()=>this.updateFromCamera()))}disconnectedCallback(){this.unlistenPostRender&&this.unlistenPostRender(),super.disconnectedCallback()}updateFromCamera(){if(this.cubeElement){let e=this.scene.camera;this.cubeElement.style.transform=`rotateX(${e.pitch}rad) rotateY(${e.heading}rad)`}}render(){return e`
       <div id="wrapper">
         <div id="cube">
           <div id="side_t">top</div>
@@ -66,4 +66,4 @@ import{t as e}from"./setup-Bj0t9lPR.js";import{a as t,r as n,t as r}from"./lit-D
           <div id="side_b">bottom</div>
         </div>
       </div>
-    `}};customElements.define(`cesium-view-cube`,i),e(`cesiumContainer`).then(e=>{let t=document.querySelector(`cesium-view-cube`);t.scene=e.scene});
+    `}};customElements.define(`cesium-view-cube`,i),r(`cesiumContainer`).then(e=>{let t=document.querySelector(`cesium-view-cube`);t.scene=e.scene});

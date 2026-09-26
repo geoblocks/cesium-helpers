@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en" class="wa-theme-default wa-palette-default wa-light">
+
+<head>
+  <meta charset="UTF-8">
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Cesium.js"></script>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  <style>html,body,#cesiumContainer{height:100%;margin:0}#controls{--spacing:var(--wa-space-m);inline-size:30ch;position:absolute;inset-block-start:var(--wa-space-xl);inset-inline-end:var(--wa-space-xl)}#controls h2{font-size:var(--wa-font-size-m);margin:0}#controls.collapsed::part(body){display:none}</style>
+  <script type="module" crossorigin src="./assets/cesium-path-flyover-BFV3jEUk.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/lit-BFn1CURT.js">
+  <link rel="modulepreload" crossorigin href="./assets/directive-BSZPiF1A.js">
+  <link rel="modulepreload" crossorigin href="./assets/card-58mEaPX-.js">
+  <link rel="modulepreload" crossorigin href="./assets/directive-helpers-B5gL4DMf.js">
+  <link rel="modulepreload" crossorigin href="./assets/setup-DYuWPPM-.js">
+  <link rel="modulepreload" crossorigin href="./assets/cesium-shim-Dw5GLahM.js">
+  <link rel="modulepreload" crossorigin href="./assets/switch-BktEAscN.js">
+  <link rel="modulepreload" crossorigin href="./assets/button-C4a7i2eR.js">
+  <link rel="modulepreload" crossorigin href="./assets/icon-BW2R3MNz.js">
+  <link rel="modulepreload" crossorigin href="./assets/cesium-post-process-Czdn4zn-.js">
+  <link rel="modulepreload" crossorigin href="./assets/style-map-ly-_uhSr.js">
+  <link rel="modulepreload" crossorigin href="./assets/slider-C4R-zmeo.js">
+  <link rel="stylesheet" crossorigin href="./assets/card-DfFS4Dmy.css">
+</head>
+
+<body>
+  <div id="cesiumContainer"></div>
+  <wa-card id="controls">
+    <h2 slot="header">Path flyover</h2>
+    <wa-button id="collapse" slot="header-actions" appearance="plain" size="s">
+      <wa-icon name="chevron-up" label="Collapse"></wa-icon>
+    </wa-button>
+    <div class="wa-stack wa-gap-s">
+      <wa-select id="track" size="s" label="Track" value="baulmes-valley">
+        <wa-option value="baulmes-valley">Gorge down to Baulmes, SchweizMobil tour (15 s)</wa-option>
+        <wa-option value="rechy">Vallon de Rechy, gorge section 8 km (40 s)</wa-option>
+        <wa-option value="suchet">Le Suchet, 14 km and 900 m of climb (60 s)</wa-option>
+        <span slot="hint">or drop a GPX or GeoJSON file on the map</span>
+      </wa-select>
+      <wa-select id="preset" size="s" label="Preset" value="default">
+        <wa-option value="custom">custom</wa-option>
+        <wa-option value="default">default</wa-option>
+        <wa-option value="pilot">pilot: low, close, rigid</wa-option>
+        <wa-option value="spectator">spectator: high, wide, calm</wa-option>
+        <wa-option value="drone">drone: mid height, floating</wa-option>
+      </wa-select>
+      <wa-slider id="style" size="s" label="Style" min="0" max="1" step="0.1" value="0.5" with-markers with-tooltip>
+        <span slot="reference">pilot</span>
+        <span slot="reference">spectator</span>
+      </wa-slider>
+      <wa-slider id="motion" size="s" label="Motion" min="0" max="1" step="0.1" value="0.5" with-markers with-tooltip>
+        <span slot="reference">rigid</span>
+        <span slot="reference">floating</span>
+      </wa-slider>
+      <wa-slider id="progress" size="s" label="Progress" min="0" max="1" step="0.01" value="0" disabled></wa-slider>
+      <wa-switch id="motionBlur" size="s">Motion blur</wa-switch>
+      <wa-switch id="drone" size="s">Drone</wa-switch>
+      <wa-button-group label="Playback">
+        <wa-button id="play" size="s" appearance="filled" loading disabled>
+          <wa-icon name="play" variant="solid" label="Play"></wa-icon>
+        </wa-button>
+        <wa-button id="pause" size="s" appearance="filled" disabled>
+          <wa-icon name="pause" variant="solid" label="Pause"></wa-icon>
+        </wa-button>
+        <wa-button id="stop" size="s" appearance="filled" disabled>
+          <wa-icon name="stop" variant="solid" label="Stop"></wa-icon>
+        </wa-button>
+      </wa-button-group>
+      <wa-tooltip for="play">Play</wa-tooltip>
+      <wa-tooltip for="pause">Pause</wa-tooltip>
+      <wa-tooltip for="stop">Stop</wa-tooltip>
+    </div>
+  </wa-card>
+</body>
+
+</html>
