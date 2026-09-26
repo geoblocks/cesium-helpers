@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en" class="wa-theme-default wa-palette-default wa-light">
+
+<head>
+  <meta charset="UTF-8">
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Cesium.js"></script>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  <style>
+    html, body, #cesiumContainer {
+      height: 100%;
+      margin: 0;
+    }
+    #controls {
+      position: absolute;
+      inset-block-start: var(--wa-space-xl);
+      inset-inline-end: var(--wa-space-xl);
+      --spacing: var(--wa-space-s);
+      max-inline-size: 30ch;
+    }
+    #crosshair {
+      position: absolute;
+      inset: 50% auto auto 50%;
+      inline-size: 16px;
+      block-size: 16px;
+      margin: -8px 0 0 -8px;
+      border: 2px solid white;
+      border-radius: 50%;
+      box-shadow: 0 0 2px black;
+      pointer-events: none;
+      display: none;
+    }
+    body.locked #controls {
+      display: none;
+    }
+    body.locked #crosshair {
+      display: block;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="cesiumContainer"></div>
+  <div id="crosshair"></div>
+  <wa-card id="controls">
+    <p class="wa-caption-m">Click the map to play. Walk with W, A, S and D, look around with the mouse, click to throw an apple. Press Esc to leave.</p>
+  </wa-card>
+  <script type="module">
+    import {createViewer} from './setup.js';
+    import CesiumWalk from '../packages/cesium-walk/cesium-walk.js';
+    import FirstPersonCameraMode from '../packages/FirstPersonCameraMode/FirstPersonCameraMode.js';
+    import Apples from './apples.js';
+    import '@awesome.me/webawesome/dist/styles/webawesome.css';
+    import '@awesome.me/webawesome/dist/components/card/card.js';
+
+    const WALK_SPEED = 5; // meters per second
+    const EYE_HEIGHT = 1.7; // meters above the terrain
+    const THROW_SPEED = 15; // meters per second
+    const HAND_FORWARD = 0.5; // apple spawn offset from the eye, meters
+    const HAND_DOWN = 0.3;
+
+    const handScratch = new Cesium.Cartesian3();
+    const offsetScratch = new Cesium.Cartesian3();
+    const velocityScratch = new Cesium.Cartesian3();
+
+    createViewer('cesiumContainer').then(async viewer => {
+      const scene = viewer.scene;
+      scene.camera.setView({
+        destination: Cesium.Cartesian3.fromDegrees(7.863775, 46.686447, 1200),
+        orientation: {heading: Cesium.Math.toRadians(25), pitch: 0},
+      });
+
+      const walk = new CesiumWalk(viewer, WALK_SPEED, EYE_HEIGHT);
+      const look = new FirstPersonCameraMode(viewer);
+      const apples = new Apples(viewer);
+
+      // the first walk clamp must land on real terrain, not a placeholder tile;
+      // tilesLoaded is true before the first frame, so always render and wait once
+      do {
+        scene.requestRender();
+        await new Promise(resolve => setTimeout(resolve, 200));
+      } while (!scene.globe.tilesLoaded || scene.globe.getHeight(scene.camera.positionCartographic) === undefined);
+
+      scene.canvas.addEventListener('click', () => {
+        if (!look.active) {
+          look.active = true;
+        }
+      });
+      document.addEventListener('pointerlockchange', () => {
+        walk.active = look.active;
+        document.body.classList.toggle('locked', look.active);
+      });
+
+      document.addEventListener('mousedown', event => {
+        // the mousedown that acquires the lock arrives before the lock is active
+        if (!look.active || event.button !== 0) {
+          return;
+        }
+        const camera = scene.camera;
+        const hand = Cesium.Cartesian3.clone(camera.position, handScratch);
+        Cesium.Cartesian3.add(hand, Cesium.Cartesian3.multiplyByScalar(camera.direction, HAND_FORWARD, offsetScratch), hand);
+        Cesium.Cartesian3.subtract(hand, Cesium.Cartesian3.multiplyByScalar(camera.up, HAND_DOWN, offsetScratch), hand);
+        const velocity = Cesium.Cartesian3.multiplyByScalar(camera.direction, THROW_SPEED, velocityScratch);
+        apples.throw(hand, velocity);
+      });
+    });
+  </script>
+</body>
+
+</html>
