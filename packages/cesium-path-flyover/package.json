@@ -10,6 +10,7 @@
   },
   "main": "cesium-path-flyover.js",
   "module": "cesium-path-flyover.js",
+  "sideEffects": false,
   "files": [
     "cesium-path-flyover.js",
     "free-look.js",

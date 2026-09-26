@@ -10,6 +10,7 @@
   },
   "main": "cesium-binoculars.js",
   "module": "cesium-binoculars.js",
+  "sideEffects": false,
   "files": [
     "cesium-binoculars.js",
     "shaders/*.js"
