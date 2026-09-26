@@ -17,6 +17,9 @@
   "publishConfig": {
     "access": "public"
   },
+  "dependencies": {
+    "@geoblocks/cesium-post-process": "^0.0.0"
+  },
   "peerDependencies": {
     "@cesium/engine": ">=10"
   }

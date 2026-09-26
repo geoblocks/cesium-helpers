@@ -1,4 +1,7 @@
-import {PostProcessStage, PostProcessStageComposite, PostProcessStageLibrary} from '@cesium/engine';
+import {PostProcessStage, PostProcessStageComposite} from '@cesium/engine';
+import createBlur from './blur.js';
+import Effect from './effect.js';
+import {acquireFrames, releaseFrames} from './frame-clock.js';
 import Frame from './shaders/Frame.js';
 import Noise from './shaders/Noise.js';
 import Super8Shader from './shaders/Super8.js';
@@ -14,13 +17,13 @@ const FRAME_RATE = 18;
  * flicker, light leaks and the rounded corners of the camera gate. The film moves, so while
  * active the scene renders at its 18 frames per second, also in requestRenderMode.
  */
-export default class Super8 {
+export default class Super8 extends Effect {
   /**
    * @param {import('@cesium/engine').CesiumWidget} viewer
    * @param {{fade?: number, halation?: number, grain?: number, weave?: number, flicker?: number, lightLeaks?: number, aspectRatio?: number}} [options]
    */
   constructor(viewer, options = {}) {
-    this.viewer = viewer;
+    super(viewer);
     this.fade_ = options.fade ?? 0.5;
     this.halation_ = options.halation ?? 0.5;
     this.grain_ = options.grain ?? 0.15;
@@ -28,60 +31,55 @@ export default class Super8 {
     this.flicker_ = options.flicker ?? 0.08;
     this.lightLeaks_ = options.lightLeaks ?? 0.5;
     this.aspectRatio_ = options.aspectRatio ?? 4 / 3;
-    /** @type {PostProcessStageComposite | undefined} */
-    this.stage_ = undefined;
-    /** @type {ReturnType<typeof setInterval> | undefined} */
-    this.interval_ = undefined;
   }
 
-  get active() {
-    return this.stage_ !== undefined;
+  /** @override */
+  createStage_() {
+    // a single level of composite: Cesium's texture cache hands the stage after a nested series
+    // of stages the output of that series instead of the scene
+    const blur = createBlur('czm_super8_halation');
+    const stage = new PostProcessStageComposite({
+      stages: [
+        blur,
+        new PostProcessStage({
+          fragmentShader: Frame + Noise + Super8Shader,
+          uniforms: {
+            blurTexture: blur.name,
+            time: () => performance.now() / 1000,
+            fade: () => this.fade_,
+            halation: () => this.halation_,
+            grain: () => this.grain_,
+            weave: () => this.weave_,
+            flicker: () => this.flicker_,
+            lightLeaks: () => this.lightLeaks_,
+            aspectRatio: () => this.aspectRatio_,
+          },
+        }),
+      ],
+      // both read the scene
+      inputPreviousStageTexture: false,
+      uniforms: blur.uniforms,
+    });
+    stage.uniforms.sigma = HALATION_SIGMA;
+    stage.uniforms.stepSize = HALATION_STEP;
+    return stage;
   }
 
-  set active(active) {
-    if (active === this.active) {
-      return;
-    }
-    const scene = this.viewer.scene;
-    if (active) {
-      // a single level of composite: Cesium's texture cache hands the stage after a nested series
-      // of stages the output of that series instead of the scene
-      const blur = PostProcessStageLibrary.createBlurStage();
-      this.stage_ = new PostProcessStageComposite({
-        stages: [
-          blur,
-          new PostProcessStage({
-            fragmentShader: Frame + Noise + Super8Shader,
-            uniforms: {
-              blurTexture: blur.name,
-              time: () => performance.now() / 1000,
-              fade: () => this.fade_,
-              halation: () => this.halation_,
-              grain: () => this.grain_,
-              weave: () => this.weave_,
-              flicker: () => this.flicker_,
-              lightLeaks: () => this.lightLeaks_,
-              aspectRatio: () => this.aspectRatio_,
-            },
-          }),
-        ],
-        // both read the scene
-        inputPreviousStageTexture: false,
-        uniforms: blur.uniforms,
-      });
-      this.stage_.uniforms.sigma = HALATION_SIGMA;
-      this.stage_.uniforms.stepSize = HALATION_STEP;
-      scene.postProcessStages.add(this.stage_);
-      // a new picture only with each film frame, not with each frame of the display
-      this.interval_ = setInterval(() => scene.requestRender(), 1000 / FRAME_RATE);
-    } else {
-      clearInterval(this.interval_);
-      this.interval_ = undefined;
-      // removing a stage also destroys it
-      scene.postProcessStages.remove(/** @type {PostProcessStageComposite} */ (this.stage_));
-      this.stage_ = undefined;
-    }
-    scene.requestRender();
+  /**
+   * @override
+   * @param {import('@cesium/engine').Scene} scene
+   */
+  activated_(scene) {
+    // a new picture only with each film frame, not with each frame of the display
+    acquireFrames(scene, FRAME_RATE);
+  }
+
+  /**
+   * @override
+   * @param {import('@cesium/engine').Scene} scene
+   */
+  deactivating_(scene) {
+    releaseFrames(scene, FRAME_RATE);
   }
 
   /**
@@ -160,9 +158,5 @@ export default class Super8 {
 
   set aspectRatio(value) {
     this.aspectRatio_ = value;
-  }
-
-  destroy() {
-    this.active = false;
   }
 }

@@ -53,11 +53,6 @@ float cylinder(float gap, vec2 halfBlur) {
   return 1.0 - smoothstep(0.95 * extent, 1.05 * extent, gap);
 }
 
-// per pixel noise in [0, 1), "interleaved gradient noise" (Jimenez 2014)
-float noise(vec2 pixel) {
-  return fract(52.9829189 * fract(dot(pixel, vec2(0.06711056, 0.00583715))));
-}
-
 void main() {
   vec3 center = halfBlurAt(v_textureCoordinates);
   vec2 halfBlur = center.xy;
@@ -71,7 +66,7 @@ void main() {
   float weight = 1.0 / extent;
   vec4 color = centerColor * weight;
   // the jitter turns the banding of few samples into fine noise
-  float jitter = noise(gl_FragCoord.xy) - 0.5;
+  float jitter = pixelNoise(gl_FragCoord.xy) - 0.5;
   for (int i = 0; i < SAMPLES; i++) {
     float t = mix(-1.0, 1.0, (float(i) + jitter + 1.0) / float(SAMPLES + 1));
     vec2 uv = v_textureCoordinates + t * halfBlur / czm_viewport.zw;

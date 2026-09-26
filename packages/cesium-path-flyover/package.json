@@ -1,0 +1,27 @@
+{
+  "name": "@geoblocks/cesium-path-flyover",
+  "version": "0.0.0",
+  "license": "BSD-3-Clause",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/geoblocks/cesium-helpers/",
+    "directory": "packages/cesium-path-flyover"
+  },
+  "main": "cesium-path-flyover.js",
+  "module": "cesium-path-flyover.js",
+  "files": [
+    "cesium-path-flyover.js",
+    "free-look.js",
+    "planner.js",
+    "run.js",
+    "terrain.js",
+    "track.js"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "@cesium/engine": ">=10"
+  }
+}

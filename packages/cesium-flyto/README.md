@@ -27,4 +27,4 @@ flyTo.active = true;
 
 Deactivating the mode restores the previous input action for that event (for example the Viewer's entity tracking on double-click).
 
-During a flight, a camera motion blur and a slight depth of field focused on the target fade in, and fade out when the camera arrives. They need the terrain's depth, so `globe.depthTestAgainstTerrain` is on during the flight and restored after it: billboards and labels that show through the terrain can be hidden by it while flying.
+During a flight, a camera motion blur and a slight depth of field focused on the target fade in, and fade out when the camera arrives. The motion blur is the `MotionBlur` effect of [@geoblocks/cesium-post-process](../cesium-post-process), with a 1/48 s exposure. They need the terrain's depth, so `globe.depthTestAgainstTerrain` is on during the flight and restored after it: billboards and labels that show through the terrain can be hidden by it while flying.
