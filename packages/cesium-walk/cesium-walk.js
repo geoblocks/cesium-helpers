@@ -71,6 +71,8 @@ export default class CesiumWalk {
       document.removeEventListener("keydown", this.handleKeyUpDownFunction);
       document.removeEventListener("keyup", this.handleKeyUpDownFunction);
       this.viewer.clock.onTick.removeEventListener(this.handleTickFunction);
+      // keyup events are no longer received, a key held while deactivating must not stick
+      this.buttons.forward = this.buttons.left = this.buttons.backward = this.buttons.right = false;
     }
     this.enableNavigation(!this.active_);
   }

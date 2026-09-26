@@ -3,6 +3,7 @@
 // Keep this list in sync with the helpers' imports; the build fails otherwise.
 export const {
   BoundingSphere,
+  CallbackProperty,
   CameraEventType,
   Cartesian2,
   Cartesian3,
@@ -10,6 +11,7 @@ export const {
   Cartographic,
   CatmullRomSpline,
   Color,
+  ConstantPositionProperty,
   EasingFunction,
   Ellipsoid,
   EllipsoidTerrainProvider,
