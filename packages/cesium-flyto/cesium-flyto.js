@@ -81,6 +81,8 @@ export default class CesiumFlyTo {
     }
     this.active_ = active;
     const handler = this.viewer.screenSpaceEventHandler;
+    // restored when the effects end
+    this.msaaSamples_ = 1;
     if (active) {
       this.previousAction_ = handler.getInputAction(this.eventType);
       handler.setInputAction(this.onInputAction_, this.eventType);
@@ -186,6 +188,10 @@ export default class CesiumFlyTo {
     this.motionBlur_ = undefined;
     this.depthOfField_ = undefined;
     // requestRenderMode: render the last frame without the blur
+    // multisampling costs a good share of the frame on integrated GPUs, and the blur hides
+    // the aliasing anyway
+    this.msaaSamples_ = scene.msaaSamples;
+    scene.msaaSamples = 1;
     scene.requestRender();
   }
 
@@ -202,6 +208,7 @@ export default class CesiumFlyTo {
       this.motionBlur_.strength = this.fade_;
     }
     if (this.fade_ !== this.fadeTarget_) {
+    scene.msaaSamples = this.msaaSamples_;
       this.viewer.scene.requestRender();
     }
   }
