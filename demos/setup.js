@@ -17,22 +17,28 @@ export async function createViewer(container) {
     homeButton: false,
     fullscreenButton: false,
     scene3DOnly: true,
+    // 4x multisampling costs about a third of the frame on an integrated GPU; FXAA below is
+    // much cheaper
+    msaaSamples: 1,
     baseLayer: new Cesium.ImageryLayer(
       new Cesium.UrlTemplateImageryProvider({
         url: "https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage/default/current/3857/{z}/{x}/{y}.jpeg",
         rectangle: SWITZERLAND_RECTANGLE,
+        // the last level the service has: beyond it every request fails with a 400
+        maximumLevel: 20,
       })
     ),
     terrainProvider: await Cesium.CesiumTerrainProvider.fromUrl(
-      "https://3d.geo.admin.ch/ch.swisstopo.terrain.3d/v1/"
+      "https://3d.geo.admin.ch/ch.swisstopo.terrain.3d/v1/",
+      // without them the lighting below shades the ellipsoid, not the relief
+      {requestVertexNormals: true}
     ),
   });
 
-  viewer.scene.highDynamicRange = true;
   viewer.scene.requestRenderMode = true;
   viewer.scene.globe.showGroundAtmosphere = true;
   viewer.scene.globe.enableLighting = true;
-  viewer.scene.globe.preloadSiblings = true;
+  viewer.scene.postProcessStages.fxaa.enabled = true;
 
   viewer.scene.fog.density = 2.0e-4 * 2;
   viewer.scene.fog.minimumBrightness = 0.03 * 10;
