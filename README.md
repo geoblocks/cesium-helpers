@@ -31,6 +31,13 @@ npm run dev
 
 Then open `http://localhost:5173` and navigate to the demo of your choice.
 
+## Exporting a flyover video
+
+The [path flyover demo](demos/cesium-path-flyover.html) has an export button: the run is
+rendered frame by frame, each frame waiting for every tile in view, encoded with WebCodecs
+and muxed to an mp4 by [mediabunny](https://mediabunny.dev), then downloaded. Nothing is
+real time, so the clip has no dropped frames and no tiles popping in, whatever the GPU.
+
 ## Guide
 
 This repository uses [lerna](https://lerna.js.org/) to manage the packages.
