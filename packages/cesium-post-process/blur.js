@@ -8,9 +8,11 @@ import {_shadersGaussianBlur1D as GaussianBlur1D} from '@cesium/engine';
  * collection holds one stage per name, so two effects with a library blur
  * break each other when one is removed.
  * @param {string} name of the composite; the passes are named after it
+ * @param {number} [textureScale=1] resolution of the passes relative to the viewport: a wide blur
+ * costs a quarter at half resolution, with a step half as long for the same spread
  * @return {PostProcessStageComposite} with `sigma` and `stepSize` uniforms shared by both passes
  */
-export default function createBlur(name) {
+export default function createBlur(name, textureScale = 1) {
   const passes = ['x', 'y'].map(
     (axis, direction) =>
       new PostProcessStage({
@@ -18,6 +20,7 @@ export default function createBlur(name) {
         fragmentShader: `#define USE_STEP_SIZE\n${GaussianBlur1D}`,
         uniforms: {delta: 1, sigma: 2, stepSize: 1, direction},
         sampleMode: PostProcessStageSampleMode.LINEAR,
+        textureScale,
       })
   );
   const shared = (/** @type {string} */ uniform) => ({

@@ -22,6 +22,7 @@ export const {
   Material,
   Math,
   Matrix4,
+  PixelDatatype,
   PointPrimitiveCollection,
   PolylineMaterialAppearance,
   PostProcessStage,

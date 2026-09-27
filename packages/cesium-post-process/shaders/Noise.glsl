@@ -22,3 +22,22 @@ float gradientNoise(vec3 p) {
       u.y),
     u.z);
 }
+
+// random gradient in [-1, 1] at a lattice point of the plane, for a seed
+vec2 gradient(vec2 p, float seed) {
+  vec3 p3 = fract(vec3(p, seed) * vec3(0.1031, 0.1030, 0.0973));
+  p3 += dot(p3, p3.yxz + 33.33);
+  return fract((p3.xx + p3.yz) * p3.zy) * 2.0 - 1.0;
+}
+
+// gradient noise over the plane, about -0.7 to 0.7, a new pattern for each seed: half the
+// hashes of the volume's, for a pattern that only has to change by whole frames
+float gradientNoise(vec2 p, float seed) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  vec2 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+  return mix(
+    mix(dot(gradient(i, seed), f), dot(gradient(i + vec2(1.0, 0.0), seed), f - vec2(1.0, 0.0)), u.x),
+    mix(dot(gradient(i + vec2(0.0, 1.0), seed), f - vec2(0.0, 1.0)), dot(gradient(i + vec2(1.0, 1.0), seed), f - vec2(1.0, 1.0)), u.x),
+    u.y);
+}

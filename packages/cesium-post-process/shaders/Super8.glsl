@@ -83,8 +83,8 @@ void main() {
   // each dye layer, heaviest in the shadows and midtones and fading out in the highlights
   vec2 grainAt = gl_FragCoord.xy / (GRAIN_SIZE * czm_pixelRatio);
   float z = frame * 1.7 + 0.5;
-  float mono = gradientNoise(vec3(grainAt, z));
-  vec3 layers = vec3(gradientNoise(vec3(grainAt, z + 101.0)), gradientNoise(vec3(grainAt, z + 211.0)), gradientNoise(vec3(grainAt, z + 307.0)));
+  float mono = gradientNoise(grainAt, z);
+  vec3 layers = vec3(gradientNoise(grainAt, z + 101.0), gradientNoise(grainAt, z + 211.0), gradientNoise(grainAt, z + 307.0));
   vec3 noise = mix(vec3(mono), layers, GRAIN_COLOR);
   float y = clamp(luminance(color), 0.0, 1.0);
   color += grain * 1.4 * noise * 2.0 * (1.0 - y) * (0.5 + y);
