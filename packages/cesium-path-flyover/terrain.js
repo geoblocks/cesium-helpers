@@ -40,13 +40,7 @@ export default class TerrainSampler {
       return cartographics.map(() => undefined);
     }
     const heights = await this.sampleAt_(cartographics, this.level_);
-    /** @type {number[]} */
-    const missing = [];
-    heights.forEach((height, i) => {
-      if (height === undefined) {
-        missing.push(i);
-      }
-    });
+    const missing = heights.keys().filter((i) => heights[i] === undefined).toArray();
     if (missing.length > 0) {
       const coarse = await this.sampleAt_(missing.map((i) => cartographics[i]), FALLBACK_LEVEL);
       missing.forEach((i, k) => {
@@ -81,7 +75,7 @@ export default class TerrainSampler {
     /** @type {(number | undefined)[]} */
     const heights = new Array(cartographics.length).fill(undefined);
     await Promise.all(
-      [...groups.entries()].map(async ([key, group]) => {
+      groups.entries().map(async ([key, group]) => {
         const data = await this.tile_(key, group.x, group.y, level);
         if (!data) {
           return;
