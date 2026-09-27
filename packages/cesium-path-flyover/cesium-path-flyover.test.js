@@ -20,7 +20,7 @@ const fakeViewer = () => ({
 test("play coarsens the globe's screen-space error and stop restores what the scene had", () => {
   const viewer = fakeViewer();
   viewer.scene.globe.maximumScreenSpaceError = 1.5;
-  const flyover = new CesiumPathFlyover(viewer, {freeLook: false});
+  const flyover = new CesiumPathFlyover(viewer, {screenSpaceError: 4, freeLook: false});
   flyover.path_ = /** @type {any} */ ({});
   flyover.play();
   assert.equal(viewer.scene.globe.maximumScreenSpaceError, 4);
@@ -36,8 +36,9 @@ test("the screen-space error option can be changed or switched off", () => {
   flyover.play();
   assert.equal(viewer.scene.globe.maximumScreenSpaceError, 3);
   flyover.stop();
+  // the default
   const untouched = fakeViewer();
-  const off = new CesiumPathFlyover(untouched, {screenSpaceError: false, freeLook: false});
+  const off = new CesiumPathFlyover(untouched, {freeLook: false});
   off.path_ = /** @type {any} */ ({});
   off.play();
   assert.equal(untouched.scene.globe.maximumScreenSpaceError, 2);

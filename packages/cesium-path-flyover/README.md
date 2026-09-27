@@ -32,7 +32,7 @@ const flyover = new CesiumPathFlyover(viewer, {
   duration: 60,   // seconds for the whole track
   clearance: 40,  // minimum camera height above terrain, meters
   maxLift: 250,   // meters the camera may climb to keep the marker in view; beyond it a brief occlusion is accepted (its own clearance is never capped)
-  screenSpaceError: 4, // globe detail while playing, restored on stop; false to leave it
+  screenSpaceError: false, // globe maximumScreenSpaceError while playing, restored on stop; false leaves it alone
   freeLook: true,      // drag to look around the marker and wheel to zoom while playing
   recenterDelay: 2,    // seconds after the last input before the view returns to the plan; false to keep it
 });
@@ -54,4 +54,4 @@ Heights in the file are ignored; the track is sampled on the scene's terrain pro
 
 At load the camera path is planned against the terrain: where the chase position would be inside a slope or lose sight of the marker, the camera turns toward the open side and lifts, whichever is cheaper.
 
-While playing, the globe's `maximumScreenSpaceError` is raised to `screenSpaceError` (default 4) so terrain and imagery keep up with a fast camera, and restored when playback stops.
+With `screenSpaceError` set, the globe's `maximumScreenSpaceError` is raised to it while playing so terrain and imagery keep up with a fast camera, and restored when playback stops. By default the globe's detail is left alone.
