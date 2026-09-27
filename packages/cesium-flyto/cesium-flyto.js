@@ -22,6 +22,22 @@ const FADE_TIME = 0.5;
 const EXPOSURE = 1 / 48;
 // blur of the depth of field, the sigma of Cesium's blur stage
 const FOCUS_BLUR = 2;
+// the flight goes along the line of sight, so the picture zooms: halving the remaining distance
+// looks the same at any scale, and each halving takes this long, in seconds
+const SECONDS_PER_HALVING = 0.5;
+const MIN_DURATION = 1;
+const MAX_DURATION = 5;
+
+/**
+ * Duration of a flight along the line of sight, from a distance to the target to another.
+ * @param {number} from distance at the start of the flight, in meters
+ * @param {number} to distance at the end of the flight, in meters
+ * @return {number} seconds
+ */
+export function flightDuration(from, to) {
+  const halvings = Math.log2(from / to);
+  return Math.min(Math.max(halvings * SECONDS_PER_HALVING, MIN_DURATION), MAX_DURATION);
+}
 
 /**
  * Flies the camera toward the clicked position, along the line of sight, and
@@ -32,7 +48,7 @@ export default class CesiumFlyTo {
    * @param {import('@cesium/engine').CesiumWidget} viewer
    * @param {ScreenSpaceEventType} [eventType=ScreenSpaceEventType.LEFT_DOUBLE_CLICK]
    * @param {number} [range=300] distance (in meters) between the camera and the clicked position at the end of the flight
-   * @param {number} [duration] flight duration in seconds, computed from the distance when omitted
+   * @param {number} [duration] flight duration in seconds; when omitted, half a second per halving of the distance to the target, between 1 and 5 seconds
    * @param {import('@cesium/engine').EasingFunction.Callback} [easingFunction=EasingFunction.SINUSOIDAL_IN_OUT]
    */
   constructor(
@@ -65,6 +81,8 @@ export default class CesiumFlyTo {
     this.fade_ = 0;
     this.fadeTarget_ = 0;
     this.fadeTime_ = 0;
+    // restored when the effects end
+    this.msaaSamples_ = 1;
     // increments with each flight, so only the latest flight ends the blur
     this.flight_ = 0;
     this.onPreRender_ = this.onPreRender.bind(this);
@@ -126,10 +144,11 @@ export default class CesiumFlyTo {
         this.viewer.scene.requestRender();
       }
     };
+    // when already closer than the range, get halfway to the target
+    const range = distance > this.range ? this.range : distance / 2;
     camera.flyToBoundingSphere(new BoundingSphere(target, 0), {
-      // when already closer than the range, get halfway to the target
-      offset: new HeadingPitchRange(heading, pitch, distance > this.range ? this.range : distance / 2),
-      ...(this.duration === undefined ? {} : {duration: this.duration}),
+      offset: new HeadingPitchRange(heading, pitch, range),
+      duration: this.duration ?? flightDuration(distance, range),
       easingFunction: this.easingFunction,
       complete: end,
       cancel: end,
@@ -169,6 +188,10 @@ export default class CesiumFlyTo {
     scene.postProcessStages.add(this.depthOfField_);
     this.motionBlur_ = new MotionBlur(this.viewer, {exposure: EXPOSURE, strength: this.fade_});
     this.motionBlur_.active = true;
+    // multisampling costs a good share of the frame on integrated GPUs, and the blur hides
+    // the aliasing anyway
+    this.msaaSamples_ = scene.msaaSamples;
+    scene.msaaSamples = 1;
     scene.preRender.addEventListener(this.onPreRender_);
     scene.postRender.addEventListener(this.onPostRender_);
   }
@@ -185,6 +208,7 @@ export default class CesiumFlyTo {
     scene.postProcessStages.remove(/** @type {PostProcessStageComposite} */ (this.depthOfField_));
     this.motionBlur_ = undefined;
     this.depthOfField_ = undefined;
+    scene.msaaSamples = this.msaaSamples_;
     // requestRenderMode: render the last frame without the blur
     scene.requestRender();
   }

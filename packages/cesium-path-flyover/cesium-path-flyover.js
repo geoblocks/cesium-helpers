@@ -72,7 +72,7 @@ const enuScratch = new Matrix4();
  * @property {number} [duration=60] seconds for the whole track
  * @property {number} [clearance=40] minimum camera height above terrain, meters
  * @property {number} [maxLift=250] meters the camera may climb to keep the marker in view; beyond it a brief occlusion is accepted (its own clearance above the terrain is never capped)
- * @property {number | false} [screenSpaceError=4] globe maximumScreenSpaceError while playing, restored on stop; false leaves it alone
+ * @property {number | false} [screenSpaceError=false] globe maximumScreenSpaceError while playing, restored on stop; false leaves it alone
  * @property {boolean} [freeLook=true] while playing, drag to look around the marker and wheel to zoom; the camera keeps following
  * @property {number | false} [recenterDelay=2] seconds after the last input before the view returns to the plan; false leaves it until recenter()
  */
@@ -103,7 +103,7 @@ export default class CesiumPathFlyover {
     this.pitch = CesiumMath.toRadians(this.run_.pitch);
     this.clearance = options.clearance ?? 40;
     this.maxLift = options.maxLift ?? 250;
-    this.screenSpaceError = options.screenSpaceError ?? 4;
+    this.screenSpaceError = options.screenSpaceError ?? false;
     this.freeLook = options.freeLook ?? true;
     this.recenterDelay = options.recenterDelay ?? 2;
     /**

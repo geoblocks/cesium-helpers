@@ -6,9 +6,11 @@ import Frame from './shaders/Frame.js';
 import Noise from './shaders/Noise.js';
 import Super8Shader from './shaders/Super8.js';
 
-// spread of the halation glow, the sigma and step of Cesium's blur stage
+// spread of the halation glow, the sigma and step of Cesium's blur stage, at half resolution:
+// a glow this wide does not need more
 const HALATION_SIGMA = 6;
-const HALATION_STEP = 2;
+const HALATION_STEP = 1;
+const HALATION_SCALE = 0.5;
 // Super 8 runs at 18 frames per second, as in Super8.glsl
 const FRAME_RATE = 18;
 
@@ -37,7 +39,7 @@ export default class Super8 extends Effect {
   createStage_() {
     // a single level of composite: Cesium's texture cache hands the stage after a nested series
     // of stages the output of that series instead of the scene
-    const blur = createBlur('czm_super8_halation');
+    const blur = createBlur('czm_super8_halation', HALATION_SCALE);
     const stage = new PostProcessStageComposite({
       stages: [
         blur,

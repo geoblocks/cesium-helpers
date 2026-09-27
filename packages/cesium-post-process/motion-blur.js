@@ -1,9 +1,10 @@
-import {Matrix4, PostProcessStage} from '@cesium/engine';
+import {Matrix4, PixelDatatype, PostProcessStage, PostProcessStageComposite} from '@cesium/engine';
 import {acquireTerrainDepth, releaseTerrainDepth} from './depth-test.js';
 import Effect from './effect.js';
 import EyeFromDepth from './shaders/EyeFromDepth.js';
 import Hash from './shaders/Hash.js';
 import MotionBlurShader from './shaders/MotionBlur.js';
+import MotionBlurVelocity from './shaders/MotionBlurVelocity.js';
 
 /**
  * Camera motion blur: each pixel is blurred along its motion on the screen
@@ -33,8 +34,11 @@ export default class MotionBlur extends Effect {
    * @param {import('@cesium/engine').Scene} scene
    */
   createStage_(scene) {
-    const stage = new PostProcessStage({
-      fragmentShader: EyeFromDepth + Hash + MotionBlurShader,
+    // the velocity of each pixel is computed once, at half resolution, rather than once per
+    // sample of the gather; the distances need the range of floats
+    const velocity = new PostProcessStage({
+      name: 'czm_motion_blur_velocity',
+      fragmentShader: EyeFromDepth + MotionBlurVelocity,
       uniforms: {
         reprojection: () =>
           Matrix4.multiply(this.previousViewProjection_, scene.camera.inverseViewMatrix, this.reprojection_),
@@ -44,6 +48,19 @@ export default class MotionBlur extends Effect {
           (this.strength_ * this.exposure_) /
           Math.min(Math.max((performance.now() - this.previousTime_) / 1000, 1 / 240), 1 / 10),
       },
+      textureScale: 0.5,
+      pixelDatatype: PixelDatatype.FLOAT,
+    });
+    const stage = new PostProcessStageComposite({
+      stages: [
+        velocity,
+        new PostProcessStage({
+          fragmentShader: Hash + MotionBlurShader,
+          uniforms: {velocityTexture: velocity.name},
+        }),
+      ],
+      // the gather reads the scene, not the velocities
+      inputPreviousStageTexture: false,
     });
     // no pass at all without strength
     stage.enabled = this.strength_ > 0;

@@ -1,39 +1,22 @@
 // Camera motion blur, after "A Reconstruction Filter for Plausible Motion Blur" (McGuire et al.,
 // I3D 2012). Only the camera moves, so each pixel's motion follows from its depth and the
-// reprojection into the previous frame, and there is no velocity buffer. The blur gathers
-// jittered samples along the pixel's motion, weighted by depth so that near terrain and far
-// ridges or sky do not smear into each other.
+// reprojection into the previous frame, computed once per pixel into the velocity buffer of
+// MotionBlurVelocity.glsl. The blur gathers jittered samples along the pixel's motion, weighted
+// by depth so that near terrain and far ridges or sky do not smear into each other.
 uniform sampler2D colorTexture;
-uniform sampler2D depthTexture;
-// current eye coordinates to the previous frame's clip coordinates, computed in double
-// precision on the CPU
-uniform mat4 reprojection;
-// exposure time over the time since the previous frame: the blur spans the motion during the
-// exposure, whatever the frame rate
-uniform float exposureScale;
+// xy: half the blur, as a fraction of the viewport; z: the distance from the camera
+uniform sampler2D velocityTexture;
 in vec2 v_textureCoordinates;
 
 const int SAMPLES = 16;
-// longest blur, as a fraction of the viewport height
-const float MAX_BLUR = 0.05;
 // depth difference, relative to the depth, over which a sample goes from in front to behind
 const float SOFT_DEPTH = 0.1;
 
 
 // xy: half the blur of the pixel at uv, in pixels; z: its distance from the camera
 vec3 halfBlurAt(vec2 uv) {
-  // the sky is a direction: only the camera rotation moves it
-  vec4 eye = eyeAt(depthTexture, uv);
-  vec4 previous = reprojection * eye;
-  vec2 motion = previous.w > 0.0 ? uv - (previous.xy / previous.w * 0.5 + 0.5) : vec2(0.0);
-  // in pixels
-  motion *= exposureScale * czm_viewport.zw;
-  float extent = length(motion);
-  float maxExtent = MAX_BLUR * czm_viewport.w;
-  if (extent > maxExtent) {
-    motion *= maxExtent / extent;
-  }
-  return vec3(0.5 * motion, eye.w == 0.0 ? 1e30 : length(eye.xyz));
+  vec3 velocity = texture(velocityTexture, uv).xyz;
+  return vec3(velocity.xy * czm_viewport.zw, velocity.z);
 }
 
 // 1 when b is in front of a, 0 when it is SOFT_DEPTH behind

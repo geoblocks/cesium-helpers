@@ -20,7 +20,7 @@ import CesiumFlyTo from '@geoblocks/cesium-flyto';
 
 const viewer = new Viewer(...);
 // optional: event type (default: double-click), final distance in meters (default: 300),
-// flight duration in seconds (default: computed from the distance) and easing function (default: EasingFunction.SINUSOIDAL_IN_OUT)
+// flight duration in seconds (default: half a second per halving of the distance to the target, between 1 and 5 seconds) and easing function (default: EasingFunction.SINUSOIDAL_IN_OUT)
 const flyTo = new CesiumFlyTo(viewer, ScreenSpaceEventType.LEFT_DOUBLE_CLICK, 300);
 flyTo.active = true;
 ```
