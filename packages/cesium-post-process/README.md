@@ -42,10 +42,12 @@ const focus = () => marker.position;
 
 const spotlight = new Spotlight(viewer, {
   focus,
+  power: 1,      // brightness of the light, 1 for the searchlight: the pool and the beam scale with it
   radius: 200,   // radius of the pool of light on flat ground, in meters
   softness: 0.5, // width of the penumbra, as a fraction of the radius
   darkness: 0.8, // darkening and desaturation outside the light, 0 to 1
   beam: 0.25,    // brightness of the beam in the air, 0 to 1
+  beamAnisotropy: 0.4, // Henyey-Greenstein asymmetry of the haze, 0 to 1: brighter looking toward the light
 });
 spotlight.active = true;
 
@@ -153,6 +155,8 @@ Cesium runs the stages in the order they are added and cannot insert one elsewhe
 `Jello` follows the readout pass of [Readout](https://github.com/stoatworks-labs/readout) (MIT): the sensor reads its rows over 20 ms, so each row sees the camera at a different moment of its shake, a few sinusoids in x, y and rotation whose phases are computed in double precision on the CPU; the picture is magnified slightly so that its edges do not show; at amount 0 its stage is disabled and the scene is not rendered for it. `DigitalVideo` breaks the picture at random into 16 pixel macroblocks, each rebuilt from its corners with fewer colors as a codec that has thrown its detail away, some displaced, with strips shifted sideways and the colors split as in three.js's DigitalGlitch, and sometimes a short black screen; without the previous frames, it cannot freeze the picture. Both move, so while one is active the scene renders 30 times per second, also with `requestRenderMode`. Together, the animated effects (`Super8`, `AnalogVideo`, `Jello`, `DigitalVideo`) share one render clock per scene: the scene renders once per frame of the fastest of them, not once for each.
 
 `SpeedLines` draws new streaks, 24 times per second, only when the scene renders: it does not render the scene by itself, so the streaks move while the camera does, or with any animation that renders the scene. At strength 0 its stage is disabled and costs nothing.
+
+`Spotlight`'s beam in the air is raymarched: 16 samples along the part of each view ray inside the cone, found analytically, dithered per pixel against banding, each weighted by the cone's penumbra, the dust, the inverse square from the light softened around it and the extinction of the haze so far, then scattered toward the camera with a Henyey-Greenstein phase of asymmetry `beamAnisotropy`. It holds from any viewpoint, inside the cone included, where the former analytic beam, which took its penumbra where the ray passes closest to the axis, went dark; its dust streaks are noise sampled along the beam, radiating from the light. The light is added to a picture Cesium has already tone mapped, so the output goes through a filmic roll-off (ACES) rather than clipping to flat white.
 
 `SnowLine` and `ValleyFog` compute each pixel's height relative to the camera, in double precision on the CPU for the camera, so they stay accurate far from the origin. The snow's slope comes from the normal rebuilt from the neighboring pixels. The fog is lit by the sun like Cesium's own fog: its color during the day, a moonlit blue at night, as bright as `scene.fog.minimumBrightness`. Both work in 3D only.
 
