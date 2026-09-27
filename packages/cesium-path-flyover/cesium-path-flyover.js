@@ -99,6 +99,7 @@ const enuScratch = new Matrix4();
  * @property {number[]} lift meters, per sample: the terrain planner's lift, the climb toward the surrounding relief and the breathing drift
  * @property {number[]} roll radians, per sample: the bank into the turns of the heading plus the breathing drift, positive leans right
  * @property {number[]} ground per spline point, its fraction of the track's length on the ground, where the trail measures it
+ * @property {import('./planner.js').Plan} [plan] the terrain planner's decisions, for tooling; none without terrain
  */
 
 export default class CesiumPathFlyover {
@@ -282,6 +283,8 @@ export default class CesiumPathFlyover {
     }
     const range = this.rangeProfile_(progresses);
     const {targets, heights} = await this.smoothTargets_(positions, sampler);
+    /** @type {import('./planner.js').Plan | undefined} */
+    let plan;
     if (!(scene.terrainProvider instanceof EllipsoidTerrainProvider)) {
       const heightsAt = (/** @type {Cartographic[]} */ cartographics) => planSampler.heightsAt(cartographics);
       if (run.reliefRise > 0) {
@@ -292,7 +295,7 @@ export default class CesiumPathFlyover {
           rise[k] += run.reliefRise * r;
         });
       }
-      const plan = await planCamera(
+      plan = await planCamera(
         {positions: targets, headings, ranges: range, rise},
         {
           pitch: this.pitch,
@@ -310,7 +313,7 @@ export default class CesiumPathFlyover {
         rise[k] += plan.lift[k];
       });
     }
-    return {targets, headings, range, lift: rise, roll: this.rollProfile_(headings, dt), ground: this.groundFractions_()};
+    return {targets, headings, range, lift: rise, roll: this.rollProfile_(headings, dt), ground: this.groundFractions_(), plan};
   }
 
   /**
