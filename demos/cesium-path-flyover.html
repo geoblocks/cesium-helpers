@@ -15,11 +15,36 @@
       inset-block-start: var(--wa-space-xl);
       inset-inline-end: var(--wa-space-xl);
       inline-size: 30ch;
+      /* never taller than the window: the body scrolls */
+      max-block-size: calc(100% - 2 * var(--wa-space-xl));
       --spacing: var(--wa-space-m);
+    }
+    #controls::part(body) {
+      min-block-size: 0;
+      overflow: auto;
     }
     #controls h2 {
       margin: 0;
       font-size: var(--wa-font-size-m);
+    }
+    /* exporting: the map takes the size of the video, whatever the window */
+    body.exporting {
+      background: #111;
+      overflow: hidden;
+    }
+    body.exporting #cesiumContainer {
+      position: absolute;
+      inset: 0;
+      margin: auto;
+      inline-size: var(--video-width);
+      block-size: var(--video-height);
+    }
+    #exportDialog {
+      --backdrop-filter: blur(4px);
+    }
+    /* the components set their own display: hidden needs a hand */
+    #exportDialog [hidden] {
+      display: none;
     }
     /* collapsed: only the header, out of the way of the picture */
     #controls.collapsed::part(body) {
@@ -70,20 +95,53 @@
         <wa-button id="stop" size="s" appearance="filled" disabled>
           <wa-icon name="stop" variant="solid" label="Stop"></wa-icon>
         </wa-button>
+        <wa-button id="export" size="s" appearance="filled" disabled>
+          <wa-icon name="download" variant="solid" label="Export a video"></wa-icon>
+        </wa-button>
       </wa-button-group>
       <wa-tooltip for="play">Play</wa-tooltip>
       <wa-tooltip for="pause">Pause</wa-tooltip>
       <wa-tooltip for="stop">Stop</wa-tooltip>
+      <wa-tooltip for="export">Export a video</wa-tooltip>
     </div>
   </wa-card>
+  <wa-dialog id="exportDialog" label="Export a video">
+    <div class="wa-stack wa-gap-m">
+      <wa-select id="videoSize" size="s" label="Size" value="540x960">
+        <wa-option value="540x960">540x960, portrait</wa-option>
+        <wa-option value="720x1280">720x1280, portrait</wa-option>
+        <wa-option value="1080x1920">1080x1920, portrait</wa-option>
+        <wa-option value="960x540">960x540, landscape</wa-option>
+        <wa-option value="1280x720">1280x720, landscape</wa-option>
+        <wa-option value="1920x1080">1920x1080, landscape</wa-option>
+      </wa-select>
+      <wa-select id="videoFps" size="s" label="Frame rate" value="30">
+        <wa-option value="24">24 fps</wa-option>
+        <wa-option value="30">30 fps</wa-option>
+        <wa-option value="60">60 fps</wa-option>
+      </wa-select>
+      <p class="wa-caption-m">The run is rendered frame by frame, with every tile loaded, so it takes a while; the effects are left out. The map takes the size of the video meanwhile.</p>
+      <wa-progress-bar id="exportProgress" hidden></wa-progress-bar>
+      <wa-callout id="exportError" variant="danger" hidden></wa-callout>
+    </div>
+    <wa-button slot="footer" size="s" data-dialog="close" id="exportCancel">Cancel</wa-button>
+    <wa-button slot="footer" size="s" variant="brand" id="exportStart">
+      <wa-icon slot="start" name="download" variant="solid"></wa-icon>
+      Export
+    </wa-button>
+  </wa-dialog>
   <script type="module">
     import {createViewer} from './setup.js';
     import CesiumPathFlyover from '../packages/cesium-path-flyover/cesium-path-flyover.js';
     import {parseTrack} from '../packages/cesium-path-flyover/track.js';
     import {AnalogVideo, DigitalVideo, DroneDisplay, Jello, MotionBlur} from '../packages/cesium-post-process/cesium-post-process.js';
     import {Cartesian3} from './cesium-shim.js';
+    import {BufferTarget, CanvasSource, Mp4OutputFormat, Output} from 'mediabunny';
     import '@awesome.me/webawesome/dist/styles/webawesome.css';
     import '@awesome.me/webawesome/dist/components/card/card.js';
+    import '@awesome.me/webawesome/dist/components/dialog/dialog.js';
+    import '@awesome.me/webawesome/dist/components/progress-bar/progress-bar.js';
+    import '@awesome.me/webawesome/dist/components/callout/callout.js';
     import '@awesome.me/webawesome/dist/components/select/select.js';
     import '@awesome.me/webawesome/dist/components/option/option.js';
     import '@awesome.me/webawesome/dist/components/slider/slider.js';
@@ -117,6 +175,14 @@
       const button = document.querySelector('#play');
       const pause = document.querySelector('#pause');
       const stop = document.querySelector('#stop');
+      const exportButton = document.querySelector('#export');
+      const exportDialog = document.querySelector('#exportDialog');
+      const videoSize = document.querySelector('#videoSize');
+      const videoFps = document.querySelector('#videoFps');
+      const exportProgress = document.querySelector('#exportProgress');
+      const exportError = document.querySelector('#exportError');
+      const exportCancel = document.querySelector('#exportCancel');
+      const exportStart = document.querySelector('#exportStart');
       // the card folds to its header, to show the whole picture
       const controls = document.querySelector('#controls');
       const collapse = document.querySelector('#collapse');
@@ -147,7 +213,7 @@
       // what can act in each state: settings reload the track, so not while playing;
       // pause only means something while playing; stop also rewinds a paused run;
       // scrubbing works whenever a track is loaded; after a track fails to load, only the
-      // settings and another track can act
+      // settings and another track can act; an export locks everything until the file is out
       let state = 'loading';
       const setState = (next) => {
         state = next;
@@ -157,6 +223,7 @@
         stop.disabled = !(state === 'playing' || (state === 'ready' && flyover.progress > 0));
         button.loading = state === 'loading';
         button.disabled = state !== 'ready';
+        exportButton.disabled = state !== 'ready';
       };
       let flyover;
       let scrubbing = false;
@@ -255,6 +322,92 @@
         await flyover.play();
         setState('ready');
       });
+      // the run is exported frame by frame: each frame waits for every tile in view, so
+      // nothing is real time; the effects run on wall time and are left out. On an
+      // integrated GPU 8x multisampling doubles the frame, 4x is the compromise.
+      // The dialog stays open with the progress until the file is out, or the error;
+      // its cancel button stops the run
+      let cancelled = false;
+      const exportVideo = async () => {
+        setState('exporting');
+        cancelled = false;
+        for (const control of [videoSize, videoFps, exportStart]) control.disabled = true;
+        exportError.hidden = true;
+        exportProgress.value = 0;
+        exportProgress.textContent = '';
+        exportProgress.hidden = false;
+        const [width, height] = videoSize.value.split('x').map(Number);
+        const fps = +videoFps.value;
+        const scene = viewer.scene;
+        const globe = scene.globe;
+        const controller = scene.screenSpaceCameraController;
+        const saved = {msaa: scene.msaaSamples, hdr: scene.highDynamicRange, cache: globe.tileCacheSize, inputs: controller.enableInputs, blur: motionBlur.active, drone: droneSwitch.checked};
+        scene.msaaSamples = 4;
+        scene.highDynamicRange = true;
+        globe.tileCacheSize = 5000;
+        // a drag on the map between two frames would move the camera of the next one
+        controller.enableInputs = false;
+        motionBlur.active = false;
+        setDrone(false);
+        document.body.style.setProperty('--video-width', `${width}px`);
+        document.body.style.setProperty('--video-height', `${height}px`);
+        document.body.classList.add('exporting');
+        viewer.resize();
+        const output = new Output({format: new Mp4OutputFormat(), target: new BufferTarget()});
+        // 0.4 bit per pixel and frame: 6 Mbit/s at 540x960 and 30 fps
+        const source = new CanvasSource(scene.canvas, {codec: 'avc', bitrate: Math.round(0.4 * width * height * fps), keyFrameInterval: 2});
+        output.addVideoTrack(source, {frameRate: fps});
+        try {
+          await output.start();
+          const frames = Math.round(fps * flyover.duration);
+          for (let k = 0; k < frames && !cancelled; k++) {
+            exportProgress.value = (100 * k) / frames;
+            exportProgress.textContent = `${k} / ${frames}`;
+            flyover.progress = k / (frames - 1);
+            do {
+              scene.render();
+              await new Promise((resolve) => setTimeout(resolve, 20));
+            } while (!globe.tilesLoaded);
+            // the drawing buffer is not preserved: capture in the same task as a render
+            scene.render();
+            await source.add(k / fps, 1 / fps);
+          }
+          if (cancelled) {
+            await output.cancel();
+          } else {
+            source.close();
+            await output.finalize();
+            const url = URL.createObjectURL(new Blob([output.target.buffer], {type: 'video/mp4'}));
+            const link = Object.assign(document.createElement('a'), {href: url, download: `${select.value}.mp4`});
+            link.click();
+            URL.revokeObjectURL(url);
+          }
+          exportDialog.open = false;
+        } catch (error) {
+          console.error(error);
+          exportError.textContent = `The export failed: ${error.message}`;
+          exportError.hidden = false;
+        } finally {
+          exportProgress.hidden = true;
+          for (const control of [videoSize, videoFps, exportStart]) control.disabled = false;
+          document.body.classList.remove('exporting');
+          viewer.resize();
+          scene.msaaSamples = saved.msaa;
+          scene.highDynamicRange = saved.hdr;
+          globe.tileCacheSize = saved.cache;
+          controller.enableInputs = saved.inputs;
+          motionBlur.active = saved.blur;
+          setDrone(saved.drone);
+          flyover.progress = 0;
+          setState('ready');
+        }
+      };
+      exportButton.addEventListener('click', () => (exportDialog.open = true));
+      exportStart.addEventListener('click', exportVideo);
+      // neither Escape nor the close button while the export runs: only the cancel button,
+      // and the dialog closes once the run has stopped
+      exportCancel.addEventListener('click', () => (cancelled = state === 'exporting'));
+      exportDialog.addEventListener('wa-hide', (event) => state === 'exporting' && event.preventDefault());
       await load();
     });
   </script>
