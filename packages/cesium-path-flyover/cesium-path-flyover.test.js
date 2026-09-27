@@ -330,7 +330,7 @@ test("play installs the input handler and stop destroys it", async () => {
   const held = [SHIFT, CTRL, ALT, [SHIFT, CTRL], [SHIFT, ALT], [CTRL, ALT], [SHIFT, CTRL, ALT]];
   const modified = dragEvents.flatMap((type) => held.map((modifier) => `${type}+${modifier}`));
   assert.deepEqual(
-    [...handler.actions.keys()].map(String).sort(),
+    handler.actions.keys().map(String).toArray().sort(),
     [...dragEvents, ScreenSpaceEventType.PINCH_MOVE, ScreenSpaceEventType.WHEEL, ...modified].map(String).sort()
   );
   assert.equal(viewer.scene.screenSpaceCameraController.enableInputs, false);
