@@ -15,7 +15,7 @@ const scratchMatrix = new Matrix4();
 export function parseTrack(text) {
   const coords = parseGeoJson(text) ?? parseGpx(text);
   if (!coords) {
-    throw new Error("No track found: expected a GeoJSON LineString or GPX trkpt elements");
+    throw new Error("No track found: expected a GeoJSON LineString or GPX trkpt or rtept elements");
   }
   if (coords.length < 2) {
     throw new Error("A track needs at least two points");
@@ -68,8 +68,17 @@ function toLonLat(coordinate) {
  * @return {LonLat[] | undefined}
  */
 function parseGpx(text) {
+  return parseGpxPoints(text, "trkpt") ?? parseGpxPoints(text, "rtept");
+}
+
+/**
+ * @param {string} text
+ * @param {string} tag
+ * @return {LonLat[] | undefined}
+ */
+function parseGpxPoints(text, tag) {
   const coords = [];
-  for (const [, attributes] of text.matchAll(/<(?:\w+:)?trkpt\b([^>]*)>/g)) {
+  for (const [, attributes] of text.matchAll(new RegExp(`<(?:\\w+:)?${tag}\\b([^>]*)>`, "g"))) {
     const lat = /\blat\s*=\s*["']([^"']+)["']/.exec(attributes);
     const lon = /\blon\s*=\s*["']([^"']+)["']/.exec(attributes);
     if (lat && lon) {
