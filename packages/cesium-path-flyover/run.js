@@ -13,6 +13,7 @@ import {sampleProfile} from "./planner.js";
  * @property {number} panRate largest heading change, degrees per second, for the heading and for the planner's offsets
  * @property {number} breathing 0 to 1, amplitude of the slow drift in heading, height and roll
  * @property {number} bank degrees of roll into a turn, reached when the heading turns at 30 degrees per second or more
+ * @property {number} speed ground speed along the track, meters per second
  */
 
 /**
@@ -31,6 +32,7 @@ export const RUN_TABLE = [
   {name: "panRate", dial: "motion", values: [45, 30, 15]},
   {name: "breathing", dial: "motion", values: [0, 0, 1]},
   {name: "bank", dial: "style", values: [12, 0, 0]},
+  {name: "speed", dial: "style", values: [120, 200, 350]},
 ];
 
 /**
