@@ -24,6 +24,7 @@ import {breathe, dampAngle, decimate, easedProgress, fetchTrackText, forwardHead
 import TerrainSampler from "./terrain.js";
 import {SAMPLE_SPACING, cameraOffsetEnu, curvature, gaussianSmooth, planCamera, reliefProfile, sampleProfile, smoothPositions} from "./planner.js";
 import {deriveRun} from "./run.js";
+import Trail from "./shaders/Trail.js";
 
 const MIN_POINT_DISTANCE = 10;
 const MARKER_HEIGHT = 2;
@@ -50,6 +51,9 @@ const SAMPLE_LEVEL = 16;
 // moves the lift by up to 50 m, and the track's own heights stay at SAMPLE_LEVEL
 const LONG_TRACK = 50000; // meters
 const LONG_TRACK_PLAN_LEVEL = 15;
+const ACCENT = Color.fromCssColorString("#FF680A");
+const TRAIL_WIDTH = 16; // pixels, the glow included
+const MARKER_SIZE = 18; // pixels
 
 const MODIFIERS = [KeyboardEventModifier.SHIFT, KeyboardEventModifier.CTRL, KeyboardEventModifier.ALT];
 // none, each, and every combination of them
@@ -94,6 +98,7 @@ const enuScratch = new Matrix4();
  * @property {number[]} range meters, per sample: the run's range, wider in bends
  * @property {number[]} lift meters, per sample: the terrain planner's lift, the climb toward the surrounding relief and the breathing drift
  * @property {number[]} roll radians, per sample: the bank into the turns of the heading plus the breathing drift, positive leans right
+ * @property {number[]} ground per spline point, its fraction of the track's length on the ground, where the trail measures it
  */
 
 export default class CesiumPathFlyover {
@@ -136,12 +141,14 @@ export default class CesiumPathFlyover {
 
     /** @type {GroundPolylinePrimitive | undefined} */
     this.track_ = undefined;
+    /** @type {Material | undefined} the track's, its progress uniform follows the marker */
+    this.trail_ = undefined;
     this.markers_ = new PointPrimitiveCollection();
     this.marker_ = this.markers_.add({
-      pixelSize: 8,
-      color: Color.ORANGE,
+      pixelSize: MARKER_SIZE,
+      color: ACCENT,
       outlineColor: Color.WHITE,
-      outlineWidth: 1,
+      outlineWidth: 2.5,
       disableDepthTestDistance: Number.POSITIVE_INFINITY,
       show: false,
     });
@@ -204,6 +211,10 @@ export default class CesiumPathFlyover {
     }
     this.path_ = path;
     this.t_ = 0;
+    // a scrub during the load placed the split on the previous track's path
+    if (this.trail_) {
+      this.trail_.uniforms.progress = 0;
+    }
     this.marker_.position = points[0];
     this.marker_.show = true;
     scene.requestRender();
@@ -215,21 +226,19 @@ export default class CesiumPathFlyover {
    */
   createTrack_(coords) {
     const ellipsoid = this.viewer.scene.ellipsoid;
+    this.trail_ = new Material({
+      translucent: true,
+      fabric: {uniforms: {color: ACCENT, progress: 0, width: TRAIL_WIDTH}, source: Trail},
+    });
     return new GroundPolylinePrimitive({
       allowPicking: false,
       geometryInstances: new GeometryInstance({
         geometry: new GroundPolylineGeometry({
           positions: coords.map(([lon, lat]) => Cartesian3.fromDegrees(lon, lat, 0, ellipsoid)),
-          width: 4,
+          width: TRAIL_WIDTH,
         }),
       }),
-      appearance: new PolylineMaterialAppearance({
-        material: Material.fromType("PolylineOutline", {
-          color: Color.ORANGE,
-          outlineColor: Color.WHITE,
-          outlineWidth: 1,
-        }),
-      }),
+      appearance: new PolylineMaterialAppearance({material: this.trail_}),
     });
   }
 
@@ -301,7 +310,26 @@ export default class CesiumPathFlyover {
         rise[k] += plan.lift[k];
       });
     }
-    return {targets, headings, range, lift: rise, roll: this.rollProfile_(headings, dt)};
+    return {targets, headings, range, lift: rise, roll: this.rollProfile_(headings, dt), ground: this.groundFractions_()};
+  }
+
+  /**
+   * Each spline point's fraction of the track's length on the ground: the marker
+   * runs on the climbs too, the trail's length along the line is flat.
+   * @return {number[]}
+   */
+  groundFractions_() {
+    const ellipsoid = this.viewer.scene.ellipsoid;
+    const flat = /** @type {CatmullRomSpline} */ (this.spline_).points.map((p) => {
+      const c = Cartographic.fromCartesian(p, ellipsoid, cartographicScratch);
+      return Cartesian3.fromRadians(c.longitude, c.latitude, 0, ellipsoid);
+    });
+    const distances = [0];
+    for (let i = 1; i < flat.length; i++) {
+      distances.push(distances[i - 1] + Cartesian3.distance(flat[i - 1], flat[i]));
+    }
+    const total = distances[distances.length - 1];
+    return distances.map((d) => d / total);
   }
 
   /**
@@ -569,7 +597,13 @@ export default class CesiumPathFlyover {
     const scene = this.viewer.scene;
     const spline = /** @type {CatmullRomSpline} */ (this.spline_);
     const path = /** @type {Path} */ (this.path_);
-    this.marker_.position = spline.evaluate(easedProgress(this.t_, EASE_SECONDS / this.duration), markerScratch);
+    const along = easedProgress(this.t_, EASE_SECONDS / this.duration);
+    this.marker_.position = spline.evaluate(along, markerScratch);
+    if (this.trail_) {
+      const i0 = spline.findTimeInterval(along);
+      const times = spline.times;
+      this.trail_.uniforms.progress = CesiumMath.lerp(path.ground[i0], path.ground[i0 + 1], (along - times[i0]) / (times[i0 + 1] - times[i0]));
+    }
 
     const index = this.t_ * (path.targets.length - 1);
     const i = Math.min(Math.floor(index), path.targets.length - 1);

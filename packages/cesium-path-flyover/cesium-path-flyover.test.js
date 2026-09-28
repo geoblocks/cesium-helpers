@@ -538,3 +538,51 @@ test("setting progress while playing rebases the clock and playback goes on from
   assert.ok(seen.some((p) => Math.abs(p - expected) < 1e-9), `raised ${seen}`);
   flyover.stop();
 });
+
+test("the trail splits at the marker's place along the ground, not along the climb", async () => {
+  const viewer = fakeViewer();
+  Object.assign(viewer.scene, {
+    ellipsoid: Ellipsoid.WGS84,
+    terrainProvider: new EllipsoidTerrainProvider(),
+    mode: SceneMode.SCENE3D,
+    requestRender: () => {},
+    camera: {lookAt: () => {}, lookAtTransform: () => {}, twistRight: () => {}},
+  });
+  const flyover = new CesiumPathFlyover(viewer, {freeLook: false});
+  // 100 m east climbing 100 m, then 100 m east on the flat
+  const points = Cartesian3.fromDegreesArrayHeights([6.5, 46.8, 800, 6.5013, 46.8, 900, 6.5026, 46.8, 900]);
+  const distances = [0];
+  for (let i = 1; i < points.length; i++) {
+    distances.push(distances[i - 1] + Cartesian3.distance(points[i - 1], points[i]));
+  }
+  flyover.totalLength_ = distances[2];
+  flyover.spline_ = new CatmullRomSpline({points, times: distances.map((d) => d / distances[2])});
+  flyover.path_ = await flyover.computePath_(sampler);
+  // a material needs a DOM
+  flyover.trail_ = /** @type {any} */ ({uniforms: {progress: 0}});
+  flyover.progress = 0.5;
+  const marker = Cartographic.fromCartesian(flyover.marker_.position);
+  const expected = (CesiumMath.toDegrees(marker.longitude) - 6.5) / 0.0026;
+  const actual = flyover.trail_.uniforms.progress;
+  assert.ok(expected < 0.46, `the climb holds more than half of the 3D length: ${expected}`);
+  assert.ok(Math.abs(actual - expected) < 0.01, `trail split at ${actual}, marker at ${expected}`);
+});
+
+test("a finished load puts the trail's split back at the start with the marker", async () => {
+  const viewer = fakeViewer();
+  Object.assign(viewer.scene, {ellipsoid: Ellipsoid.WGS84, terrainProvider: new EllipsoidTerrainProvider(), requestRender: () => {}});
+  const fetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({type: "LineString", coordinates: [[6.5, 46.8], [6.51, 46.8]]}));
+  try {
+    const flyover = new CesiumPathFlyover(viewer);
+    // a primitive and its material need a GL context; a scrub during the load left the split midway
+    flyover.createTrack_ = () => {
+      flyover.trail_ = /** @type {any} */ ({uniforms: {progress: 0.7}});
+      return {};
+    };
+    await flyover.load("track.json");
+    assert.equal(flyover.trail_.uniforms.progress, 0);
+  } finally {
+    globalThis.fetch = fetch;
+  }
+});
