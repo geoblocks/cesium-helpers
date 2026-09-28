@@ -1,6 +1,6 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {Cartographic, EllipsoidTerrainProvider, GeographicTilingScheme, Math as CesiumMath} from "@cesium/engine";
+import {BoundingSphere, Cartesian3, Cartographic, EllipsoidTerrainProvider, GeographicTilingScheme, Math as CesiumMath, QuantizedMeshTerrainData} from "@cesium/engine";
 import TerrainSampler from "./terrain.js";
 
 // a terrain provider whose tiles report a height from a function of the position,
@@ -91,4 +91,72 @@ test("an EllipsoidTerrainProvider has no terrain: every height is undefined", as
   const sampler = new TerrainSampler(new EllipsoidTerrainProvider(), 16);
   const heights = await sampler.heightsAt(line(5, 0.01));
   assert.deepEqual(heights, [undefined, undefined, undefined, undefined, undefined]);
+});
+
+// a quantized-mesh tile: the four corners SW NW SE NE at the given quantized
+// heights, `indices` its triangles
+const quantizedTile = (heights, indices) =>
+  new QuantizedMeshTerrainData({
+    minimumHeight: 0,
+    maximumHeight: 32767,
+    quantizedVertices: new Uint16Array([0, 0, 32767, 32767, 0, 32767, 0, 32767, ...heights]),
+    indices: new Uint16Array(indices),
+    boundingSphere: new BoundingSphere(Cartesian3.ZERO, 1),
+    horizonOcclusionPoint: Cartesian3.ZERO,
+    westIndices: [0, 1],
+    southIndices: [0, 2],
+    eastIndices: [2, 3],
+    northIndices: [1, 3],
+    westSkirtHeight: 1,
+    southSkirtHeight: 1,
+    eastSkirtHeight: 1,
+    northSkirtHeight: 1,
+  });
+
+test("quantized-mesh tiles are interpolated through the sampler's own index, as Cesium would", async () => {
+  // a plane rising to the east and north, in two triangles
+  const data = quantizedTile([0, 10000, 20000, 30000], [0, 2, 3, 0, 3, 1]);
+  const reference = data.interpolateHeight.bind(data);
+  let cesiumCalls = 0;
+  data.interpolateHeight = (...args) => {
+    cesiumCalls++;
+    return reference(...args);
+  };
+  const scheme = new GeographicTilingScheme();
+  const provider = {tilingScheme: scheme, getTileDataAvailable: () => true, requestTileGeometry: () => Promise.resolve(data)};
+  const sampler = new TerrainSampler(provider, 16);
+  const rectangle = scheme.tileXYToRectangle(scheme.positionToTileXY(Cartographic.fromDegrees(6.5, 46.8), 16).x, scheme.positionToTileXY(Cartographic.fromDegrees(6.5, 46.8), 16).y, 16);
+  const positions = [0.1, 0.5, 0.9, 0.999].flatMap((fu) =>
+    [0.2, 0.5, 0.8].map((fv) => new Cartographic(rectangle.west + fu * rectangle.width, rectangle.south + fv * rectangle.height))
+  );
+  const heights = await sampler.heightsAt(positions);
+  positions.forEach((p, i) => {
+    const expected = reference(rectangle, p.longitude, p.latitude);
+    assert.ok(Math.abs(heights[i] - expected) < 1e-6, `${heights[i]} for ${expected} at ${i}`);
+  });
+  assert.ok(heights[0] > 1000 && heights.at(-1) > 20000, "a slope");
+  assert.equal(cesiumCalls, 0, "Cesium's linear scan was not used");
+});
+
+test("a position outside a tile's triangles is sampled at the fallback level", async () => {
+  // only the south-east triangle; the north-west half has no terrain at level 16
+  const requests = [];
+  const provider = {
+    tilingScheme: new GeographicTilingScheme(),
+    getTileDataAvailable: () => true,
+    requestTileGeometry: (x, y, level) => {
+      requests.push(level);
+      return Promise.resolve(level === 16 ? quantizedTile([0, 0, 0, 0], [0, 2, 3]) : {interpolateHeight: () => 77});
+    },
+  };
+  const sampler = new TerrainSampler(provider, 16);
+  const scheme = provider.tilingScheme;
+  const {x, y} = scheme.positionToTileXY(Cartographic.fromDegrees(6.5, 46.8), 16);
+  const rectangle = scheme.tileXYToRectangle(x, y, 16);
+  const southEast = new Cartographic(rectangle.west + 0.8 * rectangle.width, rectangle.south + 0.2 * rectangle.height);
+  const northWest = new Cartographic(rectangle.west + 0.2 * rectangle.width, rectangle.south + 0.8 * rectangle.height);
+  const heights = await sampler.heightsAt([southEast, northWest]);
+  assert.equal(heights[0], 0);
+  assert.equal(heights[1], 77);
+  assert.ok(requests.includes(14), "the fallback level was fetched");
 });
