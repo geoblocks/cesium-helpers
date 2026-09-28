@@ -84,6 +84,14 @@ test("parseTrack accepts single-quoted, spaced and namespaced GPX attributes", (
   assert.deepEqual(parseTrack(text), [[6.1, 46.1], [6.2, 46.2]]);
 });
 
+test("parseTrack falls back to GPX rtept when there is no trkpt", () => {
+  const route = `<gpx><rte><rtept lat="46.1" lon="6.1"/><rtept lat="46.2" lon="6.2"/></rte></gpx>`;
+  assert.deepEqual(parseTrack(route), [[6.1, 46.1], [6.2, 46.2]]);
+  const both = `<gpx><rte><rtept lat="1" lon="1"/><rtept lat="2" lon="2"/></rte>
+    <trk><trkseg><trkpt lat="46.1" lon="6.1"/><trkpt lat="46.2" lon="6.2"/></trkseg></trk></gpx>`;
+  assert.deepEqual(parseTrack(both), [[6.1, 46.1], [6.2, 46.2]]);
+});
+
 test("fetchTrackText throws with the status and URL on a failed response", async () => {
   const original = globalThis.fetch;
   globalThis.fetch = async () => new Response("<html>not found</html>", {status: 404});
