@@ -1,7 +1,7 @@
 import {Cartesian2, EllipsoidTerrainProvider, Math as CesiumMath} from "@cesium/engine";
 
 const FALLBACK_LEVEL = 14;
-const TILES_IN_FLIGHT = 24;
+const TILES_IN_FLIGHT = 64;
 // buckets per side of a quantized-mesh tile's index; about ten triangles per
 // bucket on a 4000-triangle tile
 const GRID = 32;

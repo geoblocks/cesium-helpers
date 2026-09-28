@@ -198,6 +198,34 @@ test("planCamera samples the terrain in bounded batches on a long track", async 
   assert.ok(batches.length > 2, `${batches.length} batches`);
 });
 
+test("planCamera has the next batch's terrain on the way while a batch is pending", async () => {
+  const samples = straightNorth(20000);
+  const sampler = makeSampler(() => 500);
+  /** @type {(() => void)[]} */
+  const releases = [];
+  let pending = 0;
+  let mostPending = 0;
+  const plan = planCamera(samples, options, (cartographics) => {
+    pending++;
+    mostPending = Math.max(mostPending, pending);
+    return new Promise((resolve) => {
+      releases.push(() => {
+        pending--;
+        resolve(sampler(cartographics));
+      });
+    });
+  });
+  // release the batches one at a time, in order, as tiles would arrive
+  let done = false;
+  plan.then(() => (done = true));
+  while (!done) {
+    await new Promise((resolve) => setTimeout(resolve, 1));
+    releases.shift()?.();
+  }
+  assert.equal((await plan).lift.length, samples.positions.length);
+  assert.equal(mostPending, 2, "one batch fetching while the other is pending");
+});
+
 test("planCamera with no turn allowed keeps the heading and lifts instead", async () => {
   // panRate 0, the rigid extreme: the search must not loop forever on a zero step
   const samples = straightNorth(2000);
