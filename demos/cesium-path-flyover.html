@@ -222,6 +222,10 @@
         button.loading = state === 'loading';
         button.disabled = state !== 'ready';
         exportButton.disabled = state !== 'ready';
+        // a moving camera does not show the finest tiles, but their loading and the
+        // upsampling of the terrain past level 18 do cost frames; the export is not real
+        // time and keeps the detail
+        viewer.scene.globe.maximumScreenSpaceError = state === 'playing' ? 3 : 2;
       };
       let flyover;
       let scrubbing = false;
