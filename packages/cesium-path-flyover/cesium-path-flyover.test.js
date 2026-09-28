@@ -1,6 +1,6 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {Cartesian3, Cartographic, CatmullRomSpline, Ellipsoid, EllipsoidTerrainProvider, KeyboardEventModifier, Math as CesiumMath, Matrix4, SceneMode, ScreenSpaceEventType, Transforms} from "@cesium/engine";
+import {Cartesian3, Cartographic, CatmullRomSpline, Ellipsoid, EllipsoidTerrainProvider, GeographicTilingScheme, KeyboardEventModifier, Math as CesiumMath, Matrix4, SceneMode, ScreenSpaceEventType, Transforms} from "@cesium/engine";
 import CesiumPathFlyover from "./cesium-path-flyover.js";
 import {easedProgress} from "./track.js";
 import {sampleProfile} from "./planner.js";
@@ -207,6 +207,38 @@ test("of two loads under way, the later one wins whichever answers first", async
     await first;
     assert.equal(flyover.totalLength_, length, "the earlier load overwrote the later one");
     assert.ok(length > 1500, `${length} m`);
+  } finally {
+    globalThis.fetch = fetch;
+  }
+});
+
+test("a long track plans the camera on coarser terrain tiles than the track's own", async () => {
+  /** @type {Set<number>} */
+  const levels = new Set();
+  const provider = {
+    tilingScheme: new GeographicTilingScheme(),
+    getTileDataAvailable: () => true,
+    requestTileGeometry: (x, y, level) => {
+      levels.add(level);
+      return Promise.resolve({interpolateHeight: () => 500});
+    },
+  };
+  const viewer = fakeViewer();
+  Object.assign(viewer.scene, {ellipsoid: Ellipsoid.WGS84, terrainProvider: provider, requestRender: () => {}});
+  const line = (/** @type {number} */ km) => JSON.stringify({type: "LineString", coordinates: [[6.5, 46.8], [6.5, 46.8 + km / 111]]});
+  const fetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => new Response(line(2));
+    const short = new CesiumPathFlyover(viewer);
+    short.createTrack_ = () => ({});
+    await short.load("short.json");
+    assert.deepEqual([...levels], [16], "a short track samples everything at level 16");
+    levels.clear();
+    globalThis.fetch = async () => new Response(line(60));
+    const long = new CesiumPathFlyover(viewer);
+    long.createTrack_ = () => ({});
+    await long.load("long.json");
+    assert.deepEqual([...levels].sort(), [15, 16], "the track at level 16, the planner's corridor at 15");
   } finally {
     globalThis.fetch = fetch;
   }
