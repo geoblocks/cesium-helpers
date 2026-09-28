@@ -5,20 +5,20 @@
   <meta charset="UTF-8">
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Cesium.js"></script>
   <link href="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
-  <style>html,body,#cesiumContainer{height:100%;margin:0}#controls{--spacing:var(--wa-space-m);inline-size:30ch;position:absolute;inset-block-start:var(--wa-space-xl);inset-inline-end:var(--wa-space-xl)}#controls h2{font-size:var(--wa-font-size-m);margin:0}#controls.collapsed::part(body){display:none}</style>
-  <script type="module" crossorigin src="./assets/cesium-path-flyover-BFV3jEUk.js"></script>
+  <style>html,body,#cesiumContainer{height:100%;margin:0}#controls{inline-size:30ch;max-block-size:calc(100% - 2 * var(--wa-space-xl));--spacing:var(--wa-space-m);position:absolute;inset-block-start:var(--wa-space-xl);inset-inline-end:var(--wa-space-xl)}#controls::part(body){min-block-size:0;overflow:auto}#controls h2{font-size:var(--wa-font-size-m);margin:0}body.exporting{background:#111;overflow:hidden}body.exporting #cesiumContainer{inline-size:var(--video-width);block-size:var(--video-height);margin:auto;position:absolute;inset:0}#exportDialog{--backdrop-filter:blur(4px)}#exportDialog [hidden],#controls.collapsed::part(body){display:none}</style>
+  <script type="module" crossorigin src="./assets/cesium-path-flyover-B0RuOPUk.js"></script>
   <link rel="modulepreload" crossorigin href="./assets/lit-BFn1CURT.js">
   <link rel="modulepreload" crossorigin href="./assets/directive-BSZPiF1A.js">
   <link rel="modulepreload" crossorigin href="./assets/card-58mEaPX-.js">
   <link rel="modulepreload" crossorigin href="./assets/directive-helpers-B5gL4DMf.js">
-  <link rel="modulepreload" crossorigin href="./assets/setup-DYuWPPM-.js">
-  <link rel="modulepreload" crossorigin href="./assets/cesium-shim-Dw5GLahM.js">
+  <link rel="modulepreload" crossorigin href="./assets/setup-Duq8wk3i.js">
+  <link rel="modulepreload" crossorigin href="./assets/cesium-shim-deYMRcZt.js">
   <link rel="modulepreload" crossorigin href="./assets/switch-BktEAscN.js">
   <link rel="modulepreload" crossorigin href="./assets/button-C4a7i2eR.js">
   <link rel="modulepreload" crossorigin href="./assets/icon-BW2R3MNz.js">
-  <link rel="modulepreload" crossorigin href="./assets/cesium-post-process-Czdn4zn-.js">
+  <link rel="modulepreload" crossorigin href="./assets/motion-blur-H9Tf_aeZ.js">
   <link rel="modulepreload" crossorigin href="./assets/style-map-ly-_uhSr.js">
-  <link rel="modulepreload" crossorigin href="./assets/slider-C4R-zmeo.js">
+  <link rel="modulepreload" crossorigin href="./assets/slider-BbZRZLSJ.js">
   <link rel="stylesheet" crossorigin href="./assets/card-DfFS4Dmy.css">
 </head>
 
@@ -64,12 +64,41 @@
         <wa-button id="stop" size="s" appearance="filled" disabled>
           <wa-icon name="stop" variant="solid" label="Stop"></wa-icon>
         </wa-button>
+        <wa-button id="export" size="s" appearance="filled" disabled>
+          <wa-icon name="download" variant="solid" label="Export a video"></wa-icon>
+        </wa-button>
       </wa-button-group>
       <wa-tooltip for="play">Play</wa-tooltip>
       <wa-tooltip for="pause">Pause</wa-tooltip>
       <wa-tooltip for="stop">Stop</wa-tooltip>
+      <wa-tooltip for="export">Export a video</wa-tooltip>
     </div>
   </wa-card>
+  <wa-dialog id="exportDialog" label="Export a video">
+    <div class="wa-stack wa-gap-m">
+      <wa-select id="videoSize" size="s" label="Size" value="540x960">
+        <wa-option value="540x960">540x960, portrait</wa-option>
+        <wa-option value="720x1280">720x1280, portrait</wa-option>
+        <wa-option value="1080x1920">1080x1920, portrait</wa-option>
+        <wa-option value="960x540">960x540, landscape</wa-option>
+        <wa-option value="1280x720">1280x720, landscape</wa-option>
+        <wa-option value="1920x1080">1920x1080, landscape</wa-option>
+      </wa-select>
+      <wa-select id="videoFps" size="s" label="Frame rate" value="30">
+        <wa-option value="24">24 fps</wa-option>
+        <wa-option value="30">30 fps</wa-option>
+        <wa-option value="60">60 fps</wa-option>
+      </wa-select>
+      <p class="wa-caption-m">The run is rendered frame by frame, with every tile loaded, so it takes a while; the effects are left out. The map takes the size of the video meanwhile.</p>
+      <wa-progress-bar id="exportProgress" hidden></wa-progress-bar>
+      <wa-callout id="exportError" variant="danger" hidden></wa-callout>
+    </div>
+    <wa-button slot="footer" size="s" data-dialog="close" id="exportCancel">Cancel</wa-button>
+    <wa-button slot="footer" size="s" variant="brand" id="exportStart">
+      <wa-icon slot="start" name="download" variant="solid"></wa-icon>
+      Export
+    </wa-button>
+  </wa-dialog>
 </body>
 
 </html>
