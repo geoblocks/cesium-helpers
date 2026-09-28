@@ -16,6 +16,7 @@
     "free-look.js",
     "planner.js",
     "run.js",
+    "shaders/*.js",
     "terrain.js",
     "track.js"
   ],
