@@ -24,8 +24,10 @@ export async function createViewer(container) {
       new Cesium.UrlTemplateImageryProvider({
         url: "https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage/default/current/3857/{z}/{x}/{y}.jpeg",
         rectangle: SWITZERLAND_RECTANGLE,
-        // the last level the service has: beyond it every request fails with a 400
-        maximumLevel: 20,
+        // the service goes to 20 but the terrain stops at 18 and drives the refinement:
+        // deeper imagery is two thirds of the tile requests on a low flight, for texels
+        // below the mesh detail
+        maximumLevel: 18,
       })
     ),
     terrainProvider: await Cesium.CesiumTerrainProvider.fromUrl(
