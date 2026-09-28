@@ -273,9 +273,16 @@ export async function reliefProfile(targets, heights, ranges, ellipsoid, heights
 async function liftsNeeded(samples, headings, options, heightsAt) {
   /** @type {number[][]} */
   const lifts = [];
-  // a batch at a time: the positions of a whole long track would take tens of MB
+  // a batch at a time, the positions of a whole long track would take tens of
+  // MB, with the next batch's terrain on the way while the current one is
+  // pending: its tiles load while the current batch is interpolated
+  const batch = (/** @type {number} */ start) =>
+    liftsNeededFrom(samples, headings, options, heightsAt, start, Math.min(start + LIFT_BATCH, headings.length));
+  let next = headings.length > 0 ? batch(0) : undefined;
   for (let start = 0; start < headings.length; start += LIFT_BATCH) {
-    lifts.push(...(await liftsNeededFrom(samples, headings, options, heightsAt, start, Math.min(start + LIFT_BATCH, headings.length))));
+    const current = /** @type {Promise<number[][]>} */ (next);
+    next = start + LIFT_BATCH < headings.length ? batch(start + LIFT_BATCH) : undefined;
+    lifts.push(...(await current));
   }
   return lifts;
 }

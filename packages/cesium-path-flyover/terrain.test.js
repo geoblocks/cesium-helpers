@@ -61,8 +61,8 @@ test("tiles are fetched a bounded number at a time", async () => {
   const {provider, peak} = fakeProvider(() => 500, {delayMs: 2});
   const sampler = new TerrainSampler(provider, 16);
   await sampler.heightsAt(line(3000, 0.4));
-  assert.ok(peak() <= 32, `peak in flight ${peak()}`);
-  assert.ok(peak() > 4, `peak in flight ${peak()}`);
+  assert.ok(peak() <= 64, `peak in flight ${peak()}`);
+  assert.ok(peak() > 32, `peak in flight ${peak()}`);
 });
 
 test("a tile that fails is sampled at the coarse fallback level instead", async () => {

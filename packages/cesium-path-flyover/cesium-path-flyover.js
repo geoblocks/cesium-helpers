@@ -44,6 +44,12 @@ const BANK_SIGMA = 2; // samples; the planner's offsets step on a grid
 // of the most detailed level, an order of magnitude fewer tiles, and the same
 // tiles for the track and for the planner's corridor around it
 const SAMPLE_LEVEL = 16;
+// beyond this length the planner's corridor is sampled a level coarser: 27% to
+// 56% fewer tiles on a 377 km route, from the middle to the spectator style,
+// with the same clearance and occlusions; on a short gorge the coarser mesh
+// moves the lift by up to 50 m, and the track's own heights stay at SAMPLE_LEVEL
+const LONG_TRACK = 50000; // meters
+const LONG_TRACK_PLAN_LEVEL = 15;
 
 const MODIFIERS = [KeyboardEventModifier.SHIFT, KeyboardEventModifier.CTRL, KeyboardEventModifier.ALT];
 // none, each, and every combination of them
@@ -171,7 +177,8 @@ export default class CesiumPathFlyover {
     this.track_ = scene.primitives.add(this.createTrack_(coords));
     scene.requestRender();
 
-    // one sampler per load: tiles fetched for the track serve the targets and the planner too
+    // one sampler per load: tiles fetched for the track serve the targets and, on
+    // a track up to LONG_TRACK, the planner too
     const sampler = new TerrainSampler(scene.terrainProvider, SAMPLE_LEVEL);
     const cartographics = coords.map(([lon, lat]) => Cartographic.fromDegrees(lon, lat));
     const terrain = await sampler.heightsAt(cartographics);
@@ -190,7 +197,8 @@ export default class CesiumPathFlyover {
       points,
       times: distances.map((d) => d / this.totalLength_),
     });
-    const path = await this.computePath_(sampler);
+    const planSampler = this.totalLength_ > LONG_TRACK ? new TerrainSampler(scene.terrainProvider, LONG_TRACK_PLAN_LEVEL) : sampler;
+    const path = await this.computePath_(sampler, planSampler);
     if (load !== this.load_) {
       return;
     }
@@ -228,10 +236,11 @@ export default class CesiumPathFlyover {
   /**
    * Tabulates the smoothed look-at target and the damped heading over the playback
    * time, then plans the terrain offsets and lifts on exactly that path.
-   * @param {TerrainSampler} sampler
+   * @param {TerrainSampler} sampler for the targets
+   * @param {TerrainSampler} [planSampler] for the planner's corridor, the targets' by default
    * @return {Promise<Path>}
    */
-  async computePath_(sampler) {
+  async computePath_(sampler, planSampler = sampler) {
     const scene = this.viewer.scene;
     const spline = /** @type {CatmullRomSpline} */ (this.spline_);
     const count = Math.ceil(this.totalLength_ / SAMPLE_SPACING) + 1;
@@ -265,7 +274,7 @@ export default class CesiumPathFlyover {
     const range = this.rangeProfile_(progresses);
     const {targets, heights} = await this.smoothTargets_(positions, sampler);
     if (!(scene.terrainProvider instanceof EllipsoidTerrainProvider)) {
-      const heightsAt = (/** @type {Cartographic[]} */ cartographics) => sampler.heightsAt(cartographics);
+      const heightsAt = (/** @type {Cartographic[]} */ cartographics) => planSampler.heightsAt(cartographics);
       if (run.reliefRise > 0) {
         // a spectator sees over the ridges around the track; the camera keeps
         // looking at the target, so the rise only steepens the view
