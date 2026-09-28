@@ -55,7 +55,7 @@ test("the camera looks at a point beside the marker, not at one trailing it", as
     requestRender: () => {},
     camera: {lookAt: (target) => targets.push(Cartesian3.clone(target)), lookAtTransform: () => {}, twistRight: () => {}},
   });
-  const flyover = new CesiumPathFlyover(viewer, {duration: 5});
+  const flyover = new CesiumPathFlyover(viewer, {speed: 150});
   const points = Cartesian3.fromDegreesArrayHeights([6.5, 46.8, 800, 6.502, 46.8, 810, 6.504, 46.8, 820]);
   const distances = [0];
   for (let i = 1; i < points.length; i++) {
@@ -88,9 +88,9 @@ const hairpinFlyover = (viewer, options) => {
 test("the heading turns through a hairpin no faster than the pan limit", async () => {
   const viewer = fakeViewer();
   Object.assign(viewer.scene, {ellipsoid: Ellipsoid.WGS84, terrainProvider: new EllipsoidTerrainProvider()});
-  const flyover = hairpinFlyover(viewer, {duration: 10});
+  const flyover = hairpinFlyover(viewer, {speed: 90});
   const path = await flyover.computePath_(sampler);
-  const dt = 10 / (path.headings.length - 1);
+  const dt = flyover.duration / (path.headings.length - 1);
   const limit = CesiumMath.toRadians(30) * dt;
   for (let k = 1; k < path.headings.length; k++) {
     const step = Math.abs(CesiumMath.negativePiToPi(path.headings[k] - path.headings[k - 1]));
@@ -105,9 +105,9 @@ test("a calm motion limits the heading turn to its own pan rate", async () => {
   const viewer = fakeViewer();
   Object.assign(viewer.scene, {ellipsoid: Ellipsoid.WGS84, terrainProvider: new EllipsoidTerrainProvider()});
   // breathing off: the drift rides on top of the limited heading at its own slow rate
-  const flyover = hairpinFlyover(viewer, {duration: 10, motion: 1, breathing: 0});
+  const flyover = hairpinFlyover(viewer, {speed: 90, motion: 1, breathing: 0});
   const path = await flyover.computePath_(sampler);
-  const dt = 10 / (path.headings.length - 1);
+  const dt = flyover.duration / (path.headings.length - 1);
   const limit = CesiumMath.toRadians(15) * dt;
   for (let k = 1; k < path.headings.length; k++) {
     const step = Math.abs(CesiumMath.negativePiToPi(path.headings[k] - path.headings[k - 1]));
@@ -123,12 +123,23 @@ test("the style dial sets the camera distance unless range is given", () => {
   assert.equal(near.run_.range, 300);
 });
 
+test("the duration is the length at the run's speed plus the ease ramps, 0 before a track", () => {
+  const flyover = new CesiumPathFlyover(fakeViewer(), {speed: 100});
+  assert.equal(flyover.duration, 0);
+  flyover.totalLength_ = 1000;
+  assert.equal(flyover.duration, 13);
+  // the middle style's 200 m/s
+  const middle = new CesiumPathFlyover(fakeViewer());
+  middle.totalLength_ = 1000;
+  assert.equal(middle.duration, 8);
+});
+
 test("the range widens in the hairpin at full bend zoom and stays put on the straights", async () => {
   const viewer = fakeViewer();
   Object.assign(viewer.scene, {ellipsoid: Ellipsoid.WGS84, terrainProvider: new EllipsoidTerrainProvider()});
   // the style's 700 m look-ahead averages this 620 m track into one camera heading:
   // the bend must be read from the track itself, not from the camera
-  const path = await hairpinFlyover(viewer, {duration: 10, style: 1, range: 400}).computePath_(sampler);
+  const path = await hairpinFlyover(viewer, {speed: 90, style: 1, range: 400}).computePath_(sampler);
   const n = path.range.length;
   assert.equal(n, path.headings.length);
   assert.ok(Math.max(...path.range) > 450, `widest ${Math.max(...path.range)}`);
@@ -136,14 +147,14 @@ test("the range widens in the hairpin at full bend zoom and stays put on the str
   for (let k = 1; k < n; k++) {
     assert.ok(Math.abs(path.range[k] - path.range[k - 1]) < 40, `step at ${k}`);
   }
-  const rigid = await hairpinFlyover(viewer, {duration: 10, range: 400}).computePath_(sampler);
+  const rigid = await hairpinFlyover(viewer, {speed: 90, range: 400}).computePath_(sampler);
   assert.ok(rigid.range.every((r) => r === 400));
 });
 
 test("a two-sample track gets two-entry profiles", async () => {
   const viewer = fakeViewer();
   Object.assign(viewer.scene, {ellipsoid: Ellipsoid.WGS84, terrainProvider: new EllipsoidTerrainProvider()});
-  const flyover = new CesiumPathFlyover(viewer, {duration: 2, style: 1, motion: 1});
+  const flyover = new CesiumPathFlyover(viewer, {style: 1, motion: 1});
   const points = Cartesian3.fromDegreesArrayHeights([6.5, 46.8, 800, 6.5002, 46.8, 800]);
   flyover.totalLength_ = Cartesian3.distance(points[0], points[1]);
   flyover.spline_ = new CatmullRomSpline({points, times: [0, 1]});
@@ -156,10 +167,10 @@ test("a two-sample track gets two-entry profiles", async () => {
 test("breathing drifts the heading and height within its amplitude and is off by default", async () => {
   const viewer = fakeViewer();
   Object.assign(viewer.scene, {ellipsoid: Ellipsoid.WGS84, terrainProvider: new EllipsoidTerrainProvider()});
-  assert.ok((await hairpinFlyover(viewer, {duration: 10}).computePath_(sampler)).lift.every((v) => v === 0));
+  assert.ok((await hairpinFlyover(viewer, {speed: 90}).computePath_(sampler)).lift.every((v) => v === 0));
   // same calm rows, breathing off, so the headings differ by the drift alone
-  const still = await hairpinFlyover(viewer, {duration: 10, motion: 1, breathing: 0}).computePath_(sampler);
-  const floating = await hairpinFlyover(viewer, {duration: 10, motion: 1}).computePath_(sampler);
+  const still = await hairpinFlyover(viewer, {speed: 90, motion: 1, breathing: 0}).computePath_(sampler);
+  const floating = await hairpinFlyover(viewer, {speed: 90, motion: 1}).computePath_(sampler);
   // no terrain, so the lift is the drift alone
   assert.equal(floating.lift.length, floating.headings.length);
   assert.ok(Math.max(...floating.lift.map(Math.abs)) <= 10 + 1e-9);
@@ -173,9 +184,9 @@ test("breathing drifts the heading and height within its amplitude and is off by
 test("the pilot banks into the hairpin, up to the bank angle, and the default run stays level", async () => {
   const viewer = fakeViewer();
   Object.assign(viewer.scene, {ellipsoid: Ellipsoid.WGS84, terrainProvider: new EllipsoidTerrainProvider()});
-  const level = await hairpinFlyover(viewer, {duration: 10}).computePath_(sampler);
+  const level = await hairpinFlyover(viewer, {speed: 90}).computePath_(sampler);
   assert.ok(level.roll.every((r) => r === 0));
-  const pilot = await hairpinFlyover(viewer, {duration: 10, style: 0}).computePath_(sampler);
+  const pilot = await hairpinFlyover(viewer, {speed: 90, style: 0}).computePath_(sampler);
   assert.equal(pilot.roll.length, pilot.headings.length);
   const most = Math.max(...pilot.roll);
   assert.ok(most <= CesiumMath.toRadians(12) + 1e-9, `banks ${CesiumMath.toDegrees(most)} deg`);
@@ -195,7 +206,7 @@ test("of two loads under way, the later one wins whichever answers first", async
   globalThis.fetch = (/** @type {string} */ url) =>
     new Promise((resolve) => answers.set(url, (text) => resolve(new Response(text))));
   try {
-    const flyover = new CesiumPathFlyover(viewer, {duration: 5});
+    const flyover = new CesiumPathFlyover(viewer);
     // a primitive needs a GL context
     flyover.createTrack_ = () => ({});
     const first = flyover.load("short.json");
@@ -233,7 +244,7 @@ test("bend zoom ignores the zigzags of a GPS track on a straight", async () => {
     const jitter = 3 * Math.sin(i * 12.9898) * Math.cos(i * 4.1414);
     coords.push(6.5 + jitter / 76000, 46.8 + (i * 10) / 111000, 800);
   }
-  const path = await trackFlyover(viewer, {duration: 20, style: 1, range: 400}, Cartesian3.fromDegreesArrayHeights(coords)).computePath_(sampler);
+  const path = await trackFlyover(viewer, {speed: 120, style: 1, range: 400}, Cartesian3.fromDegreesArrayHeights(coords)).computePath_(sampler);
   assert.ok(Math.max(...path.range) < 440, `widest ${Math.max(...path.range)} on a straight`);
 });
 
@@ -242,7 +253,7 @@ test("bend zoom doubles the range in a hairpin and returns to the baseline on th
   Object.assign(viewer.scene, {ellipsoid: Ellipsoid.WGS84, terrainProvider: new EllipsoidTerrainProvider()});
   // north 1 km, 20 m east, back south 1 km
   const points = Cartesian3.fromDegreesArrayHeights([6.5, 46.8, 800, 6.5, 46.809, 800, 6.50026, 46.809, 800, 6.50026, 46.8, 800]);
-  const path = await trackFlyover(viewer, {duration: 30, style: 1, range: 400}, points).computePath_(sampler);
+  const path = await trackFlyover(viewer, {speed: 75, style: 1, range: 400}, points).computePath_(sampler);
   const n = path.range.length;
   assert.ok(Math.max(...path.range) > 720, `peak ${Math.max(...path.range)}`);
   assert.ok(path.range[Math.round(n * 0.2)] < 420, `first straight ${path.range[Math.round(n * 0.2)]}`);
@@ -259,7 +270,7 @@ test("the frame twists the camera right by the sampled roll on a right turn", as
     requestRender: () => {},
     camera: {lookAt: () => {}, lookAtTransform: () => {}, twistRight: (angle) => twists.push(angle)},
   });
-  const flyover = hairpinFlyover(viewer, {duration: 10, style: 0});
+  const flyover = hairpinFlyover(viewer, {speed: 90, style: 0});
   flyover.path_ = await flyover.computePath_(sampler);
   flyover.startTime_ = flyover.now_() - 0.5 * flyover.duration;
   flyover.update_();
@@ -299,7 +310,7 @@ const lookingFlyover = async (options = {}) => {
     },
   });
   viewer.scene.globe.getHeight = () => undefined;
-  const flyover = new CesiumPathFlyover(viewer, {duration: 10, ...options});
+  const flyover = new CesiumPathFlyover(viewer, {speed: 44, ...options});
   const points = Cartesian3.fromDegreesArrayHeights([6.5, 46.8, 800, 6.502, 46.8, 810, 6.504, 46.8, 820]);
   const distances = [0];
   for (let i = 1; i < points.length; i++) {
@@ -476,7 +487,7 @@ test("setting progress while stopped places the camera there and raises progress
   assert.equal(flyover.progress, 0.3);
   assert.equal(calls.length, 1);
   assert.deepEqual(seen, [0.3]);
-  const expected = flyover.spline_.evaluate(easedProgress(0.3, 3 / 10), new Cartesian3());
+  const expected = flyover.spline_.evaluate(easedProgress(0.3, 3 / flyover.duration), new Cartesian3());
   assert.ok(Cartesian3.distance(flyover.marker_.position, expected) < 1e-6, "marker at 30% of the run");
   flyover.progress = 2;
   assert.equal(flyover.progress, 1);
@@ -489,8 +500,9 @@ test("setting progress while playing rebases the clock and playback goes on from
   flyover.play();
   at(0);
   flyover.progress = 0.8;
-  at(0.5); // half a second later on a 10 s run
-  assert.ok(Math.abs(flyover.progress - 0.85) < 1e-9, `progress ${flyover.progress}`);
-  assert.ok(seen.some((p) => Math.abs(p - 0.85) < 1e-9), `raised ${seen}`);
+  at(0.5); // half a second later
+  const expected = 0.8 + 0.5 / flyover.duration;
+  assert.ok(Math.abs(flyover.progress - expected) < 1e-9, `progress ${flyover.progress}`);
+  assert.ok(seen.some((p) => Math.abs(p - expected) < 1e-9), `raised ${seen}`);
   flyover.stop();
 });

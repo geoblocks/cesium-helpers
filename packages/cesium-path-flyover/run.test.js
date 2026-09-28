@@ -4,7 +4,7 @@ import {RUN_TABLE, deriveRun} from "./run.js";
 
 test("deriveRun with no options is today's run", () => {
   const run = deriveRun({});
-  assert.deepEqual(run, {range: 400, pitch: -25, lookAhead: 400, bendZoom: 0, reliefRise: 0, turnCost: 1.5, headingTau: 1, panRate: 30, breathing: 0, bank: 0});
+  assert.deepEqual(run, {range: 400, pitch: -25, lookAhead: 400, bendZoom: 0, reliefRise: 0, turnCost: 1.5, headingTau: 1, panRate: 30, breathing: 0, bank: 0, speed: 200});
 });
 
 test("deriveRun reaches the ends of the table at 0 and 1", () => {
@@ -46,4 +46,10 @@ test("every row names a dial the derivation knows", () => {
     assert.ok(["style", "motion"].includes(row.dial), row.name);
     assert.equal(row.values.length, 3, row.name);
   }
+});
+
+test("the speed follows the style dial unless speed is given", () => {
+  assert.equal(deriveRun({style: 0}).speed, 120);
+  assert.equal(deriveRun({style: 1}).speed, 350);
+  assert.equal(deriveRun({style: 1, speed: 500}).speed, 500);
 });

@@ -69,7 +69,6 @@ const enuScratch = new Matrix4();
  * @typedef {Object} Mechanics
  * @property {number} [style=0.5] 0 the pilot: low, close, tight, banking into turns; 1 the spectator: high, far, wide in bends, climbing over walls
  * @property {number} [motion=0.5] 0 rigid, locked on the path; 1 floating: slow to react, drifting in heading, height and roll
- * @property {number} [duration=60] seconds for the whole track
  * @property {number} [clearance=40] minimum camera height above terrain, meters
  * @property {number} [maxLift=250] meters the camera may climb to keep the marker in view; beyond it a brief occlusion is accepted (its own clearance above the terrain is never capped)
  * @property {number | false} [screenSpaceError=false] globe maximumScreenSpaceError while playing, restored on stop; false leaves it alone
@@ -98,7 +97,6 @@ export default class CesiumPathFlyover {
    */
   constructor(viewer, options = {}) {
     this.viewer = viewer;
-    this.duration = options.duration ?? 60;
     this.run_ = deriveRun(options);
     this.pitch = CesiumMath.toRadians(this.run_.pitch);
     this.clearance = options.clearance ?? 40;
@@ -142,6 +140,14 @@ export default class CesiumPathFlyover {
       show: false,
     });
     viewer.scene.primitives.add(this.markers_);
+  }
+
+  /**
+   * Seconds for the whole run at the run's speed, the ease ramps included; 0 before a track is loaded.
+   * @type {number}
+   */
+  get duration() {
+    return this.totalLength_ > 0 ? this.totalLength_ / this.run_.speed + EASE_SECONDS : 0;
   }
 
   /**

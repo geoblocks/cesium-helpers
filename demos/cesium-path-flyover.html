@@ -62,9 +62,9 @@
     </wa-button>
     <div class="wa-stack wa-gap-s">
       <wa-select id="track" size="s" label="Track" value="baulmes-valley">
-        <wa-option value="baulmes-valley">Gorge down to Baulmes, SchweizMobil tour (15 s)</wa-option>
-        <wa-option value="rechy">Vallon de Rechy, gorge section 8 km (40 s)</wa-option>
-        <wa-option value="suchet">Le Suchet, 14 km and 900 m of climb (60 s)</wa-option>
+        <wa-option value="baulmes-valley">Gorge down to Baulmes, SchweizMobil tour</wa-option>
+        <wa-option value="rechy">Vallon de Rechy, gorge section 8 km</wa-option>
+        <wa-option value="suchet">Le Suchet, 14 km and 900 m of climb</wa-option>
         <span slot="hint">or drop a GPX or GeoJSON file on the map</span>
       </wa-select>
       <wa-select id="preset" size="s" label="Preset" value="default">
@@ -133,9 +133,7 @@
   <script type="module">
     import {createViewer} from './setup.js';
     import CesiumPathFlyover from '../packages/cesium-path-flyover/cesium-path-flyover.js';
-    import {parseTrack} from '../packages/cesium-path-flyover/track.js';
     import {AnalogVideo, DigitalVideo, DroneDisplay, Jello, MotionBlur} from '../packages/cesium-post-process/cesium-post-process.js';
-    import {Cartesian3} from './cesium-shim.js';
     import {BufferTarget, CanvasSource, Mp4OutputFormat, Output} from 'mediabunny';
     import '@awesome.me/webawesome/dist/styles/webawesome.css';
     import '@awesome.me/webawesome/dist/components/card/card.js';
@@ -152,9 +150,9 @@
     import '@awesome.me/webawesome/dist/components/icon/icon.js';
 
     const tracks = {
-      'baulmes-valley': ['tracks/Tour_Baulmes_valley.gpx', 15],
-      'rechy': ['tracks/Vallon_de_Rechy_gorge.gpx', 40],
-      'suchet': ['tracks/Suchet.gpx', 60],
+      'baulmes-valley': 'tracks/Tour_Baulmes_valley.gpx',
+      'rechy': 'tracks/Vallon_de_Rechy_gorge.gpx',
+      'suchet': 'tracks/Suchet.gpx',
     };
 
     // [style, motion]
@@ -227,20 +225,13 @@
       };
       let flyover;
       let scrubbing = false;
-      // a dropped file becomes a track option; its run lasts 4 s per km, 15 s to 120 s
+      // a dropped file becomes a track option
       const dropped = document.createElement('wa-option');
       dropped.value = 'dropped';
-      const durationFor = (text) => {
-        const points = parseTrack(text).map(([lon, lat]) => Cartesian3.fromDegrees(lon, lat));
-        let length = 0;
-        for (let i = 1; i < points.length; i++) length += Cartesian3.distance(points[i - 1], points[i]);
-        return Math.min(120, Math.max(15, Math.round((4 * length) / 1000)));
-      };
       const drop = async (file) => {
-        const duration = durationFor(await file.text());
-        if (tracks.dropped) URL.revokeObjectURL(tracks.dropped[0]);
-        tracks.dropped = [URL.createObjectURL(file), duration];
-        dropped.textContent = `${file.name} (${duration} s)`;
+        if (tracks.dropped) URL.revokeObjectURL(tracks.dropped);
+        tracks.dropped = URL.createObjectURL(file);
+        dropped.textContent = file.name;
         if (!dropped.parentNode) {
           select.append(dropped);
           await select.updateComplete; // the select resolves a new option's value after an update
@@ -259,8 +250,8 @@
       const load = async (key = select.value) => {
         setState('loading');
         flyover?.destroy();
-        const [url, duration] = tracks[key];
-        flyover = new CesiumPathFlyover(viewer, {duration, style: +style.value, motion: +motion.value});
+        const url = tracks[key];
+        flyover = new CesiumPathFlyover(viewer, {style: +style.value, motion: +motion.value});
         flyover.progressChanged.addEventListener((p) => {
           const shown = Math.round(p * 100) / 100;
           if (!scrubbing && +progress.value !== shown) progress.value = shown;

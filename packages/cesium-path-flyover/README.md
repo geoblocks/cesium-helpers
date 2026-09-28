@@ -26,10 +26,10 @@ const flyover = new CesiumPathFlyover(viewer, {
   range: 400,     // override: camera distance to the marker, meters (250 to 900 by style); a baseline, wider in bends above style 0.5
   pitch: -25,     // override: degrees (-15 to -45 by style)
   lookAhead: 400, // override: meters of path ahead whose direction sets the heading (200 to 700 by style)
+  speed: 200,     // override: ground speed along the track, meters per second (120 to 350 by style); flyover.duration follows once loaded
   // also overridable: bendZoom (0 to 1), reliefRise (0 to 0.5 by style; 1 climbs to the crests), turnCost (meters of lift per degree of turn, 0.5 to 30 by style),
   // headingTau (seconds, 0.5 to 3 by motion), panRate (degrees per second, 45 to 15 by motion), breathing (0 to 1), bank (degrees of roll into turns, 12 to 0 by style)
   // the mechanics of the run
-  duration: 60,   // seconds for the whole track
   clearance: 40,  // minimum camera height above terrain, meters
   maxLift: 250,   // meters the camera may climb to keep the marker in view; beyond it a brief occlusion is accepted (its own clearance is never capped)
   screenSpaceError: false, // globe maximumScreenSpaceError while playing, restored on stop; false leaves it alone
