@@ -1,9 +1,121 @@
-import {Cartesian2, EllipsoidTerrainProvider} from "@cesium/engine";
+import {Cartesian2, EllipsoidTerrainProvider, Math as CesiumMath} from "@cesium/engine";
 
 const FALLBACK_LEVEL = 14;
 const TILES_IN_FLIGHT = 24;
+// buckets per side of a quantized-mesh tile's index; about ten triangles per
+// bucket on a 4000-triangle tile
+const GRID = 32;
+const MAX_SHORT = 32767;
 
 const tileScratch = new Cartesian2();
+
+/**
+ * A quantized-mesh tile's triangles bucketed over its (u, v) square, for height
+ * lookups without a scan of every triangle. `QuantizedMeshTerrainData.interpolateHeight`
+ * scans them all, a few thousand per tile, and a track load asks for hundreds of
+ * heights per tile. Reads the tile's private fields; check them on a Cesium upgrade.
+ */
+class MeshIndex {
+  /**
+   * @param {any} data a QuantizedMeshTerrainData
+   */
+  constructor(data) {
+    /** @type {Uint16Array} */
+    this.u_ = data._uValues;
+    /** @type {Uint16Array} */
+    this.v_ = data._vValues;
+    /** @type {Uint16Array} */
+    this.h_ = data._heightValues;
+    /** @type {Uint16Array | Uint32Array} */
+    this.indices_ = data._indices;
+    this.minimumHeight_ = data._minimumHeight;
+    this.maximumHeight_ = data._maximumHeight;
+    // every bucket a triangle's bounding box touches lists it: the triangles of
+    // bucket b are triangles_[starts_[b] .. starts_[b + 1]), two typed arrays
+    // rather than a thousand lists. Two passes over the triangles, the bucket
+    // bounds of the first kept for the second
+    const {u_: u, v_: v, indices_: indices} = this;
+    const count = indices.length / 3;
+    const bounds = new Uint8Array(4 * count);
+    const counts = new Uint32Array(GRID * GRID + 1);
+    for (let t = 0; t < count; t++) {
+      const i0 = indices[3 * t];
+      const i1 = indices[3 * t + 1];
+      const i2 = indices[3 * t + 2];
+      const x0 = this.bucket_(Math.min(u[i0], u[i1], u[i2]));
+      const x1 = this.bucket_(Math.max(u[i0], u[i1], u[i2]));
+      const y0 = this.bucket_(Math.min(v[i0], v[i1], v[i2]));
+      const y1 = this.bucket_(Math.max(v[i0], v[i1], v[i2]));
+      bounds[4 * t] = x0;
+      bounds[4 * t + 1] = x1;
+      bounds[4 * t + 2] = y0;
+      bounds[4 * t + 3] = y1;
+      for (let x = x0; x <= x1; x++) {
+        for (let y = y0; y <= y1; y++) {
+          counts[x * GRID + y + 1]++;
+        }
+      }
+    }
+    for (let b = 1; b < counts.length; b++) {
+      counts[b] += counts[b - 1];
+    }
+    /** @type {Uint32Array} */
+    this.starts_ = counts.slice();
+    const total = counts[counts.length - 1];
+    /** @type {Uint16Array | Uint32Array} */
+    this.triangles_ = indices.length <= 65536 ? new Uint16Array(total) : new Uint32Array(total);
+    for (let t = 0; t < count; t++) {
+      for (let x = bounds[4 * t]; x <= bounds[4 * t + 1]; x++) {
+        for (let y = bounds[4 * t + 2]; y <= bounds[4 * t + 3]; y++) {
+          this.triangles_[counts[x * GRID + y]++] = 3 * t;
+        }
+      }
+    }
+  }
+
+  /**
+   * @param {number} q quantized coordinate, 0 to MAX_SHORT
+   * @return {number}
+   */
+  bucket_(q) {
+    return Math.min(Math.floor((q * GRID) / (MAX_SHORT + 1)), GRID - 1);
+  }
+
+  /**
+   * The height at a position, as `interpolateHeight` computes it.
+   * @param {import('@cesium/engine').Rectangle} rectangle of the tile
+   * @param {number} longitude radians
+   * @param {number} latitude radians
+   * @return {number | undefined} undefined outside every triangle
+   */
+  heightAt(rectangle, longitude, latitude) {
+    const u = CesiumMath.clamp((longitude - rectangle.west) / rectangle.width, 0, 1) * MAX_SHORT;
+    const v = CesiumMath.clamp((latitude - rectangle.south) / rectangle.height, 0, 1) * MAX_SHORT;
+    const {u_: us, v_: vs, h_: hs, indices_: indices} = this;
+    const bucket = this.bucket_(u) * GRID + this.bucket_(v);
+    for (let k = this.starts_[bucket]; k < this.starts_[bucket + 1]; k++) {
+      const t = this.triangles_[k];
+      const i0 = indices[t];
+      const i1 = indices[t + 1];
+      const i2 = indices[t + 2];
+      const u0 = us[i0];
+      const v0 = vs[i0];
+      const u1 = us[i1];
+      const v1 = vs[i1];
+      const u2 = us[i2];
+      const v2 = vs[i2];
+      // barycentric coordinates, as Intersections2D.computeBarycentricCoordinates
+      const inverse = 1 / ((v1 - v2) * (u0 - u2) + (u2 - u1) * (v0 - v2));
+      const b0 = ((v1 - v2) * (u - u2) + (u2 - u1) * (v - v2)) * inverse;
+      const b1 = ((v2 - v0) * (u - u2) + (u0 - u2) * (v - v2)) * inverse;
+      const b2 = 1 - b0 - b1;
+      if (b0 >= -1e-15 && b1 >= -1e-15 && b2 >= -1e-15) {
+        return CesiumMath.lerp(this.minimumHeight_, this.maximumHeight_, (b0 * hs[i0] + b1 * hs[i1] + b2 * hs[i2]) / MAX_SHORT);
+      }
+    }
+    return undefined;
+  }
+}
 
 /**
  * Terrain heights at a fixed level, one tile request per tile for the life of the
@@ -24,6 +136,8 @@ export default class TerrainSampler {
     this.level_ = level;
     /** @type {Map<number, Promise<import('@cesium/engine').TerrainData | undefined>>} */
     this.tiles_ = new Map();
+    /** @type {Map<number, MeshIndex>} by tile key, built on the first lookup */
+    this.indices_ = new Map();
     this.inFlight_ = 0;
     /** @type {(() => void)[]} */
     this.waiting_ = [];
@@ -81,13 +195,33 @@ export default class TerrainSampler {
           return;
         }
         const rectangle = scheme.tileXYToRectangle(group.x, group.y, level);
+        const index = this.index_(key, data);
         for (const i of group.indices) {
-          const height = data.interpolateHeight(rectangle, cartographics[i].longitude, cartographics[i].latitude);
+          const height = index
+            ? index.heightAt(rectangle, cartographics[i].longitude, cartographics[i].latitude)
+            : data.interpolateHeight(rectangle, cartographics[i].longitude, cartographics[i].latitude);
           heights[i] = Number.isFinite(height) ? height : undefined;
         }
       })
     );
     return heights;
+  }
+
+  /**
+   * @param {number} key
+   * @param {any} data
+   * @return {MeshIndex | undefined} undefined for terrain data that is not a quantized mesh, sampled the Cesium way
+   */
+  index_(key, data) {
+    if (!data._indices || !data._uValues) {
+      return undefined;
+    }
+    let index = this.indices_.get(key);
+    if (!index) {
+      index = new MeshIndex(data);
+      this.indices_.set(key, index);
+    }
+    return index;
   }
 
   /**
