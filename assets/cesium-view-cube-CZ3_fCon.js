@@ -1,4 +1,4 @@
-import{a as e,t,u as n}from"./lit-BFn1CURT.js";import{t as r}from"./setup-B_KiyNLM.js";var i=class extends t{static get properties(){return{scene:{type:Object}}}static get styles(){return n`
+import{a as e,t,u as n}from"./lit-BFn1CURT.js";import{t as r}from"./setup-BuYe2z-6.js";var i=class extends t{static get properties(){return{scene:{type:Object}}}static get styles(){return n`
       :host {
         --cesium-view-cube-stroke-color: rgba(0, 0, 0, 0.6);
         --cesium-view-cube-fill-color: rgb(224, 225, 226);
