@@ -45,6 +45,12 @@ export async function createViewer(container) {
   viewer.scene.fog.density = 2.0e-4 * 2;
   viewer.scene.fog.minimumBrightness = 0.03 * 10;
 
+  // today at 14:00, for the light
+  const afternoon = new Date();
+  afternoon.setHours(14, 0, 0, 0);
+  viewer.clock.currentTime = Cesium.JulianDate.fromDate(afternoon);
+  viewer.clock.shouldAnimate = false;
+
   viewer.camera.flyTo({
     destination: Cesium.Cartesian3.fromDegrees(7.863775, 46.686447, 1200),
     orientation: {

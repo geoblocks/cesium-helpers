@@ -50,12 +50,6 @@
     import '@awesome.me/webawesome/dist/components/switch/switch.js';
 
     createViewer('cesiumContainer').then(viewer => {
-      // today at 14:00, for the light
-      const afternoon = new Date();
-      afternoon.setHours(14, 0, 0, 0);
-      viewer.clock.currentTime = Cesium.JulianDate.fromDate(afternoon);
-      viewer.clock.shouldAnimate = false;
-
       const mode = new CesiumBinoculars(viewer);
       const toggle = document.querySelector('#activate');
       toggle.addEventListener('change', () => mode.active = toggle.checked);
