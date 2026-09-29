@@ -77,6 +77,26 @@ test("a tile that fails is sampled at the coarse fallback level instead", async 
   assert.ok(requests.some((r) => r.startsWith("14/")), "a level 14 tile was requested");
 });
 
+test("the tile carrying a subtree's availability is fetched before the tiles in it", async () => {
+  // as a CesiumTerrainProvider with the metadata extension: a level-10 tile lists the
+  // available tiles below it, and until it is loaded the deeper tiles read as missing
+  const {provider, requests} = fakeProvider((lon, lat, level) => level);
+  provider._layers = [{availabilityLevels: 10}];
+  const loaded = new Set();
+  provider.getTileDataAvailable = (x, y, level) => level <= 10 || loaded.has(`${x >> (level - 10)}/${y >> (level - 10)}`);
+  const request = provider.requestTileGeometry;
+  provider.requestTileGeometry = (x, y, level) => {
+    const promise = request(x, y, level);
+    return level === 10 ? promise.then((data) => (loaded.add(`${x}/${y}`), data)) : promise;
+  };
+  const sampler = new TerrainSampler(provider, 16);
+  const heights = await sampler.heightsAt(line(5, 0.01));
+  assert.deepEqual(heights, [16, 16, 16, 16, 16]);
+  assert.ok(requests[0].startsWith("10/"), `first request ${requests[0]}`);
+  const listings = requests.filter((r) => r.startsWith("10/"));
+  assert.equal(new Set(listings).size, listings.length, "each availability tile fetched once");
+});
+
 test("a provider without availability data is sampled", async () => {
   // a CesiumTerrainProvider whose layer.json lists no availability, a CustomHeightmapTerrainProvider
   const {provider} = fakeProvider(() => 500);

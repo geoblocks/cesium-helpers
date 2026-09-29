@@ -10,6 +10,15 @@ const MAX_SHORT = 32767;
 const tileScratch = new Cartesian2();
 
 /**
+ * A number rather than a string per position; room for levels up to 20.
+ * @param {number} x
+ * @param {number} y
+ * @param {number} level
+ * @return {number}
+ */
+const tileKey = (x, y, level) => (level * 2 ** 20 + x) * 2 ** 20 + y;
+
+/**
  * A quantized-mesh tile's triangles bucketed over its (u, v) square, for height
  * lookups without a scan of every triangle. `QuantizedMeshTerrainData.interpolateHeight`
  * scans them all, a few thousand per tile, and a track load asks for hundreds of
@@ -177,8 +186,7 @@ export default class TerrainSampler {
       if (!scheme.positionToTileXY(cartographic, level, tileScratch)) {
         return;
       }
-      // a number rather than a string per position; room for levels up to 20
-      const key = (level * 2 ** 20 + tileScratch.x) * 2 ** 20 + tileScratch.y;
+      const key = tileKey(tileScratch.x, tileScratch.y, level);
       let group = groups.get(key);
       if (!group) {
         group = {x: tileScratch.x, y: tileScratch.y, indices: []};
@@ -190,6 +198,7 @@ export default class TerrainSampler {
     const heights = new Array(cartographics.length).fill(undefined);
     await Promise.all(
       groups.entries().map(async ([key, group]) => {
+        await this.availability_(group.x, group.y, level);
         const data = await this.tile_(key, group.x, group.y, level);
         if (!data) {
           return;
@@ -205,6 +214,33 @@ export default class TerrainSampler {
       })
     );
     return heights;
+  }
+
+  /**
+   * Loads the tile that lists which tiles exist in the subtree holding this one, with a
+   * provider that spreads its availability over tiles every few levels. Cesium expects
+   * a tile's parents to load first, as the globe does: a deep tile fetched on its own
+   * counts as the listing tile loaded, and every tile not listed yet around it then
+   * reads as missing. Reads the provider's private layer; check it on a Cesium upgrade.
+   * @param {number} x
+   * @param {number} y
+   * @param {number} level
+   * @return {Promise<unknown>}
+   */
+  availability_(x, y, level) {
+    const every = /** @type {any} */ (this.provider_)._layers?.[0]?.availabilityLevels;
+    if (!every) {
+      return Promise.resolve();
+    }
+    // the level of the listing tile, as Cesium's getAvailabilityTile computes it;
+    // the root tiles came with the provider
+    const parent = level % every === 0 ? level - every : Math.floor(level / every) * every;
+    if (parent <= 0) {
+      return Promise.resolve();
+    }
+    const px = x >> (level - parent);
+    const py = y >> (level - parent);
+    return this.tile_(tileKey(px, py, parent), px, py, parent);
   }
 
   /**
