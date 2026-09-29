@@ -28,7 +28,7 @@ npm i --save @geoblocks/cesium-compass-bar
 
 | Name                                       | Default | Description
 | ------------------------------------------ | ------- | -----------
-| `--cesium-compass-bar-tick-color`          | `#000`  | Ticks and font color
+| `--cesium-compass-bar-tick-color`          | `rgb(224, 225, 226)` | Ticks and font color
 | `--cesium-compass-bar-intercardinal-width` | `100px` | Width in pixels between intercardinal divs
 
 ### CSS Shadow Parts
