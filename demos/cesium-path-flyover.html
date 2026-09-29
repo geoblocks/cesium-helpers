@@ -537,6 +537,11 @@
       // The dialog stays open with the progress until the file is out, or the error;
       // its cancel button stops the run
       let cancelled = false;
+      // after each frame, the view this far ahead on the run is rendered once, uncaptured,
+      // so its tiles are requested while the next frames render and encode instead of
+      // when they come into view: half the export time on a cold tile cache. Further
+      // ahead brings nothing more, nearer a little less
+      const LOOK_AHEAD = 1;
       const exportVideo = async () => {
         setState('exporting');
         cancelled = false;
@@ -583,6 +588,15 @@
             // the time per frame so far, over the frames left; the first frames load the most
             const perFrame = (performance.now() - started) / 1000 / k;
             exportEta.textContent = `Frame ${k + 1} of ${frames}` + (k >= fps ? ` · ${remaining(perFrame * (frames - k))}` : '');
+            const ahead = k + Math.round(LOOK_AHEAD * fps);
+            if (k > 0 && ahead < frames) {
+              // not a frame of the run for the captions: their card timing would read a jump
+              const active = captions.active;
+              captions.active = false;
+              flyover.progress = ahead / (frames - 1);
+              scene.render();
+              captions.active = active;
+            }
             flyover.progress = k / (frames - 1);
             // a tile advances one step per render, so this loops a few times per frame
             do {
