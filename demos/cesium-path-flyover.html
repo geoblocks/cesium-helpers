@@ -5,6 +5,7 @@
   <meta charset="UTF-8">
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Cesium.js"></script>
   <link href="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700&display=swap" rel="stylesheet">
   <style>
     html, body, #cesiumContainer {
       height: 100%;
@@ -14,7 +15,7 @@
       position: absolute;
       inset-block-start: var(--wa-space-xl);
       inset-inline-end: var(--wa-space-xl);
-      inline-size: 30ch;
+      inline-size: 38ch;
       /* never taller than the window: the body scrolls */
       max-block-size: calc(100% - 2 * var(--wa-space-xl));
       --spacing: var(--wa-space-m);
@@ -26,6 +27,39 @@
     #controls h2 {
       margin: 0;
       font-size: var(--wa-font-size-m);
+    }
+    /* the heading of a group of buttons, like the labels of the form controls */
+    .label {
+      color: var(--wa-form-control-label-color);
+      font-size: var(--wa-font-size-s);
+      font-weight: var(--wa-form-control-label-font-weight);
+      line-height: var(--wa-form-control-label-line-height);
+    }
+    /* the camera presets share the row */
+    #fineTune {
+      --spacing: var(--wa-space-xs);
+    }
+    #time {
+      margin-inline-start: auto;
+      font-variant-numeric: tabular-nums;
+    }
+    #export {
+      inline-size: 100%;
+    }
+    /* a file dragged over the map, where it can be dropped */
+    #dropZone {
+      position: absolute;
+      inset: var(--wa-space-l);
+      border: var(--wa-border-width-l) dashed var(--wa-color-neutral-on-loud);
+      border-radius: var(--wa-border-radius-l);
+      background: var(--wa-color-overlay-modal);
+      color: var(--wa-color-neutral-on-loud);
+      font-size: var(--wa-font-size-xl);
+      font-weight: var(--wa-font-weight-semibold);
+      pointer-events: none;
+    }
+    #dropZone[hidden] {
+      display: none;
     }
     /* exporting: the map takes the size of the video, whatever the window */
     body.exporting {
@@ -42,11 +76,16 @@
     #exportDialog {
       --backdrop-filter: blur(4px);
     }
+    /* while it renders, the frames show through */
+    #exportDialog.running {
+      --backdrop-filter: none;
+    }
+
     /* the components set their own display: hidden needs a hand */
     #exportDialog [hidden] {
       display: none;
     }
-    /* collapsed: only the header, out of the way of the picture */
+    /* collapsed: only the header and the player, out of the way of the picture */
     #controls.collapsed::part(body) {
       display: none;
     }
@@ -60,79 +99,126 @@
     <wa-button id="collapse" slot="header-actions" appearance="plain" size="s">
       <wa-icon name="chevron-up" label="Collapse"></wa-icon>
     </wa-button>
-    <div class="wa-stack wa-gap-s">
+    <div class="wa-stack wa-gap-l">
       <wa-select id="track" size="s" label="Track" value="baulmes-valley">
         <wa-option value="baulmes-valley">Gorge down to Baulmes, SchweizMobil tour</wa-option>
         <wa-option value="rechy">Vallon de Rechy, gorge section 8 km</wa-option>
         <wa-option value="suchet">Le Suchet, 14 km and 900 m of climb</wa-option>
         <span slot="hint">or drop a GPX or GeoJSON file on the map</span>
       </wa-select>
-      <wa-select id="preset" size="s" label="Preset" value="default">
-        <wa-option value="custom">custom</wa-option>
-        <wa-option value="default">default</wa-option>
-        <wa-option value="pilot">pilot: low, close, rigid</wa-option>
-        <wa-option value="spectator">spectator: high, wide, calm</wa-option>
-        <wa-option value="drone">drone: mid height, floating</wa-option>
-      </wa-select>
-      <wa-slider id="style" size="s" label="Style" min="0" max="1" step="0.1" value="0.5" with-markers with-tooltip>
-        <span slot="reference">pilot</span>
-        <span slot="reference">spectator</span>
-      </wa-slider>
-      <wa-slider id="motion" size="s" label="Motion" min="0" max="1" step="0.1" value="0.5" with-markers with-tooltip>
-        <span slot="reference">rigid</span>
-        <span slot="reference">floating</span>
-      </wa-slider>
-      <wa-slider id="progress" size="s" label="Progress" min="0" max="1" step="0.01" value="0" disabled></wa-slider>
-      <wa-switch id="motionBlur" size="s">Motion blur</wa-switch>
-      <wa-switch id="drone" size="s">Drone</wa-switch>
-      <wa-button-group label="Playback">
+      <div class="wa-stack wa-gap-2xs">
+        <span class="label">Camera</span>
+        <wa-button-group id="preset" label="Camera preset">
+          <wa-button size="s" data-value="default">Default</wa-button>
+          <wa-button size="s" data-value="pilot">Pilot</wa-button>
+          <wa-button size="s" data-value="spectator">Spectator</wa-button>
+          <wa-button size="s" data-value="drone">Drone</wa-button>
+        </wa-button-group>
+        <wa-details id="fineTune" summary="Fine-tune" appearance="plain">
+          <div class="wa-stack wa-gap-s">
+            <wa-slider id="style" size="s" label="Style" min="0" max="1" step="0.1" value="0.5" with-markers with-tooltip>
+              <span slot="reference">pilot</span>
+              <span slot="reference">spectator</span>
+            </wa-slider>
+            <wa-slider id="motion" size="s" label="Motion" min="0" max="1" step="0.1" value="0.5" with-markers with-tooltip>
+              <span slot="reference">rigid</span>
+              <span slot="reference">floating</span>
+            </wa-slider>
+          </div>
+        </wa-details>
+      </div>
+      <wa-checkbox-group label="Look" size="s">
+        <wa-switch id="placeNames" checked>Place names</wa-switch>
+        <wa-switch id="motionBlur">Motion blur</wa-switch>
+        <wa-switch id="drone">FPV effect</wa-switch>
+      </wa-checkbox-group>
+    </div>
+    <div slot="footer" class="wa-stack wa-gap-s">
+      <div class="wa-cluster wa-gap-xs">
         <wa-button id="play" size="s" appearance="filled" loading disabled>
           <wa-icon name="play" variant="solid" label="Play"></wa-icon>
-        </wa-button>
-        <wa-button id="pause" size="s" appearance="filled" disabled>
-          <wa-icon name="pause" variant="solid" label="Pause"></wa-icon>
         </wa-button>
         <wa-button id="stop" size="s" appearance="filled" disabled>
           <wa-icon name="stop" variant="solid" label="Stop"></wa-icon>
         </wa-button>
-        <wa-button id="export" size="s" appearance="filled" disabled>
-          <wa-icon name="download" variant="solid" label="Export a video"></wa-icon>
-        </wa-button>
-      </wa-button-group>
-      <wa-tooltip for="play">Play</wa-tooltip>
-      <wa-tooltip for="pause">Pause</wa-tooltip>
-      <wa-tooltip for="stop">Stop</wa-tooltip>
-      <wa-tooltip for="export">Export a video</wa-tooltip>
+        <span id="time" class="wa-caption-m wa-color-text-quiet">0:00 / 0:00</span>
+      </div>
+      <wa-tooltip for="play" id="playTip">Play</wa-tooltip>
+      <wa-tooltip for="stop">Stop and rewind</wa-tooltip>
+      <wa-slider id="progress" size="s" min="0" max="1" step="0.001" value="0" disabled>
+        <span slot="label" class="wa-visually-hidden">Progress</span>
+      </wa-slider>
+      <wa-button id="export" variant="brand" disabled>
+        <wa-icon slot="start" name="video" variant="solid"></wa-icon>
+        Export video
+      </wa-button>
     </div>
   </wa-card>
-  <wa-dialog id="exportDialog" label="Export a video">
-    <div class="wa-stack wa-gap-m">
-      <wa-select id="videoSize" size="s" label="Size" value="540x960">
-        <wa-option value="540x960">540x960, portrait</wa-option>
-        <wa-option value="720x1280">720x1280, portrait</wa-option>
-        <wa-option value="1080x1920">1080x1920, portrait</wa-option>
-        <wa-option value="960x540">960x540, landscape</wa-option>
-        <wa-option value="1280x720">1280x720, landscape</wa-option>
-        <wa-option value="1920x1080">1920x1080, landscape</wa-option>
-      </wa-select>
-      <wa-select id="videoFps" size="s" label="Frame rate" value="30">
-        <wa-option value="24">24 fps</wa-option>
-        <wa-option value="30">30 fps</wa-option>
-        <wa-option value="60">60 fps</wa-option>
-      </wa-select>
-      <p class="wa-caption-m">The run is rendered frame by frame, with every tile loaded, so it takes a while; the effects are left out. The map takes the size of the video meanwhile.</p>
-      <wa-progress-bar id="exportProgress" hidden></wa-progress-bar>
-      <wa-callout id="exportError" variant="danger" hidden></wa-callout>
+  <div id="dropZone" class="wa-stack wa-align-items-center wa-justify-content-center" hidden>Drop a GPX or GeoJSON track</div>
+  <wa-dialog id="exportDialog" label="Export video">
+    <div id="exportForm" class="wa-stack wa-gap-l">
+      <div class="wa-stack wa-gap-2xs">
+        <span class="label">Orientation</span>
+        <wa-button-group id="videoOrientation" label="Orientation">
+          <wa-button size="s" data-value="portrait">
+            <wa-icon slot="start" name="mobile-screen-button"></wa-icon>
+            Portrait 9:16
+          </wa-button>
+          <wa-button size="s" data-value="landscape">
+            <wa-icon slot="start" name="display"></wa-icon>
+            Landscape 16:9
+          </wa-button>
+        </wa-button-group>
+        <span class="wa-caption-s wa-color-text-quiet">Portrait fits the phone apps, landscape a screen.</span>
+      </div>
+      <div class="wa-stack wa-gap-2xs">
+        <span class="label">Quality</span>
+        <wa-button-group id="videoQuality" label="Quality">
+          <wa-button size="s" data-value="540">540p</wa-button>
+          <wa-button size="s" data-value="720">720p</wa-button>
+          <wa-button size="s" data-value="1080">1080p</wa-button>
+        </wa-button-group>
+      </div>
+      <div class="wa-stack wa-gap-2xs">
+        <span class="label">Frame rate</span>
+        <wa-button-group id="videoFps" label="Frame rate">
+          <wa-button size="s" data-value="24">24 fps</wa-button>
+          <wa-button size="s" data-value="30">30 fps</wa-button>
+          <wa-button size="s" data-value="60">60 fps</wa-button>
+        </wa-button-group>
+      </div>
+      <div class="wa-stack wa-gap-2xs">
+        <strong id="exportSummary"></strong>
+        <span id="exportIncluded" class="wa-caption-s wa-color-text-quiet"></span>
+        <span class="wa-caption-s wa-color-text-quiet">The run renders frame by frame with every tile loaded, so it takes a while; the map takes the size of the video meanwhile.</span>
+      </div>
     </div>
-    <wa-button slot="footer" size="s" data-dialog="close" id="exportCancel">Cancel</wa-button>
+    <div id="exportRunning" class="wa-stack wa-gap-s" hidden>
+      <wa-progress-bar id="exportProgress" value="0"></wa-progress-bar>
+      <span id="exportEta" class="wa-caption-s wa-color-text-quiet"></span>
+    </div>
+    <wa-callout id="exportDone" variant="success" hidden>
+      <wa-icon slot="icon" name="circle-check" variant="solid"></wa-icon>
+      <span id="exportReady"></span>
+    </wa-callout>
+    <wa-callout id="exportError" variant="danger" hidden>
+      <wa-icon slot="icon" name="triangle-exclamation" variant="solid"></wa-icon>
+      <span id="exportErrorText"></span>
+    </wa-callout>
+    <wa-button slot="footer" size="s" appearance="plain" id="exportCancel">Cancel</wa-button>
     <wa-button slot="footer" size="s" variant="brand" id="exportStart">
-      <wa-icon slot="start" name="download" variant="solid"></wa-icon>
+      <wa-icon slot="start" name="video" variant="solid"></wa-icon>
       Export
+    </wa-button>
+    <wa-button slot="footer" size="s" variant="brand" id="exportSave" hidden>
+      <wa-icon slot="start" name="download" variant="solid"></wa-icon>
+      Save video
     </wa-button>
   </wa-dialog>
   <script type="module">
     import {createViewer} from './setup.js';
     import CesiumPathFlyover from '../packages/cesium-path-flyover/cesium-path-flyover.js';
+    import FlyoverCaptions from './flyover-captions.js';
     import {AnalogVideo, DigitalVideo, DroneDisplay, Jello, MotionBlur} from '../packages/cesium-post-process/cesium-post-process.js';
     import {BufferTarget, CanvasSource, Mp4OutputFormat, Output} from 'mediabunny';
     import '@awesome.me/webawesome/dist/styles/webawesome.css';
@@ -146,6 +232,8 @@
     import '@awesome.me/webawesome/dist/components/switch/switch.js';
     import '@awesome.me/webawesome/dist/components/button/button.js';
     import '@awesome.me/webawesome/dist/components/button-group/button-group.js';
+    import '@awesome.me/webawesome/dist/components/details/details.js';
+    import '@awesome.me/webawesome/dist/components/checkbox-group/checkbox-group.js';
     import '@awesome.me/webawesome/dist/components/tooltip/tooltip.js';
     import '@awesome.me/webawesome/dist/components/icon/icon.js';
 
@@ -166,21 +254,47 @@
 
     createViewer('cesiumContainer').then(async viewer => {
       const select = document.querySelector('#track');
-      const preset = document.querySelector('#preset');
+      // a group of buttons of which one is chosen, in the brand color; none for a value
+      // no button has
+      const choose = (group, value) => {
+        for (const b of group.querySelectorAll('wa-button')) {
+          const chosen = b.dataset.value === value;
+          b.variant = chosen ? 'brand' : 'neutral';
+          b.appearance = chosen ? 'filled-outlined' : 'outlined';
+          b.setAttribute('aria-pressed', String(chosen));
+        }
+      };
+      // the camera presets; custom when a dial moves
+      const presetGroup = document.querySelector('#preset');
+      const presetButtons = [...presetGroup.querySelectorAll('wa-button')];
+      let preset = 'default';
+      const choosePreset = (name) => {
+        preset = name;
+        choose(presetGroup, name);
+      };
+      choosePreset(preset);
       const style = document.querySelector('#style');
       const motion = document.querySelector('#motion');
       const progress = document.querySelector('#progress');
       const button = document.querySelector('#play');
-      const pause = document.querySelector('#pause');
+      const playTip = document.querySelector('#playTip');
+      const time = document.querySelector('#time');
       const stop = document.querySelector('#stop');
       const exportButton = document.querySelector('#export');
       const exportDialog = document.querySelector('#exportDialog');
-      const videoSize = document.querySelector('#videoSize');
-      const videoFps = document.querySelector('#videoFps');
+      const exportForm = document.querySelector('#exportForm');
+      const exportSummary = document.querySelector('#exportSummary');
+      const exportIncluded = document.querySelector('#exportIncluded');
+      const exportRunning = document.querySelector('#exportRunning');
       const exportProgress = document.querySelector('#exportProgress');
+      const exportEta = document.querySelector('#exportEta');
+      const exportDone = document.querySelector('#exportDone');
+      const exportReady = document.querySelector('#exportReady');
       const exportError = document.querySelector('#exportError');
+      const exportErrorText = document.querySelector('#exportErrorText');
       const exportCancel = document.querySelector('#exportCancel');
       const exportStart = document.querySelector('#exportStart');
+      const exportSave = document.querySelector('#exportSave');
       // the card folds to its header, to show the whole picture
       const controls = document.querySelector('#controls');
       const collapse = document.querySelector('#collapse');
@@ -207,9 +321,17 @@
         }
       });
       droneSwitch.addEventListener('change', () => setDrone(droneSwitch.checked));
-      const settings = [select, preset, style, motion];
+      // the names of the places the marker passes, as captions over the map
+      const placeNamesSwitch = document.querySelector('#placeNames');
+      let captions;
+      let captionsLoaded;
+      placeNamesSwitch.addEventListener('change', () => {
+        if (captions) captions.active = placeNamesSwitch.checked;
+        viewer.scene.requestRender();
+      });
+      const settings = [select, ...presetButtons, style, motion];
       // what can act in each state: settings reload the track, so not while playing;
-      // pause only means something while playing; stop also rewinds a paused run;
+      // play turns into pause while playing; stop also rewinds a paused run;
       // scrubbing works whenever a track is loaded; after a track fails to load, only the
       // settings and another track can act; an export locks everything until the file is out
       let state = 'loading';
@@ -217,11 +339,15 @@
         state = next;
         for (const control of settings) control.disabled = !(state === 'ready' || state === 'failed');
         progress.disabled = state === 'loading' || state === 'failed';
-        pause.disabled = state !== 'playing';
         stop.disabled = !(state === 'playing' || (state === 'ready' && flyover.progress > 0));
         button.loading = state === 'loading';
-        button.disabled = state !== 'ready';
+        button.disabled = !(state === 'ready' || state === 'playing');
+        const icon = button.querySelector('wa-icon');
+        icon.name = state === 'playing' ? 'pause' : 'play';
+        icon.label = playTip.textContent = state === 'playing' ? 'Pause' : 'Play';
         exportButton.disabled = state !== 'ready';
+        // an effect switched on meanwhile would land in the exported frames
+        for (const control of [motionBlurSwitch, droneSwitch, placeNamesSwitch]) control.disabled = state === 'exporting';
         // a moving camera does not show the finest tiles, but their loading and the
         // upsampling of the terrain past level 18 do cost frames; the export is not real
         // time and keeps the detail
@@ -229,6 +355,12 @@
       };
       let flyover;
       let scrubbing = false;
+      // the time into the run, over its length
+      const clock = (seconds) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
+      const showTime = () => {
+        const duration = flyover?.duration ?? 0;
+        time.textContent = `${clock((flyover?.progress ?? 0) * duration)} / ${clock(duration)}`;
+      };
       // a dropped file becomes a track option
       const dropped = document.createElement('wa-option');
       dropped.value = 'dropped';
@@ -244,21 +376,34 @@
         load('dropped');
       };
       const map = document.querySelector('#cesiumContainer');
-      map.addEventListener('dragover', (event) => event.preventDefault());
+      // a frame over the map while a file that can be dropped is dragged over it
+      const dropZone = document.querySelector('#dropZone');
+      const canDrop = () => state === 'ready' || state === 'failed';
+      map.addEventListener('dragover', (event) => {
+        event.preventDefault();
+        dropZone.hidden = !(canDrop() && event.dataTransfer?.types.includes('Files'));
+      });
+      map.addEventListener('dragleave', (event) => {
+        if (!map.contains(event.relatedTarget)) dropZone.hidden = true;
+      });
       map.addEventListener('drop', (event) => {
         event.preventDefault();
+        dropZone.hidden = true;
         const file = event.dataTransfer?.files[0];
         // not while playing: loading destroys the playing flyover
-        if (file && (state === 'ready' || state === 'failed')) drop(file);
+        if (file && canDrop()) drop(file);
       });
       const load = async (key = select.value) => {
         setState('loading');
         flyover?.destroy();
+        captions?.destroy();
+        captions = undefined;
         const url = tracks[key];
         flyover = new CesiumPathFlyover(viewer, {style: +style.value, motion: +motion.value});
         flyover.progressChanged.addEventListener((p) => {
-          const shown = Math.round(p * 100) / 100;
+          const shown = Math.round(p * 1000) / 1000;
           if (!scrubbing && +progress.value !== shown) progress.value = shown;
+          showTime();
         });
         try {
           await flyover.load(url);
@@ -268,8 +413,13 @@
           setState('failed');
           return;
         }
+        // the names are not needed to play: a failure only leaves the captions out
+        captions = new FlyoverCaptions(viewer, flyover);
+        captions.active = placeNamesSwitch.checked;
+        captionsLoaded = captions.load().catch((error) => console.error(error));
         progress.value = 0;
         flyToStart(flyover);
+        showTime();
         setState('ready');
       };
       // fly the camera to the run's first frame: place it there to read the pose,
@@ -283,22 +433,23 @@
         camera.flyTo({...to, duration: 2});
       };
       select.addEventListener('change', () => load());
-      preset.addEventListener('change', () => {
-        const values = presets[preset.value];
-        if (values) {
-          [style.value, motion.value] = values;
+      for (const b of presetButtons) {
+        b.addEventListener('click', () => {
+          choosePreset(b.dataset.value);
+          [style.value, motion.value] = presets[preset];
           load();
-        }
-      });
+        });
+      }
       for (const dial of [style, motion]) {
         dial.addEventListener('change', () => {
-          preset.value = 'custom';
+          choosePreset('custom');
           load();
         });
       }
       progress.addEventListener('input', () => {
         scrubbing = true;
         flyover.progress = +progress.value;
+        showTime();
       });
       progress.addEventListener('change', () => {
         scrubbing = false;
@@ -306,42 +457,107 @@
       });
       // stop() freezes the run where it is and play() resumes from there: that is a pause;
       // a stop also rewinds to the start
-      pause.addEventListener('click', () => flyover.stop());
       stop.addEventListener('click', () => {
         flyover.stop();
         flyover.progress = 0;
+        showTime();
         setState('ready');
       });
       button.addEventListener('click', async () => {
+        if (state === 'playing') {
+          flyover.stop();
+          return;
+        }
         setState('playing');
         await flyover.play();
         setState('ready');
       });
+      // the export settings, kept for the next visit
+      const video = {orientation: 'portrait', quality: '540', fps: '30'};
+      try {
+        Object.assign(video, JSON.parse(localStorage.getItem('flyover-video')));
+      } catch {}
+      const videoGroups = {
+        orientation: document.querySelector('#videoOrientation'),
+        quality: document.querySelector('#videoQuality'),
+        fps: document.querySelector('#videoFps'),
+      };
+      const videoSize = () => {
+        const short = +video.quality;
+        const long = Math.round((short * 16) / 9);
+        return video.orientation === 'portrait' ? [short, long] : [long, short];
+      };
+      const describeVideo = () => {
+        const [width, height] = videoSize();
+        const fps = +video.fps;
+        exportSummary.textContent = `${clock(flyover.duration)} run · ${width} × ${height} · ${fps} fps · ${Math.round(fps * flyover.duration)} frames`;
+        const left = [motionBlurSwitch.checked && 'motion blur', droneSwitch.checked && 'the FPV effect'].filter(Boolean);
+        exportIncluded.textContent = [
+          placeNamesSwitch.checked ? 'Place names included.' : 'No place names.',
+          left.length ? `${left.join(' and ')} not exported.`.replace(/^./, (c) => c.toUpperCase()) : '',
+        ].join(' ').trim();
+      };
+      for (const [key, group] of Object.entries(videoGroups)) {
+        choose(group, video[key]);
+        for (const b of group.querySelectorAll('wa-button')) {
+          b.addEventListener('click', () => {
+            video[key] = b.dataset.value;
+            choose(group, video[key]);
+            describeVideo();
+            try {
+              localStorage.setItem('flyover-video', JSON.stringify(video));
+            } catch {}
+          });
+        }
+      }
+      // the dialog shows one view at a time: the settings, the progress, or the result
+      let result;
+      const showView = (view) => {
+        exportForm.hidden = view !== 'form';
+        exportRunning.hidden = view !== 'running';
+        exportDone.hidden = view !== 'done';
+        exportStart.hidden = view !== 'form';
+        exportSave.hidden = view !== 'done';
+        exportCancel.textContent = view === 'running' ? 'Stop export' : view === 'done' ? 'Close' : 'Cancel';
+        exportDialog.classList.toggle('running', view === 'running');
+      };
+      const remaining = (seconds) => (seconds < 60 ? `about ${Math.max(5, Math.round(seconds / 5) * 5)} s left` : `about ${Math.round(seconds / 60)} min left`);
+      // a turn of the event loop, for the tile requests and the terrain workers to answer.
+      // Not a timer: a tab left in the background gets its timers once a second, then once
+      // a minute, and an export runs for minutes in a tab the user leaves
+      const channel = new MessageChannel();
+      const yieldToBrowser = () => new Promise((resolve) => {
+        channel.port1.onmessage = resolve;
+        channel.port2.postMessage(undefined);
+      });
       // the run is exported frame by frame: each frame waits for every tile in view, so
-      // nothing is real time; the effects run on wall time and are left out. On an
-      // integrated GPU 8x multisampling doubles the frame, 4x is the compromise.
+      // nothing is real time; the effects run on wall time and are left out. The frames
+      // render as the live view does, without multisampling or HDR: the video compression
+      // hides what they add, and their GPU work held the frames' copy to the encoder.
       // The dialog stays open with the progress until the file is out, or the error;
       // its cancel button stops the run
       let cancelled = false;
       const exportVideo = async () => {
         setState('exporting');
         cancelled = false;
-        for (const control of [videoSize, videoFps, exportStart]) control.disabled = true;
         exportError.hidden = true;
         exportProgress.value = 0;
-        exportProgress.textContent = '';
-        exportProgress.hidden = false;
-        const [width, height] = videoSize.value.split('x').map(Number);
-        const fps = +videoFps.value;
+        exportProgress.textContent = '0%';
+        exportEta.textContent = 'Starting';
+        showView('running');
+        const [width, height] = videoSize();
+        const fps = +video.fps;
         const scene = viewer.scene;
         const globe = scene.globe;
         const controller = scene.screenSpaceCameraController;
-        const saved = {msaa: scene.msaaSamples, hdr: scene.highDynamicRange, cache: globe.tileCacheSize, inputs: controller.enableInputs, blur: motionBlur.active, drone: droneSwitch.checked};
-        scene.msaaSamples = 4;
-        scene.highDynamicRange = true;
+        const saved = {cache: globe.tileCacheSize, inputs: controller.enableInputs, blur: motionBlur.active, drone: droneSwitch.checked};
         globe.tileCacheSize = 5000;
         // a drag on the map between two frames would move the camera of the next one
         controller.enableInputs = false;
+        // the widget's own loop renders every animation frame while the camera moves: that
+        // is nearly three renders per exported frame, all wasted, and the frame's copy to
+        // the encoder waits behind them on the GPU
+        viewer.useDefaultRenderLoop = false;
         motionBlur.active = false;
         setDrone(false);
         document.body.style.setProperty('--video-width', `${width}px`);
@@ -349,59 +565,84 @@
         document.body.classList.add('exporting');
         viewer.resize();
         const output = new Output({format: new Mp4OutputFormat(), target: new BufferTarget()});
+        // each frame is the map with the captions over it
+        const frame = Object.assign(document.createElement('canvas'), {width: scene.canvas.width, height: scene.canvas.height});
+        const context = frame.getContext('2d');
         // 0.4 bit per pixel and frame: 6 Mbit/s at 540x960 and 30 fps
-        const source = new CanvasSource(scene.canvas, {codec: 'avc', bitrate: Math.round(0.4 * width * height * fps), keyFrameInterval: 2});
+        const source = new CanvasSource(frame, {codec: 'avc', bitrate: Math.round(0.4 * width * height * fps), keyFrameInterval: 2});
         output.addVideoTrack(source, {frameRate: fps});
         try {
           await output.start();
+          await captionsLoaded;
           const frames = Math.round(fps * flyover.duration);
+          const started = performance.now();
           for (let k = 0; k < frames && !cancelled; k++) {
-            exportProgress.value = (100 * k) / frames;
-            exportProgress.textContent = `${k} / ${frames}`;
+            const percent = Math.floor((100 * k) / frames);
+            exportProgress.value = percent;
+            exportProgress.textContent = `${percent}%`;
+            // the time per frame so far, over the frames left; the first frames load the most
+            const perFrame = (performance.now() - started) / 1000 / k;
+            exportEta.textContent = `Frame ${k + 1} of ${frames}` + (k >= fps ? ` · ${remaining(perFrame * (frames - k))}` : '');
             flyover.progress = k / (frames - 1);
+            // a tile advances one step per render, so this loops a few times per frame
             do {
               scene.render();
-              await new Promise((resolve) => setTimeout(resolve, 20));
+              await yieldToBrowser();
             } while (!globe.tilesLoaded);
-            // the drawing buffer is not preserved: capture in the same task as a render
+            // the drawing buffer is not preserved: copy it in the same task as a render
             scene.render();
+            context.drawImage(scene.canvas, 0, 0);
+            if (captions.active) context.drawImage(captions.canvas, 0, 0, frame.width, frame.height);
             await source.add(k / fps, 1 / fps);
           }
           if (cancelled) {
             await output.cancel();
+            showView('form');
           } else {
             source.close();
             await output.finalize();
-            const url = URL.createObjectURL(new Blob([output.target.buffer], {type: 'video/mp4'}));
-            const link = Object.assign(document.createElement('a'), {href: url, download: `${select.value}.mp4`});
-            link.click();
-            URL.revokeObjectURL(url);
+            // saved from the user's click on the result: a download started by the end of a
+            // long run may be blocked
+            result = {blob: new Blob([output.target.buffer], {type: 'video/mp4'}), name: `${select.value}.mp4`};
+            exportReady.textContent = `Video ready · ${(result.blob.size / 1e6).toFixed(1)} MB`;
+            showView('done');
           }
-          exportDialog.open = false;
         } catch (error) {
           console.error(error);
-          exportError.textContent = `The export failed: ${error.message}`;
+          exportErrorText.textContent = `The export failed: ${error.message}`;
           exportError.hidden = false;
+          showView('form');
         } finally {
-          exportProgress.hidden = true;
-          for (const control of [videoSize, videoFps, exportStart]) control.disabled = false;
           document.body.classList.remove('exporting');
           viewer.resize();
-          scene.msaaSamples = saved.msaa;
-          scene.highDynamicRange = saved.hdr;
           globe.tileCacheSize = saved.cache;
           controller.enableInputs = saved.inputs;
+          viewer.useDefaultRenderLoop = true;
           motionBlur.active = saved.blur;
           setDrone(saved.drone);
           flyover.progress = 0;
           setState('ready');
         }
       };
-      exportButton.addEventListener('click', () => (exportDialog.open = true));
+      exportButton.addEventListener('click', () => {
+        result = undefined;
+        exportError.hidden = true;
+        showView('form');
+        describeVideo();
+        exportDialog.open = true;
+      });
       exportStart.addEventListener('click', exportVideo);
-      // neither Escape nor the close button while the export runs: only the cancel button,
-      // and the dialog closes once the run has stopped
-      exportCancel.addEventListener('click', () => (cancelled = state === 'exporting'));
+      exportSave.addEventListener('click', () => {
+        const url = URL.createObjectURL(result.blob);
+        Object.assign(document.createElement('a'), {href: url, download: result.name}).click();
+        URL.revokeObjectURL(url);
+      });
+      // neither Escape nor the close button while the export runs: only Stop export, and
+      // the dialog goes back to its settings once the run has stopped
+      exportCancel.addEventListener('click', () => {
+        if (state === 'exporting') cancelled = true;
+        else exportDialog.open = false;
+      });
       exportDialog.addEventListener('wa-hide', (event) => state === 'exporting' && event.preventDefault());
       await load();
     });

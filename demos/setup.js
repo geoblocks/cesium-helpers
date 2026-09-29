@@ -3,7 +3,7 @@ const SWITZERLAND_RECTANGLE = Cesium.Rectangle.fromDegrees(4, 45, 12, 48);
 export async function createViewer(container) {
   Object.assign(Cesium.RequestScheduler.requestsByServer, {
     "wmts.geo.admin.ch:443": 28,
-    "download.swissgeol.ch:443": 28,
+    "3d.geo.admin.ch:443": 28,
     "tile.openstreetmap.org:443": 28,
   });
 

@@ -470,6 +470,15 @@ export default class CesiumPathFlyover {
   }
 
   /**
+   * Positions of the marker along the track, one per track point kept, at the marker's
+   * height above the terrain; undefined before a track is loaded. Not to be modified.
+   * @return {Cartesian3[] | undefined}
+   */
+  get points() {
+    return this.spline_?.points;
+  }
+
+  /**
    * Starts the return of the view to the planned camera.
    */
   recenter() {
