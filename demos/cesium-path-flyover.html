@@ -5,6 +5,7 @@
   <meta charset="UTF-8">
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Cesium.js"></script>
   <link href="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700&display=swap" rel="stylesheet">
   <style>
     html, body, #cesiumContainer {
       height: 100%;
@@ -85,6 +86,7 @@
       <wa-slider id="progress" size="s" label="Progress" min="0" max="1" step="0.01" value="0" disabled></wa-slider>
       <wa-switch id="motionBlur" size="s">Motion blur</wa-switch>
       <wa-switch id="drone" size="s">Drone</wa-switch>
+      <wa-switch id="placeNames" size="s" checked>Place names</wa-switch>
       <wa-button-group label="Playback">
         <wa-button id="play" size="s" appearance="filled" loading disabled>
           <wa-icon name="play" variant="solid" label="Play"></wa-icon>
@@ -133,6 +135,7 @@
   <script type="module">
     import {createViewer} from './setup.js';
     import CesiumPathFlyover from '../packages/cesium-path-flyover/cesium-path-flyover.js';
+    import FlyoverCaptions from './flyover-captions.js';
     import {AnalogVideo, DigitalVideo, DroneDisplay, Jello, MotionBlur} from '../packages/cesium-post-process/cesium-post-process.js';
     import {BufferTarget, CanvasSource, Mp4OutputFormat, Output} from 'mediabunny';
     import '@awesome.me/webawesome/dist/styles/webawesome.css';
@@ -207,6 +210,14 @@
         }
       });
       droneSwitch.addEventListener('change', () => setDrone(droneSwitch.checked));
+      // the names of the places the marker passes, as captions over the map
+      const placeNamesSwitch = document.querySelector('#placeNames');
+      let captions;
+      let captionsLoaded;
+      placeNamesSwitch.addEventListener('change', () => {
+        if (captions) captions.active = placeNamesSwitch.checked;
+        viewer.scene.requestRender();
+      });
       const settings = [select, preset, style, motion];
       // what can act in each state: settings reload the track, so not while playing;
       // pause only means something while playing; stop also rewinds a paused run;
@@ -254,6 +265,8 @@
       const load = async (key = select.value) => {
         setState('loading');
         flyover?.destroy();
+        captions?.destroy();
+        captions = undefined;
         const url = tracks[key];
         flyover = new CesiumPathFlyover(viewer, {style: +style.value, motion: +motion.value});
         flyover.progressChanged.addEventListener((p) => {
@@ -268,6 +281,10 @@
           setState('failed');
           return;
         }
+        // the names are not needed to play: a failure only leaves the captions out
+        captions = new FlyoverCaptions(viewer, flyover);
+        captions.active = placeNamesSwitch.checked;
+        captionsLoaded = captions.load().catch((error) => console.error(error));
         progress.value = 0;
         flyToStart(flyover);
         setState('ready');
@@ -349,11 +366,15 @@
         document.body.classList.add('exporting');
         viewer.resize();
         const output = new Output({format: new Mp4OutputFormat(), target: new BufferTarget()});
+        // each frame is the map with the captions over it
+        const frame = Object.assign(document.createElement('canvas'), {width: scene.canvas.width, height: scene.canvas.height});
+        const context = frame.getContext('2d');
         // 0.4 bit per pixel and frame: 6 Mbit/s at 540x960 and 30 fps
-        const source = new CanvasSource(scene.canvas, {codec: 'avc', bitrate: Math.round(0.4 * width * height * fps), keyFrameInterval: 2});
+        const source = new CanvasSource(frame, {codec: 'avc', bitrate: Math.round(0.4 * width * height * fps), keyFrameInterval: 2});
         output.addVideoTrack(source, {frameRate: fps});
         try {
           await output.start();
+          await captionsLoaded;
           const frames = Math.round(fps * flyover.duration);
           for (let k = 0; k < frames && !cancelled; k++) {
             exportProgress.value = (100 * k) / frames;
@@ -363,8 +384,10 @@
               scene.render();
               await new Promise((resolve) => setTimeout(resolve, 20));
             } while (!globe.tilesLoaded);
-            // the drawing buffer is not preserved: capture in the same task as a render
+            // the drawing buffer is not preserved: copy it in the same task as a render
             scene.render();
+            context.drawImage(scene.canvas, 0, 0);
+            if (captions.active) context.drawImage(captions.canvas, 0, 0, frame.width, frame.height);
             await source.add(k / fps, 1 / fps);
           }
           if (cancelled) {
