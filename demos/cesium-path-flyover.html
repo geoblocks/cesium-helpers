@@ -522,9 +522,18 @@
         exportDialog.classList.toggle('running', view === 'running');
       };
       const remaining = (seconds) => (seconds < 60 ? `about ${Math.max(5, Math.round(seconds / 5) * 5)} s left` : `about ${Math.round(seconds / 60)} min left`);
+      // a turn of the event loop, for the tile requests and the terrain workers to answer.
+      // Not a timer: a tab left in the background gets its timers once a second, then once
+      // a minute, and an export runs for minutes in a tab the user leaves
+      const channel = new MessageChannel();
+      const yieldToBrowser = () => new Promise((resolve) => {
+        channel.port1.onmessage = resolve;
+        channel.port2.postMessage(undefined);
+      });
       // the run is exported frame by frame: each frame waits for every tile in view, so
-      // nothing is real time; the effects run on wall time and are left out. On an
-      // integrated GPU 8x multisampling doubles the frame, 4x is the compromise.
+      // nothing is real time; the effects run on wall time and are left out. The frames
+      // render as the live view does, without multisampling or HDR: the video compression
+      // hides what they add, and their GPU work held the frames' copy to the encoder.
       // The dialog stays open with the progress until the file is out, or the error;
       // its cancel button stops the run
       let cancelled = false;
@@ -541,12 +550,14 @@
         const scene = viewer.scene;
         const globe = scene.globe;
         const controller = scene.screenSpaceCameraController;
-        const saved = {msaa: scene.msaaSamples, hdr: scene.highDynamicRange, cache: globe.tileCacheSize, inputs: controller.enableInputs, blur: motionBlur.active, drone: droneSwitch.checked};
-        scene.msaaSamples = 4;
-        scene.highDynamicRange = true;
+        const saved = {cache: globe.tileCacheSize, inputs: controller.enableInputs, blur: motionBlur.active, drone: droneSwitch.checked};
         globe.tileCacheSize = 5000;
         // a drag on the map between two frames would move the camera of the next one
         controller.enableInputs = false;
+        // the widget's own loop renders every animation frame while the camera moves: that
+        // is nearly three renders per exported frame, all wasted, and the frame's copy to
+        // the encoder waits behind them on the GPU
+        viewer.useDefaultRenderLoop = false;
         motionBlur.active = false;
         setDrone(false);
         document.body.style.setProperty('--video-width', `${width}px`);
@@ -573,9 +584,10 @@
             const perFrame = (performance.now() - started) / 1000 / k;
             exportEta.textContent = `Frame ${k + 1} of ${frames}` + (k >= fps ? ` · ${remaining(perFrame * (frames - k))}` : '');
             flyover.progress = k / (frames - 1);
+            // a tile advances one step per render, so this loops a few times per frame
             do {
               scene.render();
-              await new Promise((resolve) => setTimeout(resolve, 20));
+              await yieldToBrowser();
             } while (!globe.tilesLoaded);
             // the drawing buffer is not preserved: copy it in the same task as a render
             scene.render();
@@ -603,10 +615,9 @@
         } finally {
           document.body.classList.remove('exporting');
           viewer.resize();
-          scene.msaaSamples = saved.msaa;
-          scene.highDynamicRange = saved.hdr;
           globe.tileCacheSize = saved.cache;
           controller.enableInputs = saved.inputs;
+          viewer.useDefaultRenderLoop = true;
           motionBlur.active = saved.blur;
           setDrone(saved.drone);
           flyover.progress = 0;
