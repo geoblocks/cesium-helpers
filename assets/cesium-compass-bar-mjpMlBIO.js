@@ -1,4 +1,4 @@
-import{a as e,t,u as n}from"./lit-BFn1CURT.js";import{t as r}from"./setup-BuYe2z-6.js";var i=class extends t{static get properties(){return{scene:{type:Object},heading:{type:Number}}}static get styles(){return n`
+import{a as e,t,u as n}from"./lit-BFn1CURT.js";import{t as r}from"./setup-0DgT5JyI.js";var i=class extends t{static get properties(){return{scene:{type:Object},heading:{type:Number}}}static get styles(){return n`
       :host {
         --cesium-compass-bar-tick-color: #000;
         --cesium-compass-bar-intercardinal-width: 100px;

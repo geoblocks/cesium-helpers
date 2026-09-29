@@ -5,20 +5,21 @@
   <meta charset="UTF-8">
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Cesium.js"></script>
   <link href="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
-  <style>html,body,#cesiumContainer{height:100%;margin:0}#controls{inline-size:30ch;max-block-size:calc(100% - 2 * var(--wa-space-xl));--spacing:var(--wa-space-m);position:absolute;inset-block-start:var(--wa-space-xl);inset-inline-end:var(--wa-space-xl)}#controls::part(body){min-block-size:0;overflow:auto}#controls h2{font-size:var(--wa-font-size-m);margin:0}body.exporting{background:#111;overflow:hidden}body.exporting #cesiumContainer{inline-size:var(--video-width);block-size:var(--video-height);margin:auto;position:absolute;inset:0}#exportDialog{--backdrop-filter:blur(4px)}#exportDialog [hidden],#controls.collapsed::part(body){display:none}</style>
-  <script type="module" crossorigin src="./assets/cesium-path-flyover-BVRFGaJA.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700&display=swap" rel="stylesheet">
+  <style>html,body,#cesiumContainer{height:100%;margin:0}#controls{inline-size:38ch;max-block-size:calc(100% - 2 * var(--wa-space-xl));--spacing:var(--wa-space-m);position:absolute;inset-block-start:var(--wa-space-xl);inset-inline-end:var(--wa-space-xl)}#controls::part(body){min-block-size:0;overflow:auto}#controls h2{font-size:var(--wa-font-size-m);margin:0}.label{color:var(--wa-form-control-label-color);font-size:var(--wa-font-size-s);font-weight:var(--wa-form-control-label-font-weight);line-height:var(--wa-form-control-label-line-height)}#fineTune{--spacing:var(--wa-space-xs)}#time{font-variant-numeric:tabular-nums;margin-inline-start:auto}#export{inline-size:100%}#dropZone{inset:var(--wa-space-l);border:var(--wa-border-width-l) dashed var(--wa-color-neutral-on-loud);border-radius:var(--wa-border-radius-l);background:var(--wa-color-overlay-modal);color:var(--wa-color-neutral-on-loud);font-size:var(--wa-font-size-xl);font-weight:var(--wa-font-weight-semibold);pointer-events:none;position:absolute}#dropZone[hidden]{display:none}body.exporting{background:#111;overflow:hidden}body.exporting #cesiumContainer{inline-size:var(--video-width);block-size:var(--video-height);margin:auto;position:absolute;inset:0}#exportDialog{--backdrop-filter:blur(4px)}#exportDialog.running{--backdrop-filter:none}#exportDialog [hidden],#controls.collapsed::part(body){display:none}</style>
+  <script type="module" crossorigin src="./assets/cesium-path-flyover-BFkFy7uR.js"></script>
   <link rel="modulepreload" crossorigin href="./assets/lit-BFn1CURT.js">
   <link rel="modulepreload" crossorigin href="./assets/directive-BSZPiF1A.js">
   <link rel="modulepreload" crossorigin href="./assets/card-58mEaPX-.js">
   <link rel="modulepreload" crossorigin href="./assets/directive-helpers-B5gL4DMf.js">
-  <link rel="modulepreload" crossorigin href="./assets/setup-BuYe2z-6.js">
+  <link rel="modulepreload" crossorigin href="./assets/setup-0DgT5JyI.js">
   <link rel="modulepreload" crossorigin href="./assets/cesium-shim-deYMRcZt.js">
-  <link rel="modulepreload" crossorigin href="./assets/switch-BktEAscN.js">
+  <link rel="modulepreload" crossorigin href="./assets/switch-BTlE8q9T.js">
   <link rel="modulepreload" crossorigin href="./assets/button-C4a7i2eR.js">
   <link rel="modulepreload" crossorigin href="./assets/icon-BW2R3MNz.js">
   <link rel="modulepreload" crossorigin href="./assets/motion-blur-H9Tf_aeZ.js">
   <link rel="modulepreload" crossorigin href="./assets/style-map-ly-_uhSr.js">
-  <link rel="modulepreload" crossorigin href="./assets/slider-BbZRZLSJ.js">
+  <link rel="modulepreload" crossorigin href="./assets/details-COKin_cE.js">
   <link rel="stylesheet" crossorigin href="./assets/card-DfFS4Dmy.css">
 </head>
 
@@ -29,74 +30,120 @@
     <wa-button id="collapse" slot="header-actions" appearance="plain" size="s">
       <wa-icon name="chevron-up" label="Collapse"></wa-icon>
     </wa-button>
-    <div class="wa-stack wa-gap-s">
+    <div class="wa-stack wa-gap-l">
       <wa-select id="track" size="s" label="Track" value="baulmes-valley">
         <wa-option value="baulmes-valley">Gorge down to Baulmes, SchweizMobil tour</wa-option>
         <wa-option value="rechy">Vallon de Rechy, gorge section 8 km</wa-option>
         <wa-option value="suchet">Le Suchet, 14 km and 900 m of climb</wa-option>
         <span slot="hint">or drop a GPX or GeoJSON file on the map</span>
       </wa-select>
-      <wa-select id="preset" size="s" label="Preset" value="default">
-        <wa-option value="custom">custom</wa-option>
-        <wa-option value="default">default</wa-option>
-        <wa-option value="pilot">pilot: low, close, rigid</wa-option>
-        <wa-option value="spectator">spectator: high, wide, calm</wa-option>
-        <wa-option value="drone">drone: mid height, floating</wa-option>
-      </wa-select>
-      <wa-slider id="style" size="s" label="Style" min="0" max="1" step="0.1" value="0.5" with-markers with-tooltip>
-        <span slot="reference">pilot</span>
-        <span slot="reference">spectator</span>
-      </wa-slider>
-      <wa-slider id="motion" size="s" label="Motion" min="0" max="1" step="0.1" value="0.5" with-markers with-tooltip>
-        <span slot="reference">rigid</span>
-        <span slot="reference">floating</span>
-      </wa-slider>
-      <wa-slider id="progress" size="s" label="Progress" min="0" max="1" step="0.01" value="0" disabled></wa-slider>
-      <wa-switch id="motionBlur" size="s">Motion blur</wa-switch>
-      <wa-switch id="drone" size="s">Drone</wa-switch>
-      <wa-button-group label="Playback">
+      <div class="wa-stack wa-gap-2xs">
+        <span class="label">Camera</span>
+        <wa-button-group id="preset" label="Camera preset">
+          <wa-button size="s" data-value="default">Default</wa-button>
+          <wa-button size="s" data-value="pilot">Pilot</wa-button>
+          <wa-button size="s" data-value="spectator">Spectator</wa-button>
+          <wa-button size="s" data-value="drone">Drone</wa-button>
+        </wa-button-group>
+        <wa-details id="fineTune" summary="Fine-tune" appearance="plain">
+          <div class="wa-stack wa-gap-s">
+            <wa-slider id="style" size="s" label="Style" min="0" max="1" step="0.1" value="0.5" with-markers with-tooltip>
+              <span slot="reference">pilot</span>
+              <span slot="reference">spectator</span>
+            </wa-slider>
+            <wa-slider id="motion" size="s" label="Motion" min="0" max="1" step="0.1" value="0.5" with-markers with-tooltip>
+              <span slot="reference">rigid</span>
+              <span slot="reference">floating</span>
+            </wa-slider>
+          </div>
+        </wa-details>
+      </div>
+      <wa-checkbox-group label="Look" size="s">
+        <wa-switch id="placeNames" checked>Place names</wa-switch>
+        <wa-switch id="motionBlur">Motion blur</wa-switch>
+        <wa-switch id="drone">FPV effect</wa-switch>
+      </wa-checkbox-group>
+    </div>
+    <div slot="footer" class="wa-stack wa-gap-s">
+      <div class="wa-cluster wa-gap-xs">
         <wa-button id="play" size="s" appearance="filled" loading disabled>
           <wa-icon name="play" variant="solid" label="Play"></wa-icon>
-        </wa-button>
-        <wa-button id="pause" size="s" appearance="filled" disabled>
-          <wa-icon name="pause" variant="solid" label="Pause"></wa-icon>
         </wa-button>
         <wa-button id="stop" size="s" appearance="filled" disabled>
           <wa-icon name="stop" variant="solid" label="Stop"></wa-icon>
         </wa-button>
-        <wa-button id="export" size="s" appearance="filled" disabled>
-          <wa-icon name="download" variant="solid" label="Export a video"></wa-icon>
-        </wa-button>
-      </wa-button-group>
-      <wa-tooltip for="play">Play</wa-tooltip>
-      <wa-tooltip for="pause">Pause</wa-tooltip>
-      <wa-tooltip for="stop">Stop</wa-tooltip>
-      <wa-tooltip for="export">Export a video</wa-tooltip>
+        <span id="time" class="wa-caption-m wa-color-text-quiet">0:00 / 0:00</span>
+      </div>
+      <wa-tooltip for="play" id="playTip">Play</wa-tooltip>
+      <wa-tooltip for="stop">Stop and rewind</wa-tooltip>
+      <wa-slider id="progress" size="s" min="0" max="1" step="0.001" value="0" disabled>
+        <span slot="label" class="wa-visually-hidden">Progress</span>
+      </wa-slider>
+      <wa-button id="export" variant="brand" disabled>
+        <wa-icon slot="start" name="video" variant="solid"></wa-icon>
+        Export video
+      </wa-button>
     </div>
   </wa-card>
-  <wa-dialog id="exportDialog" label="Export a video">
-    <div class="wa-stack wa-gap-m">
-      <wa-select id="videoSize" size="s" label="Size" value="540x960">
-        <wa-option value="540x960">540x960, portrait</wa-option>
-        <wa-option value="720x1280">720x1280, portrait</wa-option>
-        <wa-option value="1080x1920">1080x1920, portrait</wa-option>
-        <wa-option value="960x540">960x540, landscape</wa-option>
-        <wa-option value="1280x720">1280x720, landscape</wa-option>
-        <wa-option value="1920x1080">1920x1080, landscape</wa-option>
-      </wa-select>
-      <wa-select id="videoFps" size="s" label="Frame rate" value="30">
-        <wa-option value="24">24 fps</wa-option>
-        <wa-option value="30">30 fps</wa-option>
-        <wa-option value="60">60 fps</wa-option>
-      </wa-select>
-      <p class="wa-caption-m">The run is rendered frame by frame, with every tile loaded, so it takes a while; the effects are left out. The map takes the size of the video meanwhile.</p>
-      <wa-progress-bar id="exportProgress" hidden></wa-progress-bar>
-      <wa-callout id="exportError" variant="danger" hidden></wa-callout>
+  <div id="dropZone" class="wa-stack wa-align-items-center wa-justify-content-center" hidden>Drop a GPX or GeoJSON track</div>
+  <wa-dialog id="exportDialog" label="Export video">
+    <div id="exportForm" class="wa-stack wa-gap-l">
+      <div class="wa-stack wa-gap-2xs">
+        <span class="label">Orientation</span>
+        <wa-button-group id="videoOrientation" label="Orientation">
+          <wa-button size="s" data-value="portrait">
+            <wa-icon slot="start" name="mobile-screen-button"></wa-icon>
+            Portrait 9:16
+          </wa-button>
+          <wa-button size="s" data-value="landscape">
+            <wa-icon slot="start" name="display"></wa-icon>
+            Landscape 16:9
+          </wa-button>
+        </wa-button-group>
+        <span class="wa-caption-s wa-color-text-quiet">Portrait fits the phone apps, landscape a screen.</span>
+      </div>
+      <div class="wa-stack wa-gap-2xs">
+        <span class="label">Quality</span>
+        <wa-button-group id="videoQuality" label="Quality">
+          <wa-button size="s" data-value="540">540p</wa-button>
+          <wa-button size="s" data-value="720">720p</wa-button>
+          <wa-button size="s" data-value="1080">1080p</wa-button>
+        </wa-button-group>
+      </div>
+      <div class="wa-stack wa-gap-2xs">
+        <span class="label">Frame rate</span>
+        <wa-button-group id="videoFps" label="Frame rate">
+          <wa-button size="s" data-value="24">24 fps</wa-button>
+          <wa-button size="s" data-value="30">30 fps</wa-button>
+          <wa-button size="s" data-value="60">60 fps</wa-button>
+        </wa-button-group>
+      </div>
+      <div class="wa-stack wa-gap-2xs">
+        <strong id="exportSummary"></strong>
+        <span id="exportIncluded" class="wa-caption-s wa-color-text-quiet"></span>
+        <span class="wa-caption-s wa-color-text-quiet">The run renders frame by frame with every tile loaded, so it takes a while; the map takes the size of the video meanwhile.</span>
+      </div>
     </div>
-    <wa-button slot="footer" size="s" data-dialog="close" id="exportCancel">Cancel</wa-button>
+    <div id="exportRunning" class="wa-stack wa-gap-s" hidden>
+      <wa-progress-bar id="exportProgress" value="0"></wa-progress-bar>
+      <span id="exportEta" class="wa-caption-s wa-color-text-quiet"></span>
+    </div>
+    <wa-callout id="exportDone" variant="success" hidden>
+      <wa-icon slot="icon" name="circle-check" variant="solid"></wa-icon>
+      <span id="exportReady"></span>
+    </wa-callout>
+    <wa-callout id="exportError" variant="danger" hidden>
+      <wa-icon slot="icon" name="triangle-exclamation" variant="solid"></wa-icon>
+      <span id="exportErrorText"></span>
+    </wa-callout>
+    <wa-button slot="footer" size="s" appearance="plain" id="exportCancel">Cancel</wa-button>
     <wa-button slot="footer" size="s" variant="brand" id="exportStart">
-      <wa-icon slot="start" name="download" variant="solid"></wa-icon>
+      <wa-icon slot="start" name="video" variant="solid"></wa-icon>
       Export
+    </wa-button>
+    <wa-button slot="footer" size="s" variant="brand" id="exportSave" hidden>
+      <wa-icon slot="start" name="download" variant="solid"></wa-icon>
+      Save video
     </wa-button>
   </wa-dialog>
 </body>
