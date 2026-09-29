@@ -15,10 +15,8 @@ const TILES_IN_FLIGHT = 16;
 const FADE_IN = 0.5;
 const HOLD = 3.5;
 const SHRINK = 0.7;
-// a name that replaces another without a card fades in over this time
+// a replaced name fades out, and a name shown after a jump fades in, over this time
 const CROSSFADE = 0.3;
-// a place entered sooner after the last card only replaces the caption
-const CARD_GAP = 20;
 // a larger step of the run's time is a jump, a scrub: no card
 const JUMP = 1;
 // the flyover's marker flies this high above the track
@@ -85,7 +83,6 @@ export default class FlyoverCaptions {
     // {place, until}: the name the shown one replaced, fading out
     this.replaced = undefined;
     this.lastTime = undefined;
-    this.lastCard = -Infinity;
     this.canvas = document.createElement('canvas');
     Object.assign(this.canvas.style, {position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none'});
     viewer.container.append(this.canvas);
@@ -158,9 +155,8 @@ export default class FlyoverCaptions {
    * The place the marker is in, kept until the marker leaves it; then the place it
    * enters, the nearest relative to its entry distance. Between places the caption
    * stays on the last one until the marker is STALE past it. A place entered in playback
-   * gets a card unless one showed less than CARD_GAP seconds ago, else it crossfades
-   * with the name it replaces; after a jump the caption shows at once, except at the
-   * start of the run.
+   * gets a card while the name it replaces fades out; after a jump the caption shows at
+   * once, except at the start of the run.
    * @param {Cartesian3} marker
    * @param {number} time seconds of the run
    */
@@ -170,7 +166,6 @@ export default class FlyoverCaptions {
     if (jump) {
       this.shown = undefined;
       this.replaced = undefined;
-      this.lastCard = -Infinity;
     }
     const inside = (place) => Cartesian3.distance(marker, place.position) < enterRadius(place);
     if (!this.shown || !inside(this.shown.place)) {
@@ -185,10 +180,8 @@ export default class FlyoverCaptions {
       }
       if (entered) {
         const animated = !jump || time === 0;
-        const card = animated && time - this.lastCard >= CARD_GAP;
-        if (card) this.lastCard = time;
-        if (this.shown && !card) this.replaced = {place: this.shown.place, until: time};
-        this.shown = {place: entered, since: animated ? time : -Infinity, card};
+        if (this.shown) this.replaced = {place: this.shown.place, until: time};
+        this.shown = {place: entered, since: animated ? time : -Infinity, card: animated};
       }
     }
   }
