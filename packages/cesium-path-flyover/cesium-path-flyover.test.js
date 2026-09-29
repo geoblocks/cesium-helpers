@@ -195,6 +195,26 @@ test("the pilot banks into the hairpin, up to the bank angle, and the default ru
   assert.ok(pilot.roll.every((r) => r >= 0), "leans left somewhere");
 });
 
+test("the points are the track's positions once loaded, undefined before", async () => {
+  const viewer = fakeViewer();
+  Object.assign(viewer.scene, {ellipsoid: Ellipsoid.WGS84, terrainProvider: new EllipsoidTerrainProvider(), requestRender: () => {}});
+  const coordinates = [[6.5, 46.8], [6.51, 46.8], [6.52, 46.81]];
+  const fetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({type: "LineString", coordinates}));
+  try {
+    const flyover = new CesiumPathFlyover(viewer);
+    flyover.createTrack_ = () => ({});
+    assert.equal(flyover.points, undefined);
+    await flyover.load("track.json");
+    assert.equal(flyover.points.length, coordinates.length);
+    const last = Cartographic.fromCartesian(flyover.points[2]);
+    assert.ok(Math.abs(CesiumMath.toDegrees(last.longitude) - 6.52) < 1e-9);
+    assert.ok(Math.abs(CesiumMath.toDegrees(last.latitude) - 46.81) < 1e-9);
+  } finally {
+    globalThis.fetch = fetch;
+  }
+});
+
 test("of two loads under way, the later one wins whichever answers first", async () => {
   const viewer = fakeViewer();
   Object.assign(viewer.scene, {ellipsoid: Ellipsoid.WGS84, terrainProvider: new EllipsoidTerrainProvider(), requestRender: () => {}});

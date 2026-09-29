@@ -42,6 +42,7 @@ await flyover.play();            // resolves at the end of the track
 flyover.progress = 0.5;          // scrub: jump to the middle, playing or not
 flyover.progressChanged.addEventListener((p) => slider.value = p); // follow playback
 flyover.position;                // the marker, for example the focus of an effect
+flyover.points;                  // the marker's positions along the track, once loaded
 flyover.stop();
 flyover.destroy();
 ```
