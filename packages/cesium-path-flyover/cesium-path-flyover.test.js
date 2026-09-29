@@ -123,6 +123,34 @@ test("the style dial sets the camera distance unless range is given", () => {
   assert.equal(near.run_.range, 300);
 });
 
+test("replan plans the loaded track again with other options and keeps the track", async () => {
+  const viewer = fakeViewer();
+  Object.assign(viewer.scene, {
+    ellipsoid: Ellipsoid.WGS84,
+    terrainProvider: new EllipsoidTerrainProvider(),
+    requestRender: () => {},
+    camera: {lookAt: () => {}, lookAtTransform: () => {}, twistRight: () => {}},
+  });
+  const flyover = hairpinFlyover(viewer, {style: 0.5});
+  flyover.samplers_ = [sampler, sampler];
+  flyover.path_ = await flyover.computePath_(sampler);
+  const spline = flyover.spline_;
+  const before = {range: flyover.path_.range[0], duration: flyover.duration};
+  await flyover.replan({style: 1});
+  assert.equal(flyover.spline_, spline);
+  assert.equal(flyover.run_.range, 900);
+  assert.ok(flyover.path_.range[0] > before.range, "the path follows the new range");
+  assert.notEqual(flyover.duration, before.duration, "the duration follows the new speed");
+  await assert.rejects(() => new CesiumPathFlyover(fakeViewer()).replan({}), /load\(\) before replan\(\)/);
+  // not while one is pending: the frame asked for meanwhile waits for the new path
+  const pending = flyover.replan({style: 0});
+  await assert.rejects(() => flyover.replan({style: 0.5}), /under way/);
+  flyover.progress = 0.5;
+  await pending;
+  assert.equal(flyover.progress, 0.5);
+  assert.equal(flyover.load_, undefined);
+});
+
 test("the duration is the length at the run's speed plus the ease ramps, 0 before a track", () => {
   const flyover = new CesiumPathFlyover(fakeViewer(), {speed: 100});
   assert.equal(flyover.duration, 0);
