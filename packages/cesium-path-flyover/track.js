@@ -5,7 +5,8 @@ const scratchB = new Cartesian3();
 const scratchMatrix = new Matrix4();
 
 /**
- * @typedef {[number, number]} LonLat longitude and latitude in degrees
+ * @typedef {[number, number] | [number, number, number]} LonLat longitude and latitude in
+ * degrees, then the point's time in seconds since the epoch when the track records it
  */
 
 /**
@@ -24,14 +25,38 @@ export function parseTrack(text) {
 }
 
 /**
+ * @param {string} text GPX or GeoJSON content
+ * @return {string | undefined} the name of the track, or of the first named feature
+ */
+export function parseTrackName(text) {
+  const json = parseJson(text);
+  if (json) {
+    /** @type {any[]} */
+    const features = json.type === "FeatureCollection" ? json.features ?? [] : [json];
+    return features.find((f) => f.properties?.name)?.properties.name;
+  }
+  return /<(?:\w+:)?(?:trk|rte)\b[^>]*>\s*<(?:\w+:)?name>([^<]*)<\/(?:\w+:)?name>/.exec(text)?.[1].trim() || undefined;
+}
+
+/**
+ * @param {string} text
+ * @return {any} the parsed JSON, undefined when the text is none
+ */
+function parseJson(text) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * @param {string} text
  * @return {LonLat[] | undefined}
  */
 function parseGeoJson(text) {
-  let json;
-  try {
-    json = JSON.parse(text);
-  } catch {
+  const json = parseJson(text);
+  if (!json) {
     return undefined;
   }
   const geometries = [];
@@ -78,11 +103,19 @@ function parseGpx(text) {
  */
 function parseGpxPoints(text, tag) {
   const coords = [];
-  for (const [, attributes] of text.matchAll(new RegExp(`<(?:\\w+:)?${tag}\\b([^>]*)>`, "g"))) {
+  // a point's children up to its closing tag, or none for a self-closing point
+  const pattern = new RegExp(`<(?:\\w+:)?${tag}\\b([^>]*?)(/>|>([\\s\\S]*?)</(?:\\w+:)?${tag}>)`, "g");
+  for (const [, attributes, , children] of text.matchAll(pattern)) {
     const lat = /\blat\s*=\s*["']([^"']+)["']/.exec(attributes);
     const lon = /\blon\s*=\s*["']([^"']+)["']/.exec(attributes);
     if (lat && lon) {
-      coords.push(/** @type {LonLat} */ ([parseFloat(lon[1]), parseFloat(lat[1])]));
+      const coord = /** @type {LonLat} */ ([parseFloat(lon[1]), parseFloat(lat[1])]);
+      const time = children && /<(?:\w+:)?time>([^<]*)</.exec(children);
+      const seconds = time ? Date.parse(time[1]) / 1000 : NaN;
+      if (!isNaN(seconds)) {
+        coord.push(seconds);
+      }
+      coords.push(coord);
     }
   }
   return coords.length > 0 ? coords : undefined;

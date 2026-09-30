@@ -1,7 +1,8 @@
-// Place captions for the flyover: when the marker comes near a place of swissNAMES3D,
-// its name shows large on a card, then shrinks into a corner caption that stays until
-// the marker is past it, over a readout of the track's elevation. Drawn on a canvas over
-// the map, which the video export composites.
+// Captions for the flyover: the track's name over a place caption, over a readout of
+// the elevation, the speed and the distance covered. When the marker comes near a
+// place of swissNAMES3D, its name shows large on a card, then shrinks into the caption
+// that stays until the marker is past it. Drawn on a canvas over the map, which the
+// video export composites.
 //
 // The names come from the labels of map.geo.admin.ch's 3D viewer, 3D Tiles whose
 // .glb tiles carry the names in an EXT_structural_metadata property table. The tiles
@@ -24,15 +25,59 @@ const MARKER_HEIGHT = 2;
 // a name fades out between these distances from its place, once the marker is past it
 const STALE = 3000;
 const GONE = 3500;
+// the speed is the pace over the track points this far before and after the marker
+const SPEED_WINDOW = 100;
 
 const {Cartesian3, Cartographic, Math: CesiumMath} = Cesium;
 const LAKE_COLOR = '#bfe0ff';
 const READOUT_COLOR = '#ffd27a';
+const TITLE_COLOR = 'rgba(255, 255, 255, 0.85)';
+const font = (weight, size) => `${weight} ${size}px "Barlow Condensed", sans-serif`;
+
+// the readout's formatters, from SI values, in the browser's language: the locale sets
+// the decimal separator and the unit labels. The measurement system follows the
+// region as in CLDR's measurementData: the US system in the US and Liberia, the UK
+// system in the UK and Myanmar, miles on the road but meters on the map
+const units = (() => {
+  const locale = navigator.language;
+  const region = new Intl.Locale(locale).region;
+  const format = (unit, digits, factor) => {
+    const f = new Intl.NumberFormat(locale, {style: 'unit', unit, maximumFractionDigits: digits});
+    return (value) => f.format(value * factor);
+  };
+  const miles = ['US', 'LR', 'GB', 'MM'].includes(region);
+  return {
+    elevation: ['US', 'LR'].includes(region) ? format('foot', 0, 1 / 0.3048) : format('meter', 0, 1),
+    speed: miles ? format('mile-per-hour', 1, 3600 / 1609.344) : format('kilometer-per-hour', 1, 3.6),
+    distance: miles ? format('mile', 1, 1 / 1609.344) : format('kilometer', 1, 1 / 1000),
+  };
+})();
 
 // a place is entered within this distance of its name
 const enterRadius = (place) => (place.type === 'GIPFEL' ? 800 : place.tier <= 4 ? 2500 : 1200);
 const MAX_ENTER_RADIUS = 2500;
 const ease = (t) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
+
+/**
+ * Draws the fields on one line, a dot between them. The digits differ in width: each
+ * field gets the room of its widest digits, so the line does not shake as values change.
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {string[]} fields
+ * @param {number} x
+ * @param {number} baseline
+ */
+function drawFields(ctx, fields, x, baseline) {
+  const widest = [...'0123456789'].reduce((a, b) => (ctx.measureText(b).width > ctx.measureText(a).width ? b : a));
+  const gap = ctx.measureText('  ').width;
+  fields.forEach((field, i) => {
+    if (i > 0) {
+      ctx.fillText('·', x, baseline);
+      x += ctx.measureText('·').width + gap;
+    }
+    ctx.fillText(field, x, baseline);
+    x += ctx.measureText(field.replace(/\d/g, widest)).width + gap;
+  });
+}
 
 /**
  * The rows of the property table of a glb tile, one object per name.
@@ -83,11 +128,13 @@ export default class FlyoverCaptions {
     // {place, until}: the name the shown one replaced, fading out
     this.replaced = undefined;
     this.lastTime = undefined;
+    // meters along the track at each of the flyover's points
+    this.distances = [];
     this.canvas = document.createElement('canvas');
     Object.assign(this.canvas.style, {position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none'});
     viewer.container.append(this.canvas);
     this.removeListener = viewer.scene.postRender.addEventListener(() => this.draw());
-    document.fonts.load('700 64px "Barlow Condensed"').then(() => viewer.scene.requestRender());
+    document.fonts.load(font(700, 64)).then(() => viewer.scene.requestRender());
   }
 
   /**
@@ -96,6 +143,10 @@ export default class FlyoverCaptions {
    */
   async load() {
     const points = this.flyover.points;
+    this.distances = [0];
+    for (let i = 1; i < points.length; i++) {
+      this.distances.push(this.distances[i - 1] + Cartesian3.distance(points[i - 1], points[i]));
+    }
     // a track point every half kilometer is enough to find the tiles near it
     const samples = [];
     for (const point of points) {
@@ -195,6 +246,50 @@ export default class FlyoverCaptions {
     return {text: place.type === 'GIPFEL' ? `▲ ${text}` : text, color: place.type === 'SEE' ? LAKE_COLOR : 'white'};
   }
 
+  /**
+   * The recorded speed at the marker in m/s, undefined on a track without times.
+   * @return {number | undefined}
+   */
+  speed() {
+    const {times, distance} = this.flyover;
+    if (!times) return undefined;
+    const d = this.distances;
+    let i = 0;
+    while (i < d.length - 1 && d[i + 1] <= distance - SPEED_WINDOW) i++;
+    let j = d.length - 1;
+    while (j > 0 && d[j - 1] >= distance + SPEED_WINDOW) j--;
+    const seconds = times[j] - times[i];
+    return seconds > 0 ? (d[j] - d[i]) / seconds : 0;
+  }
+
+  /**
+   * Where the captions go. Sizes follow the frame's short side. A portrait video is for
+   * phones, whose apps cover its bottom and right edge: its captions go to the top left,
+   * the card to the upper third; a landscape one keeps them at the bottom left and the
+   * lower third.
+   * @param {number} width
+   * @param {number} height
+   */
+  layout(width, height) {
+    const short = Math.min(width, height);
+    const portrait = height > width;
+    const nameSize = Math.max(0.05 * short, 18);
+    const readoutSize = Math.max(0.032 * short, 14);
+    const spacing = 0.35 * readoutSize;
+    const nameBaseline = portrait ? 0.08 * height + nameSize : height - Math.max(0.06 * short, 40) - readoutSize - spacing;
+    return {
+      short,
+      portrait,
+      left: Math.max(0.05 * short, 24),
+      nameSize,
+      readoutSize,
+      titleBaseline: nameBaseline - 0.85 * nameSize,
+      nameBaseline,
+      readoutBaseline: nameBaseline + spacing + readoutSize,
+      cardBaseline: portrait ? 0.28 * height : 0.8 * height,
+    };
+  }
+
   draw() {
     const dpr = window.devicePixelRatio;
     const width = this.canvas.clientWidth;
@@ -210,19 +305,8 @@ export default class FlyoverCaptions {
     if (!this.active || !marker) return;
     const time = this.flyover.progress * this.flyover.duration;
     this.update(marker, time);
-
-    // sizes follow the frame's short side. A portrait video is for phones, whose apps
-    // cover its bottom and right edge: its captions go to the top left, the card to the
-    // upper third; a landscape one keeps them at the bottom left and the lower third
-    const short = Math.min(width, height);
-    const portrait = height > width;
-    const left = Math.max(0.05 * short, 24);
-    const nameSize = Math.max(0.05 * short, 18);
-    const readoutSize = Math.max(0.032 * short, 14);
-    const spacing = 0.35 * readoutSize;
-    const nameBaseline = portrait ? 0.08 * height + nameSize : height - Math.max(0.06 * short, 40) - readoutSize - spacing;
-    const readoutBaseline = nameBaseline + spacing + readoutSize;
-    const cardBaseline = portrait ? 0.28 * height : 0.8 * height;
+    const layout = this.layout(width, height);
+    const {portrait, left, readoutSize, titleBaseline, readoutBaseline} = layout;
 
     // a soft shade on the captions' side keeps them legible over bright ground
     const shade = ctx.createLinearGradient(0, portrait ? 0 : height, 0, portrait ? 0.4 * height : 0.6 * height);
@@ -234,20 +318,45 @@ export default class FlyoverCaptions {
     ctx.save();
     ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
     ctx.shadowOffsetY = 1;
-    ctx.textAlign = 'left';
-    const elevation = Cartographic.fromCartesian(marker).height - MARKER_HEIGHT;
-    ctx.font = `600 ${readoutSize}px "Barlow Condensed", sans-serif`;
-    ctx.letterSpacing = '0.12em';
     ctx.shadowBlur = 3;
+    ctx.letterSpacing = '0.12em';
+
+    const elevation = Cartographic.fromCartesian(marker).height - MARKER_HEIGHT;
+    const speed = this.speed();
+    const readout = [`ALT ${units.elevation(elevation)}`];
+    if (speed !== undefined) readout.push(units.speed(speed));
+    readout.push(units.distance(this.flyover.distance));
+    ctx.font = font(600, readoutSize);
     ctx.fillStyle = READOUT_COLOR;
-    ctx.fillText(`ALT ${Math.round(elevation)} M`, left, readoutBaseline);
+    drawFields(ctx, readout.map((field) => field.toUpperCase()), left, readoutBaseline);
+
+    if (this.flyover.name) {
+      ctx.font = font(500, readoutSize);
+      ctx.fillStyle = TITLE_COLOR;
+      ctx.fillText(this.flyover.name.toUpperCase(), left, titleBaseline);
+    }
 
     ctx.letterSpacing = '0.06em';
+    this.drawPlaces(ctx, marker, time, layout, width);
+    ctx.restore();
+  }
+
+  /**
+   * The place caption: the shown name, on its card when just entered, over the replaced
+   * name fading out.
+   * @param {CanvasRenderingContext2D} ctx
+   * @param {Cartesian3} marker
+   * @param {number} time seconds of the run
+   * @param {ReturnType<FlyoverCaptions['layout']>} layout
+   * @param {number} width
+   */
+  drawPlaces(ctx, marker, time, layout, width) {
+    const {short, left, nameSize, nameBaseline, cardBaseline} = layout;
     const name = (place, size, baseline, alpha) => {
       if (alpha <= 0) return;
       const {text, color} = this.label(place);
       ctx.globalAlpha = alpha;
-      ctx.font = `700 ${size}px "Barlow Condensed", sans-serif`;
+      ctx.font = font(700, size);
       ctx.shadowBlur = 0.16 * size;
       ctx.fillStyle = color;
       ctx.fillText(text, left, baseline);
@@ -262,7 +371,7 @@ export default class FlyoverCaptions {
       const t = time - since;
       if (card) {
         // big on the card, then down to the caption
-        ctx.font = '700 100px "Barlow Condensed", sans-serif';
+        ctx.font = font(700, 100);
         const big = Math.min(0.1 * short, (100 * (width - 2 * left)) / ctx.measureText(this.label(place).text).width);
         const appear = ease(t / FADE_IN);
         const shrink = ease((t - FADE_IN - HOLD) / SHRINK);
@@ -272,7 +381,6 @@ export default class FlyoverCaptions {
         name(place, nameSize, nameBaseline, ease(t / CROSSFADE) * fresh(place));
       }
     }
-    ctx.restore();
   }
 
   destroy() {

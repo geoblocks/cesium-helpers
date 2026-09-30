@@ -215,6 +215,56 @@ test("the points are the track's positions once loaded, undefined before", async
   }
 });
 
+test("the name, the times and the marker's distance follow the loaded track", async () => {
+  const viewer = fakeViewer();
+  Object.assign(viewer.scene, {
+    ellipsoid: Ellipsoid.WGS84,
+    terrainProvider: new EllipsoidTerrainProvider(),
+    mode: SceneMode.SCENE3D,
+    requestRender: () => {},
+    camera: {lookAt: () => {}, lookAtTransform: () => {}, twistRight: () => {}},
+  });
+  // 0.001 deg of latitude is about 111 m
+  const gpx = `<gpx><trk><name>Rive</name><trkseg>
+    <trkpt lat="46.8" lon="6.5"><time>2019-08-11T09:00:00Z</time></trkpt>
+    <trkpt lat="46.801" lon="6.5"><time>2019-08-11T09:01:00Z</time></trkpt>
+    <trkpt lat="46.802" lon="6.5"><time>2019-08-11T09:03:00Z</time></trkpt>
+  </trkseg></trk></gpx>`;
+  const fetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(gpx);
+  try {
+    const flyover = new CesiumPathFlyover(viewer, {freeLook: false});
+    flyover.createTrack_ = () => ({});
+    assert.equal(flyover.name, undefined);
+    assert.equal(flyover.times, undefined);
+    assert.equal(flyover.distance, undefined);
+    await flyover.load("track.gpx");
+    assert.equal(flyover.name, "Rive");
+    assert.deepEqual(flyover.times, [1565514000, 1565514060, 1565514180]);
+    assert.equal(flyover.distance, 0);
+    flyover.progress = 1;
+    assert.ok(Math.abs(flyover.distance - 222) < 2, `distance ${flyover.distance}`);
+  } finally {
+    globalThis.fetch = fetch;
+  }
+});
+
+test("a track without times has none", async () => {
+  const viewer = fakeViewer();
+  Object.assign(viewer.scene, {ellipsoid: Ellipsoid.WGS84, terrainProvider: new EllipsoidTerrainProvider(), requestRender: () => {}});
+  const fetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({type: "LineString", coordinates: [[6.5, 46.8], [6.5, 46.801]]}));
+  try {
+    const flyover = new CesiumPathFlyover(viewer);
+    flyover.createTrack_ = () => ({});
+    await flyover.load("track.json");
+    assert.equal(flyover.name, undefined);
+    assert.equal(flyover.times, undefined);
+  } finally {
+    globalThis.fetch = fetch;
+  }
+});
+
 test("of two loads under way, the later one wins whichever answers first", async () => {
   const viewer = fakeViewer();
   Object.assign(viewer.scene, {ellipsoid: Ellipsoid.WGS84, terrainProvider: new EllipsoidTerrainProvider(), requestRender: () => {}});

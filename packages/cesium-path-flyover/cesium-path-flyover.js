@@ -20,7 +20,7 @@ import {
   Transforms,
 } from "@cesium/engine";
 import FreeLook from "./free-look.js";
-import {breathe, dampAngle, decimate, easedProgress, fetchTrackText, forwardHeading, parseTrack} from "./track.js";
+import {breathe, dampAngle, decimate, easedProgress, fetchTrackText, forwardHeading, parseTrack, parseTrackName} from "./track.js";
 import TerrainSampler from "./terrain.js";
 import {SAMPLE_SPACING, cameraOffsetEnu, curvature, gaussianSmooth, planCamera, reliefProfile, sampleProfile, smoothPositions} from "./planner.js";
 import {deriveRun} from "./run.js";
@@ -127,6 +127,10 @@ export default class CesiumPathFlyover {
     /** @type {CatmullRomSpline | undefined} */
     this.spline_ = undefined;
     this.totalLength_ = 0;
+    /** @type {string | undefined} */
+    this.name_ = undefined;
+    /** @type {number[] | undefined} the recorded time of each spline point, seconds since the epoch */
+    this.times_ = undefined;
     /** @type {Path | undefined} */
     this.path_ = undefined;
     /** @type {object | undefined} the load under way */
@@ -204,6 +208,8 @@ export default class CesiumPathFlyover {
       points,
       times: distances.map((d) => d / this.totalLength_),
     });
+    this.name_ = parseTrackName(text);
+    this.times_ = coords.every((c) => c.length > 2) ? coords.map((c) => /** @type {number} */ (c[2])) : undefined;
     const planSampler = this.totalLength_ > LONG_TRACK ? new TerrainSampler(scene.terrainProvider, LONG_TRACK_PLAN_LEVEL) : sampler;
     const path = await this.computePath_(sampler, planSampler);
     if (load !== this.load_) {
@@ -476,6 +482,31 @@ export default class CesiumPathFlyover {
    */
   get points() {
     return this.spline_?.points;
+  }
+
+  /**
+   * Name of the track, undefined before a track is loaded or when the file has none.
+   * @return {string | undefined}
+   */
+  get name() {
+    return this.name_;
+  }
+
+  /**
+   * Recorded time of each of the points, seconds since the epoch; undefined before a
+   * track is loaded or when a point has no time. Not to be modified.
+   * @return {number[] | undefined}
+   */
+  get times() {
+    return this.times_;
+  }
+
+  /**
+   * Distance of the marker along the track in meters, undefined before a track is loaded.
+   * @return {number | undefined}
+   */
+  get distance() {
+    return this.spline_ ? easedProgress(this.t_, EASE_SECONDS / this.duration) * this.totalLength_ : undefined;
   }
 
   /**
