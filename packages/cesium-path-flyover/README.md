@@ -43,6 +43,9 @@ flyover.progress = 0.5;          // scrub: jump to the middle, playing or not
 flyover.progressChanged.addEventListener((p) => slider.value = p); // follow playback
 flyover.position;                // the marker, for example the focus of an effect
 flyover.points;                  // the marker's positions along the track, once loaded
+flyover.name;                    // the track's name, when the file has one
+flyover.times;                   // the recorded time of each point, when the file has them
+flyover.distance;                // the marker's meters along the track
 flyover.stop();
 flyover.destroy();
 ```

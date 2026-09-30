@@ -1,7 +1,7 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
 import {Cartesian3, Cartographic, Ellipsoid} from "@cesium/engine";
-import {damp, dampAngle, decimate, easedProgress, fetchTrackText, forwardHeading, parseTrack, breathe} from "./track.js";
+import {damp, dampAngle, decimate, easedProgress, fetchTrackText, forwardHeading, parseTrack, parseTrackName, breathe} from "./track.js";
 
 const gpx = `<?xml version="1.0"?>
 <gpx><trk><trkseg>
@@ -13,6 +13,24 @@ const gpx = `<?xml version="1.0"?>
 
 test("parseTrack reads GPX trkpt in document order, any attribute order", () => {
   assert.deepEqual(parseTrack(gpx), [[6.1, 46.1], [6.2, 46.2], [6.3, 46.3]]);
+});
+
+test("parseTrack keeps a GPX point's time as a third element, seconds since the epoch", () => {
+  const text = `<gpx><trk><trkseg>
+    <trkpt lat="46.1" lon="6.1"><ele>400</ele><time>2019-08-11T09:55:18Z</time></trkpt>
+    <trkpt lat="46.2" lon="6.2"><time>2019-08-11T09:55:48.500Z</time></trkpt>
+    <trkpt lat="46.3" lon="6.3"/>
+  </trkseg></trk></gpx>`;
+  assert.deepEqual(parseTrack(text), [[6.1, 46.1, 1565517318], [6.2, 46.2, 1565517348.5], [6.3, 46.3]]);
+});
+
+test("parseTrackName reads the GPX track name, the GeoJSON feature name, or nothing", () => {
+  assert.equal(parseTrackName("<gpx><trk><name>Tour du Mont de Baulmes</name><trkseg/></trk></gpx>"), "Tour du Mont de Baulmes");
+  assert.equal(parseTrackName('<gpx><metadata><name>file</name></metadata><trk><trkseg/></trk></gpx>'), undefined);
+  const feature = {type: "Feature", geometry: {type: "LineString", coordinates: []}, properties: {name: "Suchet"}};
+  assert.equal(parseTrackName(JSON.stringify(feature)), "Suchet");
+  assert.equal(parseTrackName(JSON.stringify({type: "FeatureCollection", features: [feature]})), "Suchet");
+  assert.equal(parseTrackName(JSON.stringify({type: "LineString", coordinates: []})), undefined);
 });
 
 test("parseTrack reads a bare GeoJSON LineString and drops heights", () => {

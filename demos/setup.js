@@ -16,6 +16,8 @@ export async function createViewer(container) {
     geocoder: false,
     homeButton: false,
     fullscreenButton: false,
+    // its iframe has no doctype, which Firefox reports as quirks mode
+    infoBox: false,
     scene3DOnly: true,
     // 4x multisampling costs about a third of the frame on an integrated GPU; FXAA below is
     // much cheaper
