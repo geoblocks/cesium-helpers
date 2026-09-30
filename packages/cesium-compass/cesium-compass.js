@@ -1,8 +1,6 @@
 // Original code from TerriaJS
 // https://github.com/TerriaJS/terriajs/blob/master/lib/ReactViews/Map/Navigation/Compass.jsx
 
-// SVG images from https://cesium.com/ion/stories/ (with permission from Cesium)
-
 import {LitElement, css, svg, html} from 'lit';
 import {styleMap} from 'lit/directives/style-map.js';
 
@@ -17,13 +15,44 @@ const newTransformScratch = new Matrix4();
 
 const pickRayScratch = new Ray();
 
-const nominalTotalRadius = 145;
-const nominalGyroRadius = 50;
+/**
+ * Hit radius of the center gyro as a fraction of the compass radius. Deliberately larger than
+ * the drawn disc (40% of the diameter, see the `.gyro` CSS) so the orbit target stays usable
+ * on touch screens.
+ */
+const gyroHitRadiusFraction = 0.45;
 
+/**
+ * Ticks every 30 degrees, with longer ones at the cardinals. North gets the accent tip instead.
+ */
+const tickSvg = Array.from({length: 12}, (_, i) => i * 30)
+  .filter(angle => angle !== 0)
+  .map(angle => {
+    const cardinal = angle % 90 === 0;
+    return svg`<line class="tick ${cardinal ? 'cardinal' : ''}" x1="50" y1="${cardinal ? 4 : 6}" x2="50" y2="${cardinal ? 11.5 : 9.5}" transform="rotate(${angle} 50 50)"/>`;
+  });
 
-const outerRingSvg = svg`<svg height="145" width="145" viewBox="0 0 145 145"><path d="M72.5 20.219c-28.867 0-52.281 23.407-52.281 52.281s23.414 52.313 52.281 52.313c28.867 0 52.281-23.44 52.281-52.313 0-28.874-23.414-52.281-52.281-52.281zm0 1.75c13.843 0 26.369 5.558 35.5 14.562l-11.031 11 .625.625 11.031-11c8.92 9.109 14.438 21.58 14.438 35.344 0 13.765-5.518 26.227-14.438 35.344l-11.031-11-.625.625 11.031 11c-9.13 9.01-21.659 14.594-35.5 14.594-13.802 0-26.321-5.535-35.438-14.5l11.126-11.094c6.277 6.122 14.857 9.906 24.312 9.906 19.242 0 34.875-15.63 34.875-34.875 0-19.246-15.633-34.844-34.875-34.844a34.736 34.736 0 0 0-24.313 9.875L37.063 36.438c9.116-8.96 21.634-14.47 35.437-14.47ZM36.469 37.062l11.093 11.094A34.73 34.73 0 0 0 37.657 72.5c0 9.472 3.774 18.056 9.907 24.344L36.47 107.938c-8.967-9.125-14.5-21.625-14.5-35.438 0-13.813 5.533-26.32 14.5-35.438zM72.5 39.407c18.298 0 33.125 14.792 33.125 33.094S90.798 105.625 72.5 105.625c-18.298 0-33.094-14.823-33.094-33.125S54.202 39.406 72.5 39.406zM22.844 71.625v1.75h13.968v-1.75H22.845Zm85.562 0v1.75h14v-1.75zM71.75 108.25v13.938h1.719V108.25Z"/><path d="M78.408 36.705h-3.584l-5.805-10.08h-.075l.075 1.904q.056.952.093 1.904v6.272h-2.52V23.377h3.565l5.787 9.987H76q-.019-.934-.056-1.848l-.075-1.83v-6.309h2.539z"/></svg>`;
-const innerRingSvg = svg`<svg height="145" width="145" viewBox="0 0 145 145"><path d="M72.719 54.375c-.477 0-.908.245-1.219.563-.31.317-.551.701-.781 1.187-.172.363-.32.792-.469 1.25-6.916 1.076-12.313 6.657-13 13.625-.328.117-.662.245-.938.375-.485.23-.901.471-1.218.781-.317.31-.563.742-.563 1.219h.032c0 .477.245.877.562 1.188.317.31.702.582 1.188.812.355.168.771.322 1.218.469 1.371 6.1 6.421 10.834 12.719 11.812.147.447.3.863.469 1.219.23.486.47.87.781 1.188.31.317.742.562 1.219.562.476 0 .877-.245 1.187-.563.31-.317.583-.701.813-1.187.172-.363.319-.792.469-1.25 6.249-1.017 11.256-5.718 12.624-11.781.448-.147.864-.3 1.22-.469.485-.23.9-.502 1.218-.813.317-.31.563-.71.563-1.187h-.032c0-.477-.245-.909-.562-1.219-.317-.31-.702-.551-1.188-.781a9.68 9.68 0 00-.906-.375c-.685-6.922-6.052-12.496-12.906-13.625-.15-.462-.327-.885-.5-1.25a4.292 4.292 0 00-.813-1.188c-.31-.317-.71-.562-1.187-.562zm-.063 1.406c.036-.013.06 0 .063 0 .005 0 .043-.022.187.125.145.148.344.447.531.844.064.135.124.31.188.469-.32-.02-.644-.063-.969-.063-.289 0-.558.047-.844.063.064-.16.124-.334.188-.469.188-.397.356-.696.5-.844a.508.508 0 01.156-.125zm0 2.407c.448 0 .906.054 1.344.093.177.593.348 1.271.5 2.032.475 2.37.808 5.463.938 8.937-.907-.029-1.835-.063-2.782-.063-.923 0-1.802.036-2.687.063.138-3.474.493-6.567.969-8.938.154-.771.32-1.463.5-2.062a14.53 14.53 0 011.218-.063zm-2.719.28c-.13.5-.26.988-.374 1.563-.499 2.488-.839 5.694-.97 9.25-3.213.152-6.119.48-8.406.938-.682.136-1.275.28-1.843.437.799-6.135 5.504-11.036 11.593-12.187zm5.563.032c6.043 1.184 10.705 6.053 11.5 12.156-.57-.156-1.2-.302-1.875-.437-2.263-.453-5.109-.784-8.281-.938-.13-3.556-.47-6.762-.969-9.25-.113-.564-.248-1.04-.375-1.531zm-2.844 12.094c.96 0 1.896.033 2.813.062.013.612.031 1.215.031 1.844 0 1.229-.014 2.438-.063 3.594-.897.028-1.811.062-2.75.062-.927 0-1.83-.034-2.718-.062a82.244 82.244 0 01-.063-3.594c0-.629.018-1.232.031-1.844.896-.028 1.784-.062 2.72-.062zm-4.094.094c-.012.606-.03 1.19-.03 1.812 0 1.224.015 2.408.062 3.563-3.125-.15-5.921-.472-8.094-.907-.785-.157-1.511-.316-2.125-.5a14.206 14.206 0 01-.188-2.156c0-.116.029-.229.032-.344.643-.203 1.39-.39 2.25-.562 2.167-.434 4.979-.756 8.093-.906zm8.313.03c3.075.153 5.824.447 7.969.876.857.171 1.63.36 2.281.562.003.115 0 .229 0 .344 0 .736-.08 1.45-.188 2.156-.598.18-1.29.346-2.062.5-2.158.432-4.932.755-8.031.906.047-1.154.062-2.338.062-3.562 0-.612-.019-1.185-.031-1.781zm-19.719 1.844c.003.573.061 1.132.125 1.688-.125-.051-.266-.105-.375-.156-.396-.188-.665-.388-.812-.531-.147-.144-.157-.183-.157-.188 0-.005-.022-.075.126-.219.147-.144.447-.312.843-.5.071-.033.172-.06.25-.094zm31.032 0c.082.036.175.06.25.094.396.188.665.356.812.5.147.144.156.214.156.219 0 .005-.009.044-.156.188-.147.143-.416.343-.813.53-.097.047-.233.08-.343.126.062-.547.091-1.094.094-1.656zm-29.5 3.626c.479.123.983.234 1.53.343 2.303.46 5.23.787 8.47.938.167 2.843.46 5.433.874 7.5.116.575.246 1.063.376 1.562-5.464-1.028-9.834-5.092-11.25-10.344zm27.968 0C85.248 81.407 80.92 85.442 75.5 86.5c.127-.49.262-.967.375-1.531.414-2.067.708-4.657.875-7.5 3.204-.152 6.088-.48 8.375-.938.548-.11 1.052-.22 1.531-.344zM70.062 77.53c.866.026 1.724.031 2.626.031.912 0 1.782-.004 2.656-.03-.165 2.736-.454 5.207-.844 7.156-.152.76-.323 1.438-.5 2.03-.437.04-.896.063-1.344.063-.415 0-.812-.029-1.219-.062a22.698 22.698 0 01-.5-2.031c-.39-1.95-.7-4.42-.874-7.157zm1.75 10.281c.285.016.555.032.844.032.325 0 .649-.012.969-.031-.06.148-.127.31-.188.437-.187.397-.386.696-.53.844-.145.147-.183.125-.188.125-.006 0-.075.022-.219-.125-.144-.148-.312-.447-.5-.844a8.629 8.629 0 01-.188-.438z"/></svg>`;
-const rotationMarkerSvg = svg`<svg height="145" width="145" viewBox="0 0 145 145"><path d="M72.469 22.031c-12.963.02-25.947 4.973-35.781 14.844l11.156 11.094c13.678-13.729 35.599-13.742 49.281-.063l11.125-11.125c-9.848-9.846-22.818-14.769-35.781-14.75z"/></svg>`;
+/**
+ * @param {boolean} pulse
+ */
+const roseSvg = (pulse) => svg`<svg viewBox="0 0 100 100">
+  ${tickSvg}
+  <path class="north ${pulse ? 'pulse' : ''}" d="M50 2.5 L45.6 12.5 L54.4 12.5 Z"/>
+  <text class="label n" x="50" y="22">N</text>
+  <text class="label" x="78" y="50">E</text>
+  <text class="label" x="50" y="78">S</text>
+  <text class="label" x="22" y="50">W</text>
+</svg>`;
+
+/**
+ * Four chevrons around a center dot: drag in any direction to orbit.
+ */
+const gyroSvg = svg`<svg viewBox="0 0 34 34">
+  <circle class="core" cx="17" cy="17" r="2.4"/>
+  ${[0, 90, 180, 270].map(angle => svg`<path class="chevron" d="M13.2 9.2 L17 5.4 L20.8 9.2" transform="rotate(${angle} 17 17)"/>`)}
+</svg>`;
+
+const rotationMarkerSvg = svg`<svg viewBox="0 0 100 100"><path d="M33.9 10.13 A43 43 0 0 1 66.1 10.13"/></svg>`;
 
 /**
  * @typedef {Object} Context
@@ -31,6 +60,7 @@ const rotationMarkerSvg = svg`<svg height="145" width="145" viewBox="0 0 145 145
  * @property {Cartesian2} compassCenter
  * @property {Cartesian3 | undefined} viewCenter
  * @property {Matrix4} frame
+ * @property {Matrix4} frameBackup the camera transform before the gesture, restored after a reset
  * @property {number} rotateInitialCursorAngle
  * @property {number} rotateInitialCameraAngle
  * @property {boolean} orbitIsLook
@@ -46,6 +76,8 @@ export default class CesiumCompass extends LitElement {
       clock: {type: Object},
       ready: {type: Boolean},
       heading: {type: Number},
+      northPulse: {type: Boolean},
+      dragging: {type: String, reflect: true},
       orbitCursorAngle: {type: Number},
       orbitCursorOpacity: {type: Number},
       resetSpeed: {type: Number},
@@ -56,52 +88,152 @@ export default class CesiumCompass extends LitElement {
   static get styles() {
     return css`
       :host {
-        --cesium-compass-stroke-color: rgba(0, 0, 0, 0.6);
-        --cesium-compass-fill-color: rgb(224, 225, 226);
+        --cesium-compass-fill-color: rgba(0, 0, 0, 0.6);
+        --cesium-compass-stroke-color: rgb(224, 225, 226);
+        --cesium-compass-north-color: rgb(233, 84, 64);
+        --cesium-compass-size: 70px;
+
+        display: block;
+        width: var(--cesium-compass-size);
+        height: var(--cesium-compass-size);
+        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        color: var(--cesium-compass-stroke-color);
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
       }
       :host * {
-        box-sizing: content-box;
+        box-sizing: border-box;
       }
       .compass {
-        position: absolute;
-        right: 0;
-        top: 0;
-        width: 95px;
-        height: 95px;
-        cursor: pointer;
-      }
-      .outer-ring-background {
-        position: absolute;
-        top: 14px;
-        left: 14px;
-        width: 44px;
-        height: 44px;
-        border-radius: 100%;
-        border: 12px solid var(--cesium-compass-fill-color);
-      }
-      .inner-ring-background {
-        position: absolute;
-        top: 30px;
-        left: 30px;
-        width: 33px;
-        height: 33px;
-        border-radius: 100%;
-        background-color: var(--cesium-compass-fill-color);
-        border: 1px solid var(--cesium-compass-stroke-color);
-      }
-      .rotation-marker, .outer-ring {
-        will-change: opacity, transform;
-      }
-      .rotation-marker, .outer-ring, .inner-ring {
-        position: absolute;
-        top: 0;
-        width: 95px;
-        height: 95px;
-        fill: var(--cesium-compass-stroke-color);
-      }
-      .rotation-marker svg, .outer-ring svg, .inner-ring svg {
+        position: relative;
         width: 100%;
         height: 100%;
+        touch-action: none;
+      }
+      .face {
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        background: var(--cesium-compass-fill-color);
+        -webkit-backdrop-filter: blur(6px);
+        backdrop-filter: blur(6px);
+        box-shadow:
+          inset 0 0 0 1px rgba(255, 255, 255, 0.15),
+          0 2px 8px rgba(0, 0, 0, 0.35);
+      }
+      .ring {
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        cursor: grab;
+        transition: background-color 150ms ease;
+      }
+      .ring:hover, :host([dragging="rotate"]) .ring {
+        background-color: rgba(255, 255, 255, 0.06);
+      }
+      :host([dragging="rotate"]) .ring {
+        cursor: grabbing;
+      }
+      .rose {
+        position: absolute;
+        inset: 0;
+        will-change: transform;
+        pointer-events: none;
+        transition: transform 80ms linear;
+      }
+      /* the ring must follow the cursor without lag while a gesture drives the camera */
+      :host(:not([dragging=""])) .rose {
+        transition: none;
+      }
+      .rose .tick {
+        stroke: currentColor;
+        stroke-width: 1.2;
+        stroke-linecap: round;
+        opacity: 0.45;
+      }
+      .rose .tick.cardinal {
+        stroke-width: 1.8;
+        opacity: 0.9;
+      }
+      .rose .north {
+        fill: var(--cesium-compass-north-color);
+        transform-origin: 50px 9px;
+        transform-box: view-box;
+      }
+      .rose .north.pulse {
+        animation: north-pulse 450ms ease-out;
+      }
+      @keyframes north-pulse {
+        0% { transform: scale(1); }
+        35% { transform: scale(1.6); filter: brightness(1.4); }
+        100% { transform: scale(1); }
+      }
+      .rose .label {
+        fill: currentColor;
+        font-size: 7.5px;
+        font-weight: 300;
+        opacity: 0.55;
+        text-anchor: middle;
+        dominant-baseline: central;
+        letter-spacing: 0.02em;
+      }
+      .rose .label.n {
+        font-size: 10px;
+        font-weight: 700;
+        opacity: 1;
+      }
+      .gyro {
+        position: absolute;
+        left: 30%;
+        top: 30%;
+        width: 40%;
+        height: 40%;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.10);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18), 0 1px 3px rgba(0, 0, 0, 0.3);
+        cursor: move;
+        transition: background-color 150ms ease;
+      }
+      .gyro:hover, :host([dragging="orbit"]) .gyro {
+        background: rgba(255, 255, 255, 0.22);
+      }
+      .gyro .core {
+        fill: currentColor;
+      }
+      .gyro .chevron {
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        opacity: 0.85;
+      }
+      .rotation-marker {
+        position: absolute;
+        inset: 0;
+        will-change: opacity, transform;
+        pointer-events: none;
+        transition: opacity 120ms ease;
+      }
+      .rotation-marker path {
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 4;
+        stroke-linecap: round;
+      }
+      svg {
+        display: block;
+        width: 100%;
+        height: 100%;
+        overflow: visible;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .ring, .gyro, .rotation-marker, .rose {
+          transition: none;
+        }
+        .rose .north.pulse {
+          animation: none;
+        }
       }
     `;
   }
@@ -132,6 +264,35 @@ export default class CesiumCompass extends LitElement {
     this.resetSpeed = Math.PI / 100;
 
     /**
+     * Which gesture is in progress, mirrored to the `dragging` attribute for styling.
+     * @type {'' | 'rotate' | 'orbit'}
+     */
+    this.dragging = '';
+
+    /**
+     * Heading unwrapped to a continuous value, so the CSS transition on the rose never
+     * takes the long way round when the camera crosses north.
+     * @type {number}
+     */
+    this.displayHeading = 0;
+
+    /**
+     * True for a moment after a reset finished, to flash the north tip.
+     * @type {boolean}
+     */
+    this.northPulse = false;
+
+    /**
+     * @type {number}
+     */
+    this.animationFrame = 0;
+
+    /**
+     * @type {ReturnType<typeof setTimeout> | undefined}
+     */
+    this.northPulseTimeout = undefined;
+
+    /**
      * @type {boolean}
      */
     this.rotateClick = false;
@@ -152,6 +313,11 @@ export default class CesiumCompass extends LitElement {
     this.orbitCursorOpacity = 0;
     this.orbitCursorAngle = 0;
 
+    /**
+     * @type {number}
+     */
+    this.heading = 0;
+
     this.handleRotatePointerMoveFunction = this.handleRotatePointerMove.bind(this);
     this.handleRotatePointerUpFunction = this.handleRotatePointerUp.bind(this);
 
@@ -166,18 +332,20 @@ export default class CesiumCompass extends LitElement {
   }
 
   /** @override */
-  updated() {
+  willUpdate() {
     if (this.scene && this.clock && !this.unlistenFromPostRender) {
       this.unlistenFromPostRender = this.scene.postRender.addEventListener(() => {
-        this.heading = this.scene.camera.heading;
+        const heading = this.scene.camera.heading;
+        this.displayHeading += CesiumMath.negativePiToPi(heading - this.heading);
+        this.heading = heading;
       });
       this.ready = true;
     }
   }
 
-  get outerRingStyle() {
+  get roseStyle() {
     return {
-      transform: `rotate(-${this.heading}rad)`
+      transform: `rotate(${-this.displayHeading}rad)`
     };
   }
 
@@ -188,8 +356,21 @@ export default class CesiumCompass extends LitElement {
     };
   }
 
+  /**
+   * Cursor position relative to the compass center.
+   * @param {PointerEvent} event
+   * @return {Cartesian2}
+   */
+  cursorVector(event) {
+    clickLocationScratch.x = event.clientX - this.context.compassRectangle.left;
+    clickLocationScratch.y = event.clientY - this.context.compassRectangle.top;
+    return Cartesian2.subtract(clickLocationScratch, this.context.compassCenter, vectorScratch);
+  }
+
   /** @override */
   disconnectedCallback() {
+    this.cancelAnimation();
+    clearTimeout(this.northPulseTimeout);
     if (this.unlistenFromPostRender) {
       this.unlistenFromPostRender();
     }
@@ -205,6 +386,7 @@ export default class CesiumCompass extends LitElement {
    * @param {PointerEvent} event
    */
   handlePointerDown(event) {
+    this.cancelAnimation();
     const camera = this.scene.camera;
     const compassElement = /** @type {HTMLDivElement} */ (event.currentTarget);
     this.context.compassRectangle = compassElement.getBoundingClientRect();
@@ -212,9 +394,7 @@ export default class CesiumCompass extends LitElement {
       (this.context.compassRectangle.right - this.context.compassRectangle.left) / 2,
       (this.context.compassRectangle.bottom - this.context.compassRectangle.top) / 2
     );
-    clickLocationScratch.x = event.clientX - this.context.compassRectangle.left;
-    clickLocationScratch.y = event.clientY - this.context.compassRectangle.top;
-    const vector = Cartesian2.subtract(clickLocationScratch, this.context.compassCenter, vectorScratch);
+    const vector = this.cursorVector(event);
     const distanceFromCenter = Cartesian2.magnitude(vector);
 
     windowPositionScratch.x = this.scene.canvas.clientWidth / 2;
@@ -222,6 +402,7 @@ export default class CesiumCompass extends LitElement {
     camera.getPickRay(windowPositionScratch, pickRayScratch);
     this.context.viewCenter = this.scene.globe.pick(pickRayScratch, this.scene, centerScratch);
 
+    this.context.frameBackup = Matrix4.clone(camera.transform, this.context.frameBackup || new Matrix4());
     this.context.frame = Transforms.eastNorthUpToFixedFrame(
       this.context.viewCenter ? this.context.viewCenter : camera.positionWC,
       Ellipsoid.WGS84,
@@ -231,7 +412,7 @@ export default class CesiumCompass extends LitElement {
     const maxDistance = this.context.compassRectangle.width / 2;
     const distanceFraction = distanceFromCenter / maxDistance;
 
-    if (distanceFraction < nominalGyroRadius / nominalTotalRadius) {
+    if (distanceFraction < gyroHitRadiusFraction) {
       this.orbit(vector);
     } else if (distanceFraction < 1) {
       this.rotate(vector);
@@ -255,6 +436,7 @@ export default class CesiumCompass extends LitElement {
     camera.lookAtTransform(oldTransform);
 
     this.rotateClick = true;
+    this.dragging = 'rotate';
 
     document.addEventListener('pointermove', this.handleRotatePointerMoveFunction, false);
     document.addEventListener('pointerup', this.handleRotatePointerUpFunction, false);
@@ -268,9 +450,7 @@ export default class CesiumCompass extends LitElement {
       return;
     }
     const camera = this.scene.camera;
-    clickLocationScratch.x = event.clientX - this.context.compassRectangle.left;
-    clickLocationScratch.y = event.clientY - this.context.compassRectangle.top;
-    const vector = Cartesian2.subtract(clickLocationScratch, this.context.compassCenter, vectorScratch);
+    const vector = this.cursorVector(event);
     const angle = Math.atan2(-vector.y, vector.x);
 
     const angleDifference = angle - this.context.rotateInitialCursorAngle;
@@ -290,37 +470,114 @@ export default class CesiumCompass extends LitElement {
   handleRotatePointerUp() {
     document.removeEventListener('pointermove', this.handleRotatePointerMoveFunction, false);
     document.removeEventListener('pointerup', this.handleRotatePointerUpFunction, false);
+    this.dragging = '';
 
     if (this.rotateClick) {
+      this.handleRingClick();
+    }
+  }
+
+  /**
+   * A click on the ring faces north; a second click, when already facing north, goes top-down.
+   */
+  handleRingClick() {
+    if (Math.abs(CesiumMath.negativePiToPi(this.scene.camera.heading)) < CesiumMath.toRadians(1)) {
+      this.resetToTopDown();
+    } else {
       this.resetToNorth();
     }
   }
 
+  /**
+   * @param {MouseEvent} event
+   */
+  handleGyroDoubleClick(event) {
+    event.stopPropagation();
+    event.preventDefault();
+    this.resetToTopDown();
+  }
+
   resetToNorth() {
     const camera = this.scene.camera;
-    const oldTransform = Matrix4.clone(camera.transform, new Matrix4());
     camera.lookAtTransform(this.context.frame);
-    const newCameraAngle = CesiumMath.negativePiToPi(
+    const angle = CesiumMath.negativePiToPi(
       CesiumMath.PI_OVER_TWO + Math.atan2(camera.position.y, camera.position.x)
     );
-    const duration = Math.abs(newCameraAngle) / this.resetSpeed;
+    this.animateInFrame(angle, delta => camera.rotateLeft(delta));
+  }
+
+  /**
+   * Animates the camera to look straight down. Orbits around the view center when there is
+   * one, otherwise tilts the camera in place.
+   */
+  resetToTopDown() {
+    const camera = this.scene.camera;
+    if (this.context.viewCenter) {
+      camera.lookAtTransform(this.context.frame);
+      const p = camera.position;
+      const elevation = Math.atan2(p.z, Math.hypot(p.x, p.y));
+      this.animateInFrame(CesiumMath.PI_OVER_TWO - elevation, delta => camera.rotateDown(delta));
+    } else {
+      const angle = -CesiumMath.PI_OVER_TWO - camera.pitch;
+      this.animateInFrame(angle, delta => camera.lookUp(delta), false);
+    }
+  }
+
+  /**
+   * Spreads `angle` over successive frames at `resetSpeed`, calling `apply` with each increment.
+   * The camera is expected to already be in the frame; the previous transform is restored at the end.
+   * @param {number} angle
+   * @param {(delta: number) => void} apply
+   * @param {boolean} [inFrame=true] whether `lookAtTransform(frame)` was applied before calling
+   */
+  animateInFrame(angle, apply, inFrame = true) {
+    const camera = this.scene.camera;
+    const oldTransform = inFrame ? Matrix4.clone(this.context.frameBackup, new Matrix4()) : undefined;
+    const duration = Math.abs(angle) / this.resetSpeed;
 
     let prevProgress = 0;
     const start = performance.now();
-    const step = () => {
-      const elapsed = performance.now() - start;
-      const progress = CesiumMath.clamp(elapsed / duration, 0, 1);
-
-      camera.rotateLeft((progress - prevProgress) * newCameraAngle);
-
-      prevProgress = progress;
-      if (progress < 1) {
-        window.requestAnimationFrame(step);
-      } else {
+    const finish = () => {
+      if (oldTransform) {
         camera.lookAtTransform(oldTransform);
       }
+      this.animationFrame = 0;
+      this.flashNorth();
     };
-    window.requestAnimationFrame(step);
+    const step = () => {
+      const elapsed = performance.now() - start;
+      const progress = duration > 0 ? CesiumMath.clamp(elapsed / duration, 0, 1) : 1;
+      apply((progress - prevProgress) * angle);
+      prevProgress = progress;
+      if (progress < 1) {
+        this.animationFrame = window.requestAnimationFrame(step);
+      } else {
+        finish();
+      }
+    };
+    if (duration === 0) {
+      finish();
+      return;
+    }
+    this.animationFrame = window.requestAnimationFrame(step);
+  }
+
+  cancelAnimation() {
+    if (this.animationFrame) {
+      window.cancelAnimationFrame(this.animationFrame);
+      this.animationFrame = 0;
+      this.scene.camera.lookAtTransform(this.context.frameBackup);
+    }
+  }
+
+  flashNorth() {
+    clearTimeout(this.northPulseTimeout);
+    this.northPulse = false;
+    // let Lit render the class removal before adding it again, so a second flash restarts
+    requestAnimationFrame(() => {
+      this.northPulse = true;
+      this.northPulseTimeout = setTimeout(() => { this.northPulse = false; }, 500);
+    });
   }
 
   /**
@@ -329,6 +586,7 @@ export default class CesiumCompass extends LitElement {
   orbit(cursorVector) {
     this.context.orbitIsLook = !this.context.viewCenter;
     this.context.orbitLastTimestamp = performance.now();
+    this.dragging = 'orbit';
 
     document.addEventListener('pointermove', this.handleOrbitPointerMoveFunction, false);
     document.addEventListener('pointerup', this.handleOrbitPointerUpFunction, false);
@@ -405,11 +663,8 @@ export default class CesiumCompass extends LitElement {
    * @param {PointerEvent} event
    */
   handleOrbitPointerMove(event) {
-    clickLocationScratch.x = event.clientX - this.context.compassRectangle.left;
-    clickLocationScratch.y = event.clientY - this.context.compassRectangle.top;
-    const cursorVector = Cartesian2.subtract(clickLocationScratch, this.context.compassCenter, vectorScratch);
+    const cursorVector = this.cursorVector(event);
     this.updateAngleAndOpacity(cursorVector, this.context.compassRectangle.width);
-
   }
 
   handleOrbitPointerUp() {
@@ -418,6 +673,7 @@ export default class CesiumCompass extends LitElement {
     if (this.unlistenFromClockTick) {
       this.unlistenFromClockTick();
     }
+    this.dragging = '';
     this.orbitCursorOpacity = 0;
   }
 
@@ -426,10 +682,10 @@ export default class CesiumCompass extends LitElement {
     if (this.ready) {
       return html`
         <div class="compass" @pointerdown=${this.handlePointerDown}>
-          <div class="outer-ring-background"></div>
-          <div class="outer-ring" style=${styleMap(this.outerRingStyle)}>${outerRingSvg}</div>
-          <div class="inner-ring-background"></div>
-          <div class="inner-ring">${innerRingSvg}</div>
+          <div class="face"></div>
+          <div class="ring" role="button" aria-label="Rotate the view, click to face north"></div>
+          <div class="rose" style=${styleMap(this.roseStyle)}>${roseSvg(this.northPulse)}</div>
+          <div class="gyro" role="button" aria-label="Orbit the view, double-click to look down" @dblclick=${this.handleGyroDoubleClick}>${gyroSvg}</div>
           <div class="rotation-marker" style=${styleMap(this.rotationMarkerStyle)}>${rotationMarkerSvg}</div>
         </div>
       `;
