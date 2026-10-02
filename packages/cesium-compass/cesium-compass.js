@@ -53,7 +53,14 @@ const gyroSvg = svg`<svg viewBox="0 0 34 34">
   ${[0, 90, 180, 270].map(angle => svg`<path class="chevron" d="M13.2 9.2 L17 5.4 L20.8 9.2" transform="rotate(${angle} 17 17)"/>`)}
 </svg>`;
 
-const rotationMarkerSvg = svg`<svg viewBox="0 0 100 100"><path d="M33.9 10.13 A43 43 0 0 1 66.1 10.13"/></svg>`;
+/**
+ * @param {number} halfAngle Half of the arc angle, in radians.
+ */
+const rotationMarkerSvg = halfAngle => {
+  const dx = 43 * Math.sin(halfAngle);
+  const y = 50 - 43 * Math.cos(halfAngle);
+  return svg`<svg viewBox="0 0 100 100"><path d="M${50 - dx} ${y} A43 43 0 0 1 ${50 + dx} ${y}"/></svg>`;
+};
 
 /**
  * @typedef {Object} Context
@@ -348,6 +355,11 @@ export default class CesiumCompass extends LitElement {
     return {
       transform: `rotate(${-this.displayHeading}rad)`
     };
+  }
+
+  get rotationMarkerHalfAngle() {
+    const fraction = (this.orbitCursorOpacity - 0.5) * 2;
+    return CesiumMath.toRadians(16 + 12 * fraction);
   }
 
   get rotationMarkerStyle() {
@@ -688,7 +700,7 @@ export default class CesiumCompass extends LitElement {
           <div class="ring" role="button" aria-label="Rotate the view, click to face north"></div>
           <div class="rose" style=${styleMap(this.roseStyle)}>${roseSvg(this.northPulse)}</div>
           <div class="gyro" role="button" aria-label="Orbit the view, double-click to look down" @dblclick=${this.handleGyroDoubleClick}>${gyroSvg}</div>
-          <div class="rotation-marker" style=${styleMap(this.rotationMarkerStyle)}>${rotationMarkerSvg}</div>
+          <div class="rotation-marker" style=${styleMap(this.rotationMarkerStyle)}>${rotationMarkerSvg(this.rotationMarkerHalfAngle)}</div>
         </div>
       `;
     } else {
