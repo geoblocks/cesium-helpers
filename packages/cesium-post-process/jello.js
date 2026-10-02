@@ -1,4 +1,5 @@
-import {Cartesian4, PostProcessStage} from '@cesium/engine';
+import {Cartesian4} from '@cesium/core';
+import {PostProcessStage} from '@cesium/engine';
 import Effect from './effect.js';
 import {acquireFrames, releaseFrames} from './frame-clock.js';
 import JelloShader from './shaders/Jello.js';

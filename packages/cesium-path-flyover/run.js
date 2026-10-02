@@ -1,4 +1,4 @@
-import {Math as CesiumMath} from "@cesium/engine";
+import {Math as CesiumMath} from "@cesium/core";
 import {sampleProfile} from "./planner.js";
 
 /**

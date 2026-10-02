@@ -1,9 +1,11 @@
 import {
-  ScreenSpaceEventType,
   Math as CesiumMath,
   Cartesian3,
   Cartesian2,
   Ray,
+} from "@cesium/core";
+import {
+  ScreenSpaceEventType,
 } from "@cesium/engine";
 
 const look3DStartPos = new Cartesian2();

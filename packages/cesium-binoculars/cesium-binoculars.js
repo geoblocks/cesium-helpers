@@ -1,12 +1,14 @@
 import {
-  CameraEventType,
   Cartesian2,
   Cartesian3,
+  Math as CesiumMath,
+} from "@cesium/core";
+import {
+  CameraEventType,
   PostProcessStage,
   PostProcessStageComposite,
   PostProcessStageLibrary,
   ScreenSpaceEventType,
-  Math as CesiumMath,
 } from "@cesium/engine";
 import EyeFromDepth from "./shaders/EyeFromDepth.js";
 import Lens from "./shaders/Lens.js";
@@ -154,7 +156,7 @@ export default class CesiumBinoculars {
   }
 
   get frustum_() {
-    return /** @type {import('@cesium/engine').PerspectiveFrustum} */ (this.viewer.scene.camera.frustum);
+    return /** @type {import('@cesium/core').PerspectiveFrustum} */ (this.viewer.scene.camera.frustum);
   }
 
   /**

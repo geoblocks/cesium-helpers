@@ -1,4 +1,5 @@
-import {Cartesian4, PostProcessStage} from '@cesium/engine';
+import {Cartesian4} from '@cesium/core';
+import {PostProcessStage} from '@cesium/engine';
 import {acquireTerrainDepth, releaseTerrainDepth} from './depth-test.js';
 import Effect from './effect.js';
 import {eyeFocus} from './focus.js';

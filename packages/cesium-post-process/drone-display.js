@@ -1,4 +1,5 @@
-import {Math as CesiumMath, PostProcessStage} from '@cesium/engine';
+import {Math as CesiumMath} from '@cesium/core';
+import {PostProcessStage} from '@cesium/engine';
 import Effect from './effect.js';
 import DroneDisplayShader from './shaders/DroneDisplay.js';
 

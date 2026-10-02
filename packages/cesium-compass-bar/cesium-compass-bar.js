@@ -96,7 +96,7 @@ export default class CesiumCompassBar extends LitElement {
     this.heading = 0;
 
     /**
-     * @type {import('@cesium/engine').Event.RemoveCallback | null}
+     * @type {import('@cesium/core').Event.RemoveCallback | null}
      */
     this.unlistenFromPostRender = null;
 

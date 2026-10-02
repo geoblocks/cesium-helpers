@@ -87,7 +87,7 @@ export default class CesiumViewCube extends LitElement {
     this.cubeElement = undefined;
 
     /**
-     * @type {import('@cesium/engine').Event.RemoveCallback | null}
+     * @type {import('@cesium/core').Event.RemoveCallback | null}
      */
     this.unlistenPostRender = null;
   }

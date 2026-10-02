@@ -1,6 +1,6 @@
 // FIXME: make key bindings configurable, add arrow keys
 
-import {Cartesian3, Math as CesiumMath} from "@cesium/engine";
+import {Cartesian3, Math as CesiumMath} from "@cesium/core";
 
 const normalScratch = new Cartesian3();
 const forwardScratch = new Cartesian3();
@@ -148,7 +148,7 @@ export default class CesiumWalk {
   }
 
   /**
-   * @return {import('@cesium/engine').Cartesian3} The ellipsoid surface normal at the camera position.
+   * @return {import('@cesium/core').Cartesian3} The ellipsoid surface normal at the camera position.
    */
   surfaceNormal() {
     const scene = this.viewer.scene;

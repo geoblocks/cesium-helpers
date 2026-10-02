@@ -1,6 +1,14 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {Cartesian3, Cartographic, CatmullRomSpline, Ellipsoid, EllipsoidTerrainProvider, GeographicTilingScheme, KeyboardEventModifier, Math as CesiumMath, Matrix4, SceneMode, ScreenSpaceEventType, Transforms} from "@cesium/engine";
+import {Cartesian3, Cartographic, CatmullRomSpline, Ellipsoid, Math as CesiumMath, Matrix4} from "@cesium/core";
+import {
+  EllipsoidTerrainProvider,
+  GeographicTilingScheme,
+  KeyboardEventModifier,
+  SceneMode,
+  ScreenSpaceEventType,
+  Transforms,
+} from "@cesium/engine";
 import CesiumPathFlyover from "./cesium-path-flyover.js";
 import {easedProgress} from "./track.js";
 import {sampleProfile} from "./planner.js";
