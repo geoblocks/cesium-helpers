@@ -30,7 +30,13 @@ export default class CesiumCompassBar extends LitElement {
       .container {
         height: 100%;
         overflow: hidden;
+        cursor: grab;
+        touch-action: none;
+        user-select: none;
         mask-image: linear-gradient(to right, transparent, #000 15%, #000 85%, transparent);
+      }
+      .container.dragging {
+        cursor: grabbing;
       }
       .compass-bar {
         display: flex;
@@ -101,6 +107,46 @@ export default class CesiumCompassBar extends LitElement {
     this.unlistenFromPostRender = null;
 
     this.resizeObserver = new ResizeObserver(() => this.measure());
+
+    /**
+     * @type {{pointerId: number, x: number, heading: number} | null}
+     */
+    this.drag = null;
+  }
+
+  /**
+   * @param {PointerEvent} event
+   */
+  onPointerDown(event) {
+    if (!this.scene || event.button !== 0) {
+      return;
+    }
+    /** @type {HTMLElement} */ (event.currentTarget).setPointerCapture(event.pointerId);
+    this.drag = { pointerId: event.pointerId, x: event.clientX, heading: this.scene.camera.heading };
+    this.requestUpdate();
+  }
+
+  /**
+   * @param {PointerEvent} event
+   */
+  onPointerMove(event) {
+    if (!this.drag || event.pointerId !== this.drag.pointerId || this.intercardinalWidth <= 0) {
+      return;
+    }
+    // the tape follows the pointer, so dragging right decreases the heading
+    const heading = this.drag.heading - ((event.clientX - this.drag.x) / this.intercardinalWidth) * (Math.PI / 4);
+    const camera = this.scene.camera;
+    camera.setView({ orientation: { heading, pitch: camera.pitch, roll: camera.roll } });
+  }
+
+  /**
+   * @param {PointerEvent} event
+   */
+  onPointerEnd(event) {
+    if (this.drag && event.pointerId === this.drag.pointerId) {
+      this.drag = null;
+      this.requestUpdate();
+    }
   }
 
   /** @override */
@@ -167,7 +213,13 @@ export default class CesiumCompassBar extends LitElement {
       `);
     }
     return html`
-      <div class="container">
+      <div
+        class="container ${this.drag ? 'dragging' : ''}"
+        @pointerdown=${this.onPointerDown}
+        @pointermove=${this.onPointerMove}
+        @pointerup=${this.onPointerEnd}
+        @pointercancel=${this.onPointerEnd}
+      >
         <div class="compass-bar" style="transform: translateX(${offset}px)">${cells}</div>
       </div>
       <div class="center-tick" part="center-tick"></div>
