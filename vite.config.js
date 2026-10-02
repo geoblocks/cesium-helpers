@@ -38,6 +38,7 @@ export default defineConfig({
         'cesium-sphere-camera': resolve(__dirname, 'demos/cesium-sphere-camera.html'),
         'cesium-view-cube': resolve(__dirname, 'demos/cesium-view-cube.html'),
         'cesium-walk': resolve(__dirname, 'demos/cesium-walk.html'),
+        'flyover-studio': resolve(__dirname, 'demos/flyover-studio.html'),
       },
     },
   },

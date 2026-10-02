@@ -223,7 +223,7 @@ test("the points are the track's positions once loaded, undefined before", async
   }
 });
 
-test("the name, the times and the marker's distance follow the loaded track", async () => {
+test("the name, the times and the marker's distance follow the loaded track, the distance can be set", async () => {
   const viewer = fakeViewer();
   Object.assign(viewer.scene, {
     ellipsoid: Ellipsoid.WGS84,
@@ -252,6 +252,9 @@ test("the name, the times and the marker's distance follow the loaded track", as
     assert.equal(flyover.distance, 0);
     flyover.progress = 1;
     assert.ok(Math.abs(flyover.distance - 222) < 2, `distance ${flyover.distance}`);
+    flyover.distance = 100;
+    assert.ok(Math.abs(flyover.distance - 100) < 1e-6, `distance ${flyover.distance}`);
+    assert.ok(flyover.progress > 0 && flyover.progress < 1);
   } finally {
     globalThis.fetch = fetch;
   }

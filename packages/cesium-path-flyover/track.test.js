@@ -1,7 +1,7 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
 import {Cartesian3, Cartographic, Ellipsoid} from "@cesium/core";
-import {damp, dampAngle, decimate, easedProgress, fetchTrackText, forwardHeading, parseTrack, parseTrackName, breathe} from "./track.js";
+import {damp, dampAngle, decimate, easedProgress, easedProgressInverse, fetchTrackText, forwardHeading, parseTrack, parseTrackName, breathe} from "./track.js";
 
 const gpx = `<?xml version="1.0"?>
 <gpx><trk><trkseg>
@@ -157,6 +157,19 @@ test("easedProgress starts slowly and runs at constant speed in the middle", () 
 
 test("easedProgress with no ramp is linear", () => {
   assert.ok(Math.abs(easedProgress(0.3, 0) - 0.3) < 1e-12);
+});
+
+test("easedProgressInverse gives back the time fraction, in the ramps and between", () => {
+  for (const ramp of [0, 0.1, 0.2, 0.5]) {
+    for (let u = 0; u <= 1; u += 0.05) {
+      const back = easedProgressInverse(easedProgress(u, ramp), ramp);
+      assert.ok(Math.abs(back - u) < 1e-9, `ramp ${ramp}, u ${u}: ${back}`);
+    }
+  }
+  // the speed falls to nothing at the ends, where the path fraction is what must come back
+  for (const p of [0, 1e-6, 1 - 1e-6, 1]) {
+    assert.ok(Math.abs(easedProgress(easedProgressInverse(p, 0.2), 0.2) - p) < 1e-9, `p ${p}`);
+  }
 });
 
 test("breathe is a slow, bounded, seeded drift", () => {

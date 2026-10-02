@@ -22,7 +22,7 @@ import {
   Transforms,
 } from "@cesium/engine";
 import FreeLook from "./free-look.js";
-import {breathe, dampAngle, decimate, easedProgress, fetchTrackText, forwardHeading, parseTrack, parseTrackName} from "./track.js";
+import {breathe, dampAngle, decimate, easedProgress, easedProgressInverse, fetchTrackText, forwardHeading, parseTrack, parseTrackName} from "./track.js";
 import TerrainSampler from "./terrain.js";
 import {SAMPLE_SPACING, cameraOffsetEnu, curvature, gaussianSmooth, planCamera, reliefProfile, sampleProfile, smoothPositions} from "./planner.js";
 import {deriveRun} from "./run.js";
@@ -505,10 +505,20 @@ export default class CesiumPathFlyover {
 
   /**
    * Distance of the marker along the track in meters, undefined before a track is loaded.
+   * Setting it moves the run there, as setting the progress does.
    * @return {number | undefined}
    */
   get distance() {
     return this.spline_ ? easedProgress(this.t_, EASE_SECONDS / this.duration) * this.totalLength_ : undefined;
+  }
+
+  /**
+   * @param {number} value
+   */
+  set distance(value) {
+    if (this.spline_) {
+      this.progress = easedProgressInverse(value / this.totalLength_, EASE_SECONDS / this.duration);
+    }
   }
 
   /**
