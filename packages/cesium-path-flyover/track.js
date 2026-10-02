@@ -252,3 +252,24 @@ export function easedProgress(u, ramp) {
   }
   return distance / total;
 }
+
+/**
+ * Inverse of easedProgress: the time fraction at which a path fraction is reached.
+ * @param {number} p path fraction in [0, 1]
+ * @param {number} ramp fraction of the time spent in each ramp, at most 0.5
+ * @return {number} time fraction in [0, 1]
+ */
+export function easedProgressInverse(p, ramp) {
+  // easedProgress rises steadily, a bisection finds the time without solving the ramps' quartic
+  let low = 0;
+  let high = 1;
+  for (let i = 0; i < 50; i++) {
+    const middle = (low + high) / 2;
+    if (easedProgress(middle, ramp) < p) {
+      low = middle;
+    } else {
+      high = middle;
+    }
+  }
+  return (low + high) / 2;
+}

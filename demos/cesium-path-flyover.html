@@ -221,7 +221,7 @@
     import CesiumPathFlyover from '../packages/cesium-path-flyover/cesium-path-flyover.js';
     import FlyoverCaptions from './flyover-captions.js';
     import {AnalogVideo, DigitalVideo, DroneDisplay, Jello, MotionBlur} from '../packages/cesium-post-process/cesium-post-process.js';
-    import {BufferTarget, CanvasSource, Mp4OutputFormat, Output} from 'mediabunny';
+    import {exportFlyover} from './flyover-export.js';
     import '@awesome.me/webawesome/dist/styles/webawesome.css';
     import '@awesome.me/webawesome/dist/components/card/card.js';
     import '@awesome.me/webawesome/dist/components/dialog/dialog.js';
@@ -524,29 +524,12 @@
         exportDialog.classList.toggle('running', view === 'running');
       };
       const remaining = (seconds) => (seconds < 60 ? `about ${Math.max(5, Math.round(seconds / 5) * 5)} s left` : `about ${Math.round(seconds / 60)} min left`);
-      // a turn of the event loop, for the tile requests and the terrain workers to answer.
-      // Not a timer: a tab left in the background gets its timers once a second, then once
-      // a minute, and an export runs for minutes in a tab the user leaves
-      const channel = new MessageChannel();
-      const yieldToBrowser = () => new Promise((resolve) => {
-        channel.port1.onmessage = resolve;
-        channel.port2.postMessage(undefined);
-      });
-      // the run is exported frame by frame: each frame waits for every tile in view, so
-      // nothing is real time; the effects run on wall time and are left out. The frames
-      // render as the live view does, without multisampling or HDR: the video compression
-      // hides what they add, and their GPU work held the frames' copy to the encoder.
-      // The dialog stays open with the progress until the file is out, or the error;
-      // its cancel button stops the run
-      let cancelled = false;
-      // after each frame, the view this far ahead on the run is rendered once, uncaptured,
-      // so its tiles are requested while the next frames render and encode instead of
-      // when they come into view: half the export time on a cold tile cache. Further
-      // ahead brings nothing more, nearer a little less
-      const LOOK_AHEAD = 1;
+      // the run is exported frame by frame by flyover-export.js; the effects run on wall time
+      // and are left out. The dialog stays open with the progress until the file is out, or
+      // the error; its cancel button stops the run
+      let controller;
       const exportVideo = async () => {
         setState('exporting');
-        cancelled = false;
         exportError.hidden = true;
         exportProgress.value = 0;
         exportProgress.textContent = '0%';
@@ -554,73 +537,38 @@
         showView('running');
         const [width, height] = videoSize();
         const fps = +video.fps;
-        const scene = viewer.scene;
-        const globe = scene.globe;
-        const controller = scene.screenSpaceCameraController;
-        const saved = {cache: globe.tileCacheSize, inputs: controller.enableInputs, blur: motionBlur.active, drone: droneSwitch.checked};
-        globe.tileCacheSize = 5000;
-        // a drag on the map between two frames would move the camera of the next one
-        controller.enableInputs = false;
-        // the widget's own loop renders every animation frame while the camera moves: that
-        // is nearly three renders per exported frame, all wasted, and the frame's copy to
-        // the encoder waits behind them on the GPU
-        viewer.useDefaultRenderLoop = false;
+        const saved = {blur: motionBlur.active, drone: droneSwitch.checked};
         motionBlur.active = false;
         setDrone(false);
         document.body.style.setProperty('--video-width', `${width}px`);
         document.body.style.setProperty('--video-height', `${height}px`);
         document.body.classList.add('exporting');
-        viewer.resize();
-        const output = new Output({format: new Mp4OutputFormat(), target: new BufferTarget()});
-        // each frame is the map with the captions over it
-        const frame = Object.assign(document.createElement('canvas'), {width: scene.canvas.width, height: scene.canvas.height});
-        const context = frame.getContext('2d');
-        // 0.4 bit per pixel and frame: 6 Mbit/s at 540x960 and 30 fps
-        const source = new CanvasSource(frame, {codec: 'avc', bitrate: Math.round(0.4 * width * height * fps), keyFrameInterval: 2});
-        output.addVideoTrack(source, {frameRate: fps});
+        controller = new AbortController();
         try {
-          await output.start();
           await captionsLoaded;
-          const frames = Math.round(fps * flyover.duration);
-          const started = performance.now();
-          for (let k = 0; k < frames && !cancelled; k++) {
-            const percent = Math.floor((100 * k) / frames);
-            exportProgress.value = percent;
-            exportProgress.textContent = `${percent}%`;
-            // the time per frame so far, over the frames left; the first frames load the most
-            const perFrame = (performance.now() - started) / 1000 / k;
-            exportEta.textContent = `Frame ${k + 1} of ${frames}` + (k >= fps ? ` · ${remaining(perFrame * (frames - k))}` : '');
-            const ahead = k + Math.round(LOOK_AHEAD * fps);
-            if (k > 0 && ahead < frames) {
-              // not a frame of the run for the captions: their card timing would read a jump
-              const active = captions.active;
-              captions.active = false;
-              flyover.progress = ahead / (frames - 1);
-              scene.render();
-              captions.active = active;
-            }
-            flyover.progress = k / (frames - 1);
-            // a tile advances one step per render, so this loops a few times per frame
-            do {
-              scene.render();
-              await yieldToBrowser();
-            } while (!globe.tilesLoaded);
-            // the drawing buffer is not preserved: copy it in the same task as a render
-            scene.render();
-            context.drawImage(scene.canvas, 0, 0);
-            if (captions.active) context.drawImage(captions.canvas, 0, 0, frame.width, frame.height);
-            await source.add(k / fps, 1 / fps);
-          }
-          if (cancelled) {
-            await output.cancel();
+          const blob = await exportFlyover({
+            viewer,
+            flyover,
+            captions,
+            width,
+            height,
+            fps,
+            signal: controller.signal,
+            onProgress: ({frame, frames, perFrame}) => {
+              const percent = Math.floor((100 * frame) / frames);
+              exportProgress.value = percent;
+              exportProgress.textContent = `${percent}%`;
+              // the time per frame so far, over the frames left; the first frames load the most
+              exportEta.textContent = `Frame ${frame + 1} of ${frames}` + (frame >= fps ? ` · ${remaining(perFrame * (frames - frame))}` : '');
+            },
+          });
+          if (!blob) {
             showView('form');
           } else {
-            source.close();
-            await output.finalize();
             // saved from the user's click on the result: a download started by the end of a
             // long run may be blocked
-            result = {blob: new Blob([output.target.buffer], {type: 'video/mp4'}), name: `${select.value}.mp4`};
-            exportReady.textContent = `Video ready · ${(result.blob.size / 1e6).toFixed(1)} MB`;
+            result = {blob, name: `${select.value}.mp4`};
+            exportReady.textContent = `Video ready · ${(blob.size / 1e6).toFixed(1)} MB`;
             showView('done');
           }
         } catch (error) {
@@ -631,12 +579,8 @@
         } finally {
           document.body.classList.remove('exporting');
           viewer.resize();
-          globe.tileCacheSize = saved.cache;
-          controller.enableInputs = saved.inputs;
-          viewer.useDefaultRenderLoop = true;
           motionBlur.active = saved.blur;
           setDrone(saved.drone);
-          flyover.progress = 0;
           setState('ready');
         }
       };
@@ -656,7 +600,7 @@
       // neither Escape nor the close button while the export runs: only Stop export, and
       // the dialog goes back to its settings once the run has stopped
       exportCancel.addEventListener('click', () => {
-        if (state === 'exporting') cancelled = true;
+        if (state === 'exporting') controller.abort();
         else exportDialog.open = false;
       });
       exportDialog.addEventListener('wa-hide', (event) => state === 'exporting' && event.preventDefault());
