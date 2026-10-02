@@ -13,7 +13,13 @@ import{a as e,t,u as n}from"./lit-BFn1CURT.js";import{t as r}from"./setup-DMh09s
       .container {
         height: 100%;
         overflow: hidden;
+        cursor: grab;
+        touch-action: none;
+        user-select: none;
         mask-image: linear-gradient(to right, transparent, #000 15%, #000 85%, transparent);
+      }
+      .container.dragging {
+        cursor: grabbing;
       }
       .compass-bar {
         display: flex;
@@ -51,7 +57,7 @@ import{a as e,t,u as n}from"./lit-BFn1CURT.js";import{t as r}from"./setup-DMh09s
         clip-path: polygon(0 0, 100% 0, 50% 100%);
         background-color: var(--cesium-compass-bar-tick-color);
       }
-    `}constructor(){super(),this.scene=void 0,this.intercardinalWidth=0,this.hostWidth=0,this.heading=0,this.unlistenFromPostRender=null,this.resizeObserver=new ResizeObserver(()=>this.measure())}connectedCallback(){super.connectedCallback(),this.resizeObserver.observe(this),this.requestUpdate()}disconnectedCallback(){this.resizeObserver.disconnect(),this.unlistenFromPostRender&&=(this.unlistenFromPostRender(),null),super.disconnectedCallback()}measure(){this.hostWidth=this.renderRoot.querySelector(`.container`)?.clientWidth??0,this.intercardinalWidth=parseFloat(getComputedStyle(this).getPropertyValue(`--cesium-compass-bar-intercardinal-width`))}updated(){this.scene&&!this.unlistenFromPostRender&&(this.unlistenFromPostRender=this.scene.postRender.addEventListener(()=>{this.heading=this.scene.camera.heading}))}render(){let t=this.intercardinalWidth,n=this.heading/(Math.PI/4),r=t>0?this.hostWidth/2/t:0,a=Math.ceil(n-r-.5),o=Math.floor(n+r+.5),s=Math.round(this.hostWidth/2-t/2+(a-n)*t),c=e`
+    `}constructor(){super(),this.scene=void 0,this.intercardinalWidth=0,this.hostWidth=0,this.heading=0,this.unlistenFromPostRender=null,this.resizeObserver=new ResizeObserver(()=>this.measure()),this.drag=null}onPointerDown(e){this.scene&&e.button===0&&(e.currentTarget.setPointerCapture(e.pointerId),this.drag={pointerId:e.pointerId,x:e.clientX,heading:this.scene.camera.heading},this.requestUpdate())}onPointerMove(e){if(!this.drag||e.pointerId!==this.drag.pointerId||this.intercardinalWidth<=0)return;let t=this.drag.heading-(e.clientX-this.drag.x)/this.intercardinalWidth*(Math.PI/4),n=this.scene.camera;n.setView({orientation:{heading:t,pitch:n.pitch,roll:n.roll}})}onPointerEnd(e){this.drag&&e.pointerId===this.drag.pointerId&&(this.drag=null,this.requestUpdate())}connectedCallback(){super.connectedCallback(),this.resizeObserver.observe(this),this.requestUpdate()}disconnectedCallback(){this.resizeObserver.disconnect(),this.unlistenFromPostRender&&=(this.unlistenFromPostRender(),null),super.disconnectedCallback()}measure(){this.hostWidth=this.renderRoot.querySelector(`.container`)?.clientWidth??0,this.intercardinalWidth=parseFloat(getComputedStyle(this).getPropertyValue(`--cesium-compass-bar-intercardinal-width`))}updated(){this.scene&&!this.unlistenFromPostRender&&(this.unlistenFromPostRender=this.scene.postRender.addEventListener(()=>{this.heading=this.scene.camera.heading}))}render(){let t=this.intercardinalWidth,n=this.heading/(Math.PI/4),r=t>0?this.hostWidth/2/t:0,a=Math.ceil(n-r-.5),o=Math.floor(n+r+.5),s=Math.round(this.hostWidth/2-t/2+(a-n)*t),c=e`
       <div class="ticks">
         ${Array(9).fill(void 0).map((t,n,r)=>e`<div part="tick ${n===Math.floor(r.length/2)?`major`:`minor`}"></div>`)}
       </div>
@@ -61,7 +67,13 @@ import{a as e,t,u as n}from"./lit-BFn1CURT.js";import{t as r}from"./setup-DMh09s
           ${c}
         </div>
       `)}return e`
-      <div class="container">
+      <div
+        class="container ${this.drag?`dragging`:``}"
+        @pointerdown=${this.onPointerDown}
+        @pointermove=${this.onPointerMove}
+        @pointerup=${this.onPointerEnd}
+        @pointercancel=${this.onPointerEnd}
+      >
         <div class="compass-bar" style="transform: translateX(${s}px)">${l}</div>
       </div>
       <div class="center-tick" part="center-tick"></div>

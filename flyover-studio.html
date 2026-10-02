@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en" class="wa-theme-default wa-palette-default wa-brand-orange wa-light wa-cloak">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fly over your track</title>
+  <meta name="description" content="Drop a GPX file and download a video that flies over your track, made in your browser.">
+  <script src="https://cdn.jsdelivr.net/npm/cesium@1.146.0/Build/Cesium/Cesium.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/cesium@1.146.0/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>:root{--wa-font-family-body:Inter, system-ui, sans-serif;--wa-font-family-heading:Inter, system-ui, sans-serif}html,body,main,#cesiumContainer{height:100%;margin:0}[hidden]{display:none!important}h1,h2{font-size:var(--wa-font-size-l);margin:0}h1{font-size:var(--wa-font-size-xl)}#trackName:focus{outline:none}#intro{inline-size:min(48ch, calc(100% - 2 * var(--wa-space-l)));position:absolute;inset-block-start:50%;inset-inline-start:50%;transform:translate(-50%,-50%)}#dropzone{padding:var(--wa-space-xl);border:var(--wa-border-width-m) dashed var(--wa-color-neutral-border-normal);border-radius:var(--wa-border-radius-l);text-align:center}#dropzone.over{border-color:var(--wa-color-brand-border-loud);background:var(--wa-color-brand-fill-quiet)}#dropzone>wa-icon{font-size:var(--wa-font-size-3xl)}#dropOverlay{inset:var(--wa-space-l);border:var(--wa-border-width-l) dashed var(--wa-color-brand-border-loud);border-radius:var(--wa-border-radius-l);background:var(--wa-color-overlay-modal);color:var(--wa-color-neutral-on-loud);font-size:var(--wa-font-size-xl);font-weight:var(--wa-font-weight-semibold);pointer-events:none;position:absolute}#panel{inline-size:38ch;max-block-size:calc(100% - 2 * var(--wa-space-xl));--spacing:var(--wa-space-m);position:absolute;inset-block-start:var(--wa-space-xl);inset-inline-end:var(--wa-space-xl)}#panel::part(body){min-block-size:0;overflow:auto}#panel.collapsed::part(body){display:none}#changeFile::part(button){padding-inline-end:0}#collapse{display:none}#create,#stopRender,#share,#download,#makeAnother{inline-size:100%}body:not([data-state=empty]){background:var(--wa-color-surface-lowered);overflow:hidden}body:is([data-state=ready],[data-state=playing]) #cesiumContainer{inline-size:var(--preview-width);block-size:var(--preview-height);transform:translate(var(--stage-x), var(--stage-y));border-radius:var(--wa-border-radius-l);position:absolute;inset-block-start:0;inset-inline-start:0;overflow:hidden}body[data-state=rendering] #cesiumContainer{inline-size:var(--video-width);block-size:var(--video-height);transform-origin:0 0;transform:translate(var(--stage-x), var(--stage-y)) scale(var(--fit,1));position:absolute;inset-block-start:0;inset-inline-start:0}.cesium-credit-logoContainer{display:none!important}body[data-state=done] #cesiumContainer{visibility:hidden}#player{inline-size:var(--preview-width);margin-block-start:var(--wa-space-s);position:absolute;inset-block-start:calc(var(--stage-y) + var(--preview-height));inset-inline-start:var(--stage-x)}#progress{flex:1}#progress::part(label){display:none}#progress::part(slider){margin-block:calc((var(--thumb-height) - var(--track-size)) / 2)}#time{font-variant-numeric:tabular-nums}#result{inline-size:var(--region-width);block-size:var(--region-height);position:absolute;inset-block-start:var(--region-y);inset-inline-start:var(--region-x)}#resultVideo{border-radius:var(--wa-border-radius-l);max-block-size:100%;max-inline-size:100%}@media (width<=40em){#panel{max-block-size:60%;inline-size:auto;inset-block:auto 0;inset-inline:0}#collapse{display:inline-block}}</style>
+  <script type="module" crossorigin src="./assets/flyover-studio-BgEDeJpX.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/lit-BFn1CURT.js">
+  <link rel="modulepreload" crossorigin href="./assets/directive-BSZPiF1A.js">
+  <link rel="modulepreload" crossorigin href="./assets/card-BcpQSzF3.js">
+  <link rel="modulepreload" crossorigin href="./assets/directive-helpers-B0KETb9i.js">
+  <link rel="modulepreload" crossorigin href="./assets/cesium-shim-deYMRcZt.js">
+  <link rel="modulepreload" crossorigin href="./assets/button-CI_sKcZA.js">
+  <link rel="modulepreload" crossorigin href="./assets/switch-PsQ7BZQb.js">
+  <link rel="modulepreload" crossorigin href="./assets/style-map-ly-_uhSr.js">
+  <link rel="modulepreload" crossorigin href="./assets/slider-sLn6HB47.js">
+  <link rel="modulepreload" crossorigin href="./assets/callout-C4yhdWjn.js">
+  <link rel="modulepreload" crossorigin href="./assets/setup-DMh09s7J.js">
+  <link rel="modulepreload" crossorigin href="./assets/icon-BcbZVKyW.js">
+  <link rel="stylesheet" crossorigin href="./assets/flyover-studio-DfFS4Dmy.css">
+</head>
+
+<body data-state="empty">
+  <main>
+    <div id="cesiumContainer"></div>
+    <div id="player" class="wa-cluster wa-gap-s wa-align-items-center" data-states="ready playing" hidden>
+      <wa-button id="play" size="s" appearance="filled">
+        <wa-icon name="play" variant="solid" label="Play preview"></wa-icon>
+      </wa-button>
+      <wa-slider id="progress" size="s" min="0" max="1" step="0.001" value="0">
+        <span slot="label" class="wa-visually-hidden">Preview position</span>
+      </wa-slider>
+      <span id="time" class="wa-caption-m wa-color-text-quiet">0:00 / 0:00</span>
+    </div>
+    <div id="result" class="wa-stack wa-align-items-center wa-justify-content-center" data-states="done" hidden>
+      <video id="resultVideo" controls playsinline></video>
+    </div>
+    <input id="fileInput" type="file" accept=".gpx,.geojson,.json,application/gpx+xml,application/geo+json,application/json" hidden>
+
+    <wa-card id="intro" data-states="empty">
+      <h1 slot="header">Fly over your track</h1>
+      <div class="wa-stack wa-gap-m">
+        <div id="dropzone" class="wa-stack wa-align-items-center wa-gap-s">
+          <wa-icon name="route" variant="solid"></wa-icon>
+          <span>Drop a GPX file here</span>
+          <wa-button id="chooseFile" variant="brand">Choose a file</wa-button>
+          <wa-button id="trySample" appearance="plain" size="s">
+            <wa-icon slot="start" name="circle-play"></wa-icon>
+            Watch a sample flyover
+          </wa-button>
+        </div>
+        <wa-callout id="introError" variant="danger" role="alert" hidden>
+          <wa-icon slot="icon" name="triangle-exclamation" variant="solid"></wa-icon>
+          <span></span>
+        </wa-callout>
+        <span class="wa-caption-s wa-color-text-quiet">Strava, Garmin Connect and Komoot can export an activity as a GPX file, from the activity's page.</span>
+      </div>
+      <wa-button slot="header-actions" appearance="plain" size="s" data-dialog="open about">
+        <wa-icon name="circle-info" label="About"></wa-icon>
+      </wa-button>
+    </wa-card>
+
+    <wa-card id="panel" data-states="ready playing rendering done" hidden>
+      <h2 slot="header" id="trackName" tabindex="-1"></h2>
+      <wa-button id="changeFile" slot="header-actions" appearance="plain" size="s" data-states="ready playing">Change file</wa-button>
+      <wa-button slot="header-actions" appearance="plain" size="s" data-dialog="open about">
+        <wa-icon name="circle-info" label="About"></wa-icon>
+      </wa-button>
+      <wa-button id="collapse" slot="header-actions" appearance="plain" size="s">
+        <wa-icon name="chevron-down" label="Hide the settings"></wa-icon>
+      </wa-button>
+      <div class="wa-stack wa-gap-l" data-states="ready playing">
+        <wa-radio-group id="preset" label="Camera" orientation="horizontal" size="s" value="default">
+          <wa-radio appearance="button" value="default">Default</wa-radio>
+          <wa-radio appearance="button" value="pilot">Pilot</wa-radio>
+          <wa-radio appearance="button" value="spectator">Spectator</wa-radio>
+          <wa-radio appearance="button" value="drone">Drone</wa-radio>
+        </wa-radio-group>
+        <wa-switch id="placeNames" checked hint="Shown in the video">Place names</wa-switch>
+        <wa-radio-group id="videoOrientation" label="Format" orientation="horizontal" size="s" value="portrait">
+          <wa-radio appearance="button" value="portrait">Portrait 9:16</wa-radio>
+          <wa-radio appearance="button" value="landscape">Landscape 16:9</wa-radio>
+        </wa-radio-group>
+        <wa-radio-group id="videoQuality" label="Quality" orientation="horizontal" size="s" value="720">
+          <wa-radio appearance="button" value="540">540p</wa-radio>
+          <wa-radio appearance="button" value="720">720p</wa-radio>
+          <wa-radio appearance="button" value="1080">1080p</wa-radio>
+        </wa-radio-group>
+        <wa-callout id="noEncoder" variant="warning" role="alert" hidden>
+          <wa-icon slot="icon" name="triangle-exclamation" variant="solid"></wa-icon>
+          This browser cannot encode H.264 video, so the video cannot be made here. The preview still works; try a recent Chrome, Edge or Safari.
+        </wa-callout>
+        <wa-callout id="panelError" variant="danger" role="alert" hidden>
+          <wa-icon slot="icon" name="triangle-exclamation" variant="solid"></wa-icon>
+          <span></span>
+        </wa-callout>
+      </div>
+      <div class="wa-stack wa-gap-s" data-states="rendering" hidden>
+        <wa-progress-bar id="renderProgress" label="Rendering progress" value="0"></wa-progress-bar>
+        <strong id="renderEta"></strong>
+        <span id="renderFrames" class="wa-caption-s wa-color-text-quiet"></span>
+        <span class="wa-caption-s wa-color-text-quiet">Keep this tab open: the video is made in your browser, frame by frame.</span>
+      </div>
+      <wa-callout id="renderDone" variant="success" role="status" data-states="done" hidden>
+        <wa-icon slot="icon" name="circle-check" variant="solid"></wa-icon>
+        Your video is ready.
+      </wa-callout>
+      <div slot="footer" class="wa-stack wa-gap-s">
+        <div class="wa-stack wa-gap-s" data-states="ready playing">
+          <wa-callout id="phoneWarning" variant="warning" role="alert" hidden>
+            <wa-icon slot="icon" name="triangle-exclamation" variant="solid"></wa-icon>
+            Rendering takes minutes, and this screen has to stay on with this tab open. On a phone it can fail or run out of memory.
+          </wa-callout>
+          <span id="summary" class="wa-caption-s wa-color-text-quiet"></span>
+          <wa-button id="create" variant="brand">
+            <wa-icon slot="start" name="video" variant="solid"></wa-icon>
+            <span id="createLabel">Create video</span>
+          </wa-button>
+        </div>
+        <wa-button id="stopRender" appearance="outlined" data-states="rendering" hidden>Stop</wa-button>
+        <div class="wa-stack wa-gap-s" data-states="done" hidden>
+          <wa-button id="share" variant="brand" hidden>
+            <wa-icon slot="start" name="share-nodes" variant="solid"></wa-icon>
+            Share video
+          </wa-button>
+          <wa-button id="download" variant="brand">
+            <wa-icon slot="start" name="download" variant="solid"></wa-icon>
+            <span id="downloadLabel">Download video</span>
+          </wa-button>
+          <wa-button id="makeAnother" appearance="plain">Back to editing</wa-button>
+        </div>
+      </div>
+    </wa-card>
+    <wa-dialog id="about" label="About" light-dismiss>
+      <div class="wa-stack wa-gap-m">
+        <p>Fly over your track turns a GPX file into a video of a camera flying along it, over swisstopo's aerial images and terrain.</p>
+        <p><strong>Your file stays with you.</strong> The track is read, and the video made, in this browser: nothing is uploaded.</p>
+        <p>The map covers Switzerland: a track elsewhere flies over a bare globe.</p>
+        <p class="wa-caption-m wa-color-text-quiet">Aerial images, terrain and place names &copy; swisstopo. Made with CesiumJS, Web Awesome and Mediabunny. <a href="https://github.com/geoblocks/cesium-helpers">Source code</a></p>
+      </div>
+      <wa-button slot="footer" variant="brand" data-dialog="close">Close</wa-button>
+    </wa-dialog>
+    <div id="dropOverlay" class="wa-stack wa-align-items-center wa-justify-content-center" hidden>Drop to replace the track</div>
+  </main>
+</body>
+
+</html>
