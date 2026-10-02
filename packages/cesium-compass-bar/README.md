@@ -16,6 +16,8 @@ npm i --save @geoblocks/cesium-compass-bar
  <cesium-compass-bar .scene="${viewer.scene}"></cesium-compass-bar>
 ```
 
+Dragging the bar horizontally rotates the camera heading.
+
 ## API
 
 ### Properties/Attributes
