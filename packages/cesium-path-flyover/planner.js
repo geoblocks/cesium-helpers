@@ -1,4 +1,5 @@
-import {Cartesian3, Cartographic, Math as CesiumMath, Matrix4, Transforms} from "@cesium/engine";
+import {Cartesian3, Cartographic, Math as CesiumMath, Matrix4} from "@cesium/core";
+import {Transforms} from "@cesium/engine";
 
 export const SAMPLE_SPACING = 20;
 const MAX_OFFSET = 60;
@@ -204,7 +205,7 @@ export function sampleProfile(values, fraction) {
  * @param {Cartesian3[]} targets
  * @param {number[]} heights of the targets above the ellipsoid, meters
  * @param {number[]} ranges meters, per target
- * @param {import('@cesium/engine').Ellipsoid} ellipsoid
+ * @param {import('@cesium/core').Ellipsoid} ellipsoid
  * @param {(cartographics: Cartographic[]) => Promise<(number | undefined)[]>} heightsAt terrain height per position
  * @return {Promise<number[]>} meters, per target
  */
@@ -212,6 +213,7 @@ export async function reliefProfile(targets, heights, ranges, ellipsoid, heights
   /** @type {Cartographic[]} */
   const cartographics = [];
   targets.forEach((target, i) => {
+    // @ts-expect-error Transforms.eastNorthUpToFixedFrame is missing from the @cesium/engine 26.4.0 typings
     const enu = Transforms.eastNorthUpToFixedFrame(target, ellipsoid, enuScratch);
     for (let k = 0; k < RELIEF_RING; k++) {
       const angle = (k * CesiumMath.TWO_PI) / RELIEF_RING;
@@ -252,7 +254,7 @@ export async function reliefProfile(targets, heights, ranges, ellipsoid, heights
  * @property {number} maxTurn largest heading offset change between consecutive samples, radians
  * @property {number} maxLift meters of lift for the line of sight; what would need more stays hidden
  * @property {number} offsetCost meters of lift one degree of heading offset is worth
- * @property {import('@cesium/engine').Ellipsoid} ellipsoid
+ * @property {import('@cesium/core').Ellipsoid} ellipsoid
  */
 
 /**
@@ -302,6 +304,7 @@ async function liftsNeededFrom(samples, headings, options, heightsAt, start, end
   const cartographics = [];
   for (let i = start; i < end; i++) {
     const marker = samples.positions[i];
+    // @ts-expect-error Transforms.eastNorthUpToFixedFrame is missing from the @cesium/engine 26.4.0 typings
     const enu = Transforms.eastNorthUpToFixedFrame(marker, options.ellipsoid, enuScratch);
     for (const heading of headings[i]) {
       cameraOffsetEnu(heading, samples.ranges[i], options.pitch, samples.rise[i], offsetScratch);

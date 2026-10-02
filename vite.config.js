@@ -18,6 +18,7 @@ export default defineConfig({
   base: './',
   resolve: {
     alias: {
+      '@cesium/core': resolve(__dirname, 'demos/cesium-shim.js'),
       '@cesium/engine': resolve(__dirname, 'demos/cesium-shim.js'),
     },
   },

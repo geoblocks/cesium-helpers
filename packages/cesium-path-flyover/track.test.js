@@ -1,6 +1,6 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {Cartesian3, Cartographic, Ellipsoid} from "@cesium/engine";
+import {Cartesian3, Cartographic, Ellipsoid} from "@cesium/core";
 import {damp, dampAngle, decimate, easedProgress, fetchTrackText, forwardHeading, parseTrack, parseTrackName, breathe} from "./track.js";
 
 const gpx = `<?xml version="1.0"?>

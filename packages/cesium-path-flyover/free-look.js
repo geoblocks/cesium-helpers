@@ -1,5 +1,5 @@
 // packages/cesium-path-flyover/free-look.js
-import {Math as CesiumMath} from "@cesium/engine";
+import {Math as CesiumMath} from "@cesium/core";
 import {damp} from "./track.js";
 
 const DEGREES_PER_PIXEL = 0.3;

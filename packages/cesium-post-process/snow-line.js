@@ -1,4 +1,5 @@
-import {Math as CesiumMath, PostProcessStage} from '@cesium/engine';
+import {Math as CesiumMath} from '@cesium/core';
+import {PostProcessStage} from '@cesium/engine';
 import {acquireTerrainDepth, releaseTerrainDepth} from './depth-test.js';
 import Effect from './effect.js';
 import {heightUniforms} from './height.js';

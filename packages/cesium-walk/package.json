@@ -15,6 +15,7 @@
     "access": "public"
   },
   "peerDependencies": {
+    "@cesium/core": ">=0.1.0",
     "@cesium/engine": ">=10"
   }
 }

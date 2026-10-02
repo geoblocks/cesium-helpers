@@ -1,7 +1,7 @@
 // packages/cesium-path-flyover/free-look.test.js
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {Math as CesiumMath} from "@cesium/engine";
+import {Math as CesiumMath} from "@cesium/core";
 import FreeLook from "./free-look.js";
 
 const deg = CesiumMath.toDegrees;

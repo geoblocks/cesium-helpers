@@ -1,4 +1,4 @@
-import {Cartesian3, Cartesian4, Matrix4} from '@cesium/engine';
+import {Cartesian3, Cartesian4, Matrix4} from '@cesium/core';
 
 /**
  * What an effect focuses on: a position, a function called every frame for a moving target, or

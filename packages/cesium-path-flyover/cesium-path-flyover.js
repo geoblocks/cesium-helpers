@@ -3,15 +3,17 @@ import {
   Cartographic,
   CatmullRomSpline,
   Color,
-  EllipsoidTerrainProvider,
   Event,
   GeometryInstance,
+  Math as CesiumMath,
+  Matrix4,
+} from "@cesium/core";
+import {
+  EllipsoidTerrainProvider,
   GroundPolylineGeometry,
   GroundPolylinePrimitive,
   KeyboardEventModifier,
   Material,
-  Math as CesiumMath,
-  Matrix4,
   PointPrimitiveCollection,
   PolylineMaterialAppearance,
   SceneMode,
@@ -661,6 +663,7 @@ export default class CesiumPathFlyover {
         // the plan cleared the planned camera, not one the viewer swung aside: lift
         // this one by what it lacks beyond what the planned one lacks against the
         // loaded tiles, so the lift is zero at zero offsets and never jumps
+        // @ts-expect-error Transforms.eastNorthUpToFixedFrame is missing from the @cesium/engine 26.4.0 typings
         const enu = Transforms.eastNorthUpToFixedFrame(target, scene.ellipsoid, enuScratch);
         offset.z += Math.max(0, this.shortfall_(enu, offset) - this.shortfall_(enu, planned));
       }

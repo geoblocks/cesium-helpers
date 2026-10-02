@@ -1,4 +1,5 @@
-import {Cartesian4, PostProcessStage, PostProcessStageComposite} from '@cesium/engine';
+import {Cartesian4} from '@cesium/core';
+import {PostProcessStage, PostProcessStageComposite} from '@cesium/engine';
 import createBlur from './blur.js';
 import {acquireTerrainDepth, releaseTerrainDepth} from './depth-test.js';
 import Effect from './effect.js';

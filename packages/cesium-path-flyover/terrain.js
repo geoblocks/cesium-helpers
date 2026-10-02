@@ -1,4 +1,5 @@
-import {Cartesian2, EllipsoidTerrainProvider, Math as CesiumMath} from "@cesium/engine";
+import {Cartesian2, Math as CesiumMath} from "@cesium/core";
+import {EllipsoidTerrainProvider} from "@cesium/engine";
 
 const FALLBACK_LEVEL = 14;
 const TILES_IN_FLIGHT = 64;
@@ -92,7 +93,7 @@ class MeshIndex {
 
   /**
    * The height at a position, as `interpolateHeight` computes it.
-   * @param {import('@cesium/engine').Rectangle} rectangle of the tile
+   * @param {import('@cesium/core').Rectangle} rectangle of the tile
    * @param {number} longitude radians
    * @param {number} latitude radians
    * @return {number | undefined} undefined outside every triangle
@@ -153,7 +154,7 @@ export default class TerrainSampler {
   }
 
   /**
-   * @param {import('@cesium/engine').Cartographic[]} cartographics not modified
+   * @param {import('@cesium/core').Cartographic[]} cartographics not modified
    * @return {Promise<(number | undefined)[]>} terrain height per position; undefined
    *   where the provider has no terrain (an EllipsoidTerrainProvider) or no tile
    */
@@ -174,7 +175,7 @@ export default class TerrainSampler {
   }
 
   /**
-   * @param {import('@cesium/engine').Cartographic[]} cartographics
+   * @param {import('@cesium/core').Cartographic[]} cartographics
    * @param {number} level
    * @return {Promise<(number | undefined)[]>}
    */

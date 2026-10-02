@@ -1,4 +1,5 @@
-import {Matrix4, PixelDatatype, PostProcessStage, PostProcessStageComposite} from '@cesium/engine';
+import {Matrix4, PixelDatatype} from '@cesium/core';
+import {PostProcessStage, PostProcessStageComposite} from '@cesium/engine';
 import {acquireTerrainDepth, releaseTerrainDepth} from './depth-test.js';
 import Effect from './effect.js';
 import EyeFromDepth from './shaders/EyeFromDepth.js';

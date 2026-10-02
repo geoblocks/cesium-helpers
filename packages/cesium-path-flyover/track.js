@@ -1,4 +1,5 @@
-import {Cartesian3, Math as CesiumMath, Matrix4, Transforms} from "@cesium/engine";
+import {Cartesian3, Math as CesiumMath, Matrix4} from "@cesium/core";
+import {Transforms} from "@cesium/engine";
 
 const scratchA = new Cartesian3();
 const scratchB = new Cartesian3();
@@ -124,7 +125,7 @@ function parseGpxPoints(text, tag) {
 /**
  * @param {LonLat[]} coords
  * @param {number} minDistance meters
- * @param {import('@cesium/engine').Ellipsoid} ellipsoid
+ * @param {import('@cesium/core').Ellipsoid} ellipsoid
  * @return {LonLat[]}
  */
 export function decimate(coords, minDistance, ellipsoid) {
@@ -148,6 +149,7 @@ export function decimate(coords, minDistance, ellipsoid) {
  * @return {number} heading in radians, 0 is north, clockwise
  */
 export function forwardHeading(samples, previous) {
+  // @ts-expect-error Transforms.eastNorthUpToFixedFrame is missing from the @cesium/engine 26.4.0 typings
   const enu = Transforms.eastNorthUpToFixedFrame(samples[0], undefined, scratchMatrix);
   const inverse = Matrix4.inverseTransformation(enu, scratchMatrix);
   const steps = samples.length - 1;

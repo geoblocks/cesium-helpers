@@ -1,6 +1,7 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {BoundingSphere, Cartesian3, Cartographic, EllipsoidTerrainProvider, GeographicTilingScheme, Math as CesiumMath, QuantizedMeshTerrainData} from "@cesium/engine";
+import {BoundingSphere, Cartesian3, Cartographic, Math as CesiumMath} from "@cesium/core";
+import {EllipsoidTerrainProvider, GeographicTilingScheme, QuantizedMeshTerrainData} from "@cesium/engine";
 import TerrainSampler from "./terrain.js";
 
 // a terrain provider whose tiles report a height from a function of the position,

@@ -1,6 +1,7 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {Cartesian3, Cartographic, Ellipsoid, Math as CesiumMath, Matrix4, Transforms} from "@cesium/engine";
+import {Cartesian3, Cartographic, Ellipsoid, Math as CesiumMath, Matrix4} from "@cesium/core";
+import {Transforms} from "@cesium/engine";
 import {cameraOffsetEnu, curvature, gaussianSmooth, maxWindow, planCamera, reliefProfile, SAMPLE_SPACING, sampleProfile, smoothConstraint, smoothPositions, viterbi} from "./planner.js";
 import {dampAngle} from "./track.js";
 import {deriveRun} from "./run.js";

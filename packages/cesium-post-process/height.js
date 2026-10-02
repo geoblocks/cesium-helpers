@@ -1,4 +1,4 @@
-import {Cartesian3, Matrix4} from '@cesium/engine';
+import {Cartesian3, Matrix4} from '@cesium/core';
 
 const upScratch = new Cartesian3();
 const surfaceScratch = new Cartesian3();
