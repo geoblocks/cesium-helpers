@@ -30,6 +30,10 @@ const SMALL_SCREEN = '(max-width: 40em)';
 
 const $ = (selector) => document.querySelector(selector);
 const viewer = await createViewer('cesiumContainer');
+// the finest terrain tiles, loaded at the video's size, have vertex normals that vary from
+// one vertex to the next: the default shading draws them as a hatching along the triangles
+viewer.scene.globe.lambertDiffuseMultiplier = 0.35;
+viewer.scene.globe.vertexShadowDarkness = 0.7;
 
 let flyover;
 let captions;
