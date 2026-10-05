@@ -12,6 +12,7 @@
   "module": "cesium-post-process.js",
   "sideEffects": false,
   "files": [
+    "alpenglow.js",
     "analog-video.js",
     "blur.js",
     "cesium-post-process.js",
