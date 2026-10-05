@@ -23,7 +23,7 @@ import {AnalogVideo, ColorIsolation, DigitalVideo, DroneDisplay, Infrared, Jello
 const snowLine = new SnowLine(viewer, {
   altitude: 2000,  // meters above the ellipsoid where the snow is half covering
   transition: 200, // height of the band over which the snow thins out, in meters
-  maxSlope: 40,    // steepest slope that holds snow, in degrees
+  maxSlope: 50,    // steepest slope that holds snow, in degrees
   coverage: 1,     // opacity of the snow, 0 to 1
 });
 snowLine.active = true;

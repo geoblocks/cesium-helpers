@@ -21,7 +21,7 @@ export default class SnowLine extends Effect {
     super(viewer);
     this.altitude_ = options.altitude ?? 2000;
     this.transition_ = options.transition ?? 200;
-    this.maxSlope_ = options.maxSlope ?? 40;
+    this.maxSlope_ = options.maxSlope ?? 50;
     this.coverage_ = options.coverage ?? 1;
   }
 
