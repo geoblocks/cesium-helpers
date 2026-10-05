@@ -603,7 +603,14 @@
         if (state === 'exporting') controller.abort();
         else exportDialog.open = false;
       });
-      exportDialog.addEventListener('wa-hide', (event) => state === 'exporting' && event.preventDefault());
+      exportDialog.addEventListener('wa-hide', (event) => {
+        if (state === 'exporting') event.preventDefault();
+        else result = undefined;
+      });
+      // a run in progress or a video not saved yet goes with the tab: the browser asks first
+      window.addEventListener('beforeunload', (event) => {
+        if (state === 'exporting' || result) event.preventDefault();
+      });
       await load();
     });
   </script>
