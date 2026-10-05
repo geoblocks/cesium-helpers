@@ -1,5 +1,6 @@
 import {Cartesian4} from '@cesium/core';
-import {PostProcessStage, PostProcessStageComposite} from '@cesium/engine';
+// @ts-expect-error the engine exports its textures, but does not type them
+import {PostProcessStage, PostProcessStageComposite, Texture} from '@cesium/engine';
 import {acquireTerrainDepth, releaseTerrainDepth} from './depth-test.js';
 import Effect from './effect.js';
 import {acquireFrames, releaseFrames} from './frame-clock.js';
@@ -9,6 +10,7 @@ import Hash from './shaders/Hash.js';
 import Height from './shaders/Height.js';
 import Noise from './shaders/Noise.js';
 import PrecipitationShader from './shaders/Precipitation.js';
+import PrecipitationMap from './shaders/PrecipitationMap.js';
 import PrecipitationShaftBlur from './shaders/PrecipitationShaftBlur.js';
 import PrecipitationShafts from './shaders/PrecipitationShafts.js';
 import PrecipitationWind from './shaders/PrecipitationWind.js';
@@ -51,6 +53,16 @@ const MAX_STEP = 0.1;
 const SHAFT_SCALE = 0.125;
 // the sunlight under the clouds, as a share of its intensity
 const OVERCAST = 0.5;
+// the bounds of the map without one: a white pixel over the whole globe
+const EVERYWHERE = new Cartesian4(0, 0, 1, 1);
+
+/**
+ * Where it rains: an image whose red channel is the local intensity, 0 to 1,
+ * over a rectangle of longitudes and latitudes, north up, not crossing the
+ * antimeridian. Outside the rectangle there is none, so the image should
+ * fade to 0 at its edges.
+ * @typedef {{image: HTMLCanvasElement | ImageData, rectangle: import('@cesium/core').Rectangle}} PrecipitationMapOptions
+ */
 
 // the scenes under clouds, with their light and shadows before: rain and snow may be active at
 // once, the first one dims the light, the last one restores it
@@ -69,6 +81,20 @@ function acquireOvercast(scene) {
   overcast.set(scene, {count: 1, light: scene.light, intensity: scene.light.intensity, shadows: scene.shadowMap.enabled});
   scene.light.intensity *= OVERCAST;
   scene.shadowMap.enabled = false;
+}
+
+/**
+ * The sunlight and the shadows under the clouds, in proportion to how hard it rains at the camera.
+ * @param {import('@cesium/engine').Scene} scene
+ * @param {number} local
+ */
+function shadeOvercast(scene, local) {
+  const clouds = overcast.get(scene);
+  if (!clouds) {
+    return;
+  }
+  clouds.light.intensity = clouds.intensity * (1 - (1 - OVERCAST) * local);
+  scene.shadowMap.enabled = clouds.shadows && local < 0.5;
 }
 
 /**
@@ -92,12 +118,14 @@ function releaseOvercast(scene) {
  * and snow, the same drops slow down, shorten and soften, as in sleet. While
  * active, the sky is overcast: no shadows, and a dimmer sunlight. The
  * precipitation falls, so while active with an intensity the scene renders at
- * 30 frames per second, also in requestRenderMode.
+ * 30 frames per second, also in requestRenderMode. With a map, it falls where
+ * the map says, in cells seen from outside through their shafts and haze,
+ * and the sky is overcast in proportion to the map at the camera.
  */
 export default class Precipitation extends Effect {
   /**
    * @param {import('@cesium/engine').CesiumWidget} viewer
-   * @param {{intensity?: number, wind?: number, speed?: number, cloudBase?: number, snow?: number}} [options]
+   * @param {{intensity?: number, wind?: number, speed?: number, cloudBase?: number, snow?: number, map?: PrecipitationMapOptions}} [options]
    */
   constructor(viewer, options = {}) {
     super(viewer);
@@ -106,6 +134,17 @@ export default class Precipitation extends Effect {
     this.speed_ = options.speed ?? 1;
     this.cloudBase_ = options.cloudBase ?? 2500;
     this.snow_ = options.snow ?? 0;
+    /** @type {PrecipitationMapOptions | undefined} */
+    this.map_ = undefined;
+    /** @type {ImageData | undefined} */
+    this.mapData_ = undefined;
+    this.mapBounds_ = new Cartesian4();
+    // the map's intensity at the camera, read each frame
+    this.localIntensity_ = 1;
+    // the map's texture, made here: a stage given an image makes its texture a frame after it is
+    // set, and draws without one in between
+    this.mapTexture_ = undefined;
+    this.map = options.map;
     // the scroll of the grid, added up from frame to frame: the speed changes with the snow, and
     // time times the speed would move all the drops when it does
     this.offset_ = 0;
@@ -119,7 +158,37 @@ export default class Precipitation extends Effect {
       this.lastTime_ = now;
       this.offset_ = (this.offset_ + (dt * this.fallSpeed_() * this.cellsAlong_()) / NEAREST) % PERIOD;
       this.updateLayers_();
+      this.localIntensity_ = this.mapAtCamera_();
+      shadeOvercast(this.viewer.scene, this.localIntensity_);
     };
+  }
+
+  /**
+   * The map's intensity at the camera, bilinear as the shaders sample it; 1 without a map.
+   */
+  mapAtCamera_() {
+    if (!this.map_ || !this.mapData_) {
+      return 1;
+    }
+    const {west, south, east, north} = this.map_.rectangle;
+    const {longitude, latitude} = this.viewer.scene.camera.positionCartographic;
+    const u = (longitude - west) / (east - west);
+    const v = (latitude - south) / (north - south);
+    if (u < 0 || u > 1 || v < 0 || v > 1) {
+      return 0;
+    }
+    const {width, height, data} = this.mapData_;
+    // the image's rows go down from the north
+    const x = Math.min(Math.max(u * width - 0.5, 0), width - 1);
+    const y = Math.min(Math.max((1 - v) * height - 0.5, 0), height - 1);
+    const x0 = Math.floor(x);
+    const y0 = Math.floor(y);
+    const x1 = Math.min(x0 + 1, width - 1);
+    const y1 = Math.min(y0 + 1, height - 1);
+    const red = (/** @type {number} */ column, /** @type {number} */ row) => data[4 * (row * width + column)] / 255;
+    const bottom = red(x0, y0) + (red(x1, y0) - red(x0, y0)) * (x - x0);
+    const top = red(x0, y1) + (red(x1, y1) - red(x0, y1)) * (x - x0);
+    return bottom + (top - bottom) * (y - y0);
   }
 
   /**
@@ -187,10 +256,15 @@ export default class Precipitation extends Effect {
       snow: () => this.snow_,
     };
     const shafts = new PostProcessStage({
-      fragmentShader: EyeFromDepth + Noise + Height + PrecipitationWind + PrecipitationShafts,
-      uniforms: shared,
+      fragmentShader: EyeFromDepth + Noise + Height + PrecipitationWind + PrecipitationMap + PrecipitationShafts,
+      uniforms: {
+        ...shared,
+        map: () => this.mapTexture_,
+        mapBounds: () => this.mapBounds_,
+      },
       textureScale: SHAFT_SCALE,
     });
+    this.mapTexture_ = this.createMapTexture_(scene);
     // blurred at the same resolution
     const blurredShafts = new PostProcessStage({
       fragmentShader: PrecipitationShaftBlur,
@@ -206,6 +280,7 @@ export default class Precipitation extends Effect {
           uniforms: {
             ...shared,
             shaftTexture: blurredShafts.name,
+            localIntensity: () => this.localIntensity_,
             trail: () => this.trail_(),
             layerShape: () => this.layerShape_,
             layerLook: () => this.layerLook_,
@@ -219,6 +294,18 @@ export default class Precipitation extends Effect {
     // no pass, and no frames, without an intensity
     stage.enabled = this.intensity_ > 0;
     return stage;
+  }
+
+  /**
+   * The map's texture, a white pixel without a map.
+   * @param {import('@cesium/engine').Scene} scene
+   */
+  createMapTexture_(scene) {
+    return new Texture({
+      // @ts-expect-error the scene's context is not typed either
+      context: scene.context,
+      source: this.map_?.image ?? new ImageData(new Uint8ClampedArray([255, 255, 255, 255]), 1, 1),
+    });
   }
 
   /**
@@ -247,6 +334,40 @@ export default class Precipitation extends Effect {
     releaseOvercast(scene);
     releaseTerrainDepth(scene);
     scene.preRender.removeEventListener(this.onPreRender_);
+    this.mapTexture_ = this.mapTexture_.destroy();
+  }
+
+  /**
+   * Where it rains, or undefined for everywhere: an image whose red channel
+   * is the local intensity, 0 to 1, over a rectangle of longitudes and
+   * latitudes, north up. The precipitation fades in over a pixel of the
+   * image. Set it again after drawing on the image, which is read then.
+   */
+  get map() {
+    return this.map_;
+  }
+
+  set map(value) {
+    this.map_ = value;
+    if (!value) {
+      this.mapData_ = undefined;
+      Cartesian4.clone(EVERYWHERE, this.mapBounds_);
+    } else {
+      const {image, rectangle} = value;
+      this.mapData_ = image instanceof ImageData ? image : image.getContext('2d')?.getImageData(0, 0, image.width, image.height);
+      Cartesian4.fromElements(
+        rectangle.west / TWO_PI + 0.5,
+        rectangle.south / Math.PI + 0.5,
+        TWO_PI / (rectangle.east - rectangle.west),
+        Math.PI / (rectangle.north - rectangle.south),
+        this.mapBounds_,
+      );
+    }
+    if (this.stage_) {
+      this.mapTexture_.destroy();
+      this.mapTexture_ = this.createMapTexture_(this.viewer.scene);
+    }
+    this.viewer.scene.requestRender();
   }
 
   /**

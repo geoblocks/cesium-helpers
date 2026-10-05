@@ -55,6 +55,7 @@
           <wa-slider name="wind" size="s" label="Wind" min="0" max="60" step="1" value="10" with-tooltip data-unit="deg"></wa-slider>
           <wa-slider name="speed" size="s" label="Speed" min="0.25" max="2" step="0.05" value="1" with-tooltip></wa-slider>
           <wa-slider name="cloudBase" size="s" label="Cloud base" min="500" max="5000" step="50" value="2500" with-tooltip data-unit="m"></wa-slider>
+          <wa-switch name="zone" size="s">Only over Interlaken</wa-switch>
         </div>
       </wa-details>
       <wa-details name="effects" data-effect="tiltShift">
@@ -231,6 +232,10 @@
           followCursor = checked;
           return;
         }
+        if (name === 'zone') {
+          effects.precipitation.map = checked ? zoneMap() : undefined;
+          return;
+        }
         if (name !== 'active') {
           // numbers, or the value of a select of names
           const number = Number(value);
@@ -250,6 +255,20 @@
           }
         }
       });
+
+      // where it rains with the zone on: a rectangle over Interlaken, with soft edges; the map is
+      // black at its edges
+      const zoneMap = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = 64;
+        const context = canvas.getContext('2d');
+        context.fillStyle = 'black';
+        context.fillRect(0, 0, 64, 64);
+        context.filter = 'blur(2px)';
+        context.fillStyle = 'white';
+        context.fillRect(8, 8, 48, 48);
+        return {image: canvas, rectangle: Cesium.Rectangle.fromDegrees(7.78, 46.64, 7.94, 46.74)};
+      };
 
       const setFocus = focus => {
         effects.tiltShift.focus = focus;

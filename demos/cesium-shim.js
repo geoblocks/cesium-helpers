@@ -33,6 +33,7 @@ export const {
   SceneMode,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
+  Texture,
   Transforms,
   _shadersGaussianBlur1D,
 } = window.Cesium;
