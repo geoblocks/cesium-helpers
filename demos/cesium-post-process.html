@@ -57,6 +57,15 @@
           <wa-slider name="cloudBase" size="s" label="Cloud base" min="500" max="5000" step="50" value="2500" with-tooltip data-unit="m"></wa-slider>
         </div>
       </wa-details>
+      <wa-details name="effects" data-effect="lightning">
+        <wa-switch slot="summary" name="active" size="s">Lightning</wa-switch>
+        <div class="wa-stack wa-gap-xs">
+          <wa-slider name="intensity" size="s" label="Intensity" min="0" max="1" step="0.05" value="0.5" with-tooltip data-unit="percent"></wa-slider>
+          <wa-slider name="cloudBase" size="s" label="Cloud base" min="500" max="5000" step="50" value="2500" with-tooltip data-unit="m"></wa-slider>
+          <wa-slider name="radius" size="s" label="Radius" min="1000" max="15000" step="500" value="5000" with-tooltip data-unit="m"></wa-slider>
+          <wa-switch name="inFront" size="s">In front of the camera</wa-switch>
+        </div>
+      </wa-details>
       <wa-details name="effects" data-effect="tiltShift">
         <wa-switch slot="summary" name="active" size="s">Tilt-shift</wa-switch>
         <div class="wa-stack wa-gap-xs">
@@ -171,7 +180,7 @@
   </wa-card>
   <script type="module">
     import {createViewer} from './setup.js';
-    import {AnalogVideo, ColorIsolation, DigitalVideo, DroneDisplay, Infrared, Jello, LensDistortion, MotionBlur, Precipitation, SnowLine, SpeedLines, Spotlight, Super8, Technicolor, TiltShift, ValleyFog} from '../packages/cesium-post-process/cesium-post-process.js';
+    import {AnalogVideo, ColorIsolation, DigitalVideo, DroneDisplay, Infrared, Jello, LensDistortion, Lightning, MotionBlur, Precipitation, SnowLine, SpeedLines, Spotlight, Super8, Technicolor, TiltShift, ValleyFog} from '../packages/cesium-post-process/cesium-post-process.js';
     import '@awesome.me/webawesome/dist/styles/webawesome.css';
     import '@awesome.me/webawesome/dist/components/card/card.js';
     import '@awesome.me/webawesome/dist/components/details/details.js';
@@ -198,7 +207,7 @@
     // snow under the fog, the rain or the falling snow in the scene, the lens effects on the whole scene, then the colors and the film looks;
     // last the drone camera: its lens, its sensor's jello, its display drawn over the picture, and
     // the video signal, analog or digital
-    const ORDER = ['snowLine', 'valleyFog', 'spotlight', 'precipitation', 'tiltShift', 'motionBlur', 'speedLines', 'colorIsolation', 'infrared', 'technicolor', 'super8', 'lensDistortion', 'jello', 'droneDisplay', 'analogVideo', 'digitalVideo'];
+    const ORDER = ['snowLine', 'valleyFog', 'spotlight', 'precipitation', 'lightning', 'tiltShift', 'motionBlur', 'speedLines', 'colorIsolation', 'infrared', 'technicolor', 'super8', 'lensDistortion', 'jello', 'droneDisplay', 'analogVideo', 'digitalVideo'];
 
     createViewer('cesiumContainer').then(viewer => {
       // an early autumn afternoon, for the light
@@ -213,6 +222,7 @@
         speedLines: new SpeedLines(viewer),
         spotlight: new Spotlight(viewer),
         precipitation: new Precipitation(viewer),
+        lightning: new Lightning(viewer),
         colorIsolation: new ColorIsolation(viewer),
         infrared: new Infrared(viewer),
         technicolor: new Technicolor(viewer),
@@ -229,6 +239,10 @@
         const key = event.target.closest('[data-effect]').dataset.effect;
         if (name === 'followCursor') {
           followCursor = checked;
+          return;
+        }
+        if (name === 'inFront') {
+          effects.lightning.inFront = checked;
           return;
         }
         if (name !== 'active') {

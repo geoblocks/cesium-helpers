@@ -5,6 +5,7 @@ export {default as DroneDisplay} from './drone-display.js';
 export {default as Infrared} from './infrared.js';
 export {default as Jello} from './jello.js';
 export {default as LensDistortion} from './lens-distortion.js';
+export {default as Lightning} from './lightning.js';
 export {default as MotionBlur} from './motion-blur.js';
 export {default as Precipitation} from './precipitation.js';
 export {default as SnowLine} from './snow-line.js';
