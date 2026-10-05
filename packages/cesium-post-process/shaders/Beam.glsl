@@ -33,7 +33,7 @@ struct Beam {
   float dustScale;
 };
 
-const int BEAM_SAMPLES = 16;
+const int BEAM_SAMPLES = 8;
 
 // the part of the view ray, from the camera at the origin, inside the cone: entry and exit
 // distances, exit before entry when the ray misses it
@@ -86,7 +86,8 @@ float beamAlong(vec3 ray, float sceneDistance, Beam beam) {
   for (int i = 0; i < BEAM_SAMPLES; i++) {
     float u = (float(i) + jitter) / float(BEAM_SAMPLES);
     float t = start + length_ * pow(u, beam.spacing);
-    float step = length_ * beam.spacing * pow(u, beam.spacing - 1.0) / float(BEAM_SAMPLES);
+    // pow(0, 0) is undefined, a NaN on some GPUs, where the jitter is 0
+    float step = length_ * beam.spacing * pow(max(u, 1e-6), beam.spacing - 1.0) / float(BEAM_SAMPLES);
     vec3 p = ray * t;
     vec3 fromApex = p - beam.apex;
     float cosine = dot(fromApex, beam.forward) / length(fromApex);
