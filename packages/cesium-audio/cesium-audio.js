@@ -1,5 +1,6 @@
 import {Cartesian3} from '@cesium/core';
 
+const positionScratch = new Cartesian3();
 const relativePositionScratch = new Cartesian3();
 
 // Time constant (in seconds) of the transition between two frames' values:
@@ -12,12 +13,13 @@ const SMOOTHING_TIME_CONSTANT = 0.02;
  */
 export default class CesiumAudio {
   /**
-   * @param {import('@cesium/engine').Scene} scene
-   * @param {Cartesian3} position position of the sound source
+   * @param {import('@cesium/engine').CesiumWidget} viewer
+   * @param {Cartesian3 | import('@cesium/engine').PositionProperty} position position of the sound source,
+   * a property (like an entity position) is evaluated at the clock current time
    * @param {PannerNode} panner
    */
-  constructor(scene, position, panner) {
-    this.scene = scene;
+  constructor(viewer, position, panner) {
+    this.viewer = viewer;
     this.position = position;
     this.panner = panner;
     this.active_ = false;
@@ -48,15 +50,15 @@ export default class CesiumAudio {
         listener.setPosition(0, 0, 0);
       }
       this.jump_ = true;
-      this.scene.postRender.addEventListener(this.update_);
+      this.viewer.scene.postRender.addEventListener(this.update_);
       this.update();
     } else {
-      this.scene.postRender.removeEventListener(this.update_);
+      this.viewer.scene.postRender.removeEventListener(this.update_);
     }
   }
 
   update() {
-    const camera = this.scene.camera;
+    const camera = this.viewer.scene.camera;
     const time = this.panner.context.currentTime;
     /** @type {(param: AudioParam, value: number) => void} */
     const set = this.jump_ ?
@@ -64,10 +66,16 @@ export default class CesiumAudio {
       (param, value) => param.setTargetAtTime(value, time, SMOOTHING_TIME_CONSTANT);
     this.jump_ = false;
 
-    const relative = Cartesian3.subtract(this.position, camera.positionWC, relativePositionScratch);
-    set(this.panner.positionX, relative.x);
-    set(this.panner.positionY, relative.y);
-    set(this.panner.positionZ, relative.z);
+    // duck typing: the position may come from another Cesium build (like the CDN one)
+    const position = 'getValue' in this.position ?
+      this.position.getValue(this.viewer.clock.currentTime, positionScratch) :
+      this.position;
+    if (position) {
+      const relative = Cartesian3.subtract(position, camera.positionWC, relativePositionScratch);
+      set(this.panner.positionX, relative.x);
+      set(this.panner.positionY, relative.y);
+      set(this.panner.positionZ, relative.z);
+    }
 
     const listener = this.panner.context.listener;
     const direction = camera.directionWC;
@@ -80,7 +88,8 @@ export default class CesiumAudio {
       set(listener.upY, up.y);
       set(listener.upZ, up.z);
     } else {
-      // Firefox does not implement the listener orientation audio params
+      // Firefox does not implement the listener orientation audio params, so
+      // the orientation changes without smoothing
       listener.setOrientation(direction.x, direction.y, direction.z, up.x, up.y, up.z);
     }
   }
