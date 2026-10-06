@@ -12,7 +12,7 @@ export const STRIKE_LIFE = 1;
  * @param {number} dt seconds since the last call
  * @param {number} rate strikes per second
  * @param {() => number} random in [0, 1)
- * @param {(now: number) => T} create
+ * @param {(now: number) => T | undefined} create
  */
 export function advanceStrikes(strikes, now, dt, rate, random, create) {
   for (let i = strikes.length - 1; i >= 0; i--) {
@@ -21,6 +21,10 @@ export function advanceStrikes(strikes, now, dt, rate, random, create) {
     }
   }
   if (strikes.length < MAX_STRIKES && random() < 1 - Math.exp(-rate * dt)) {
-    strikes.push(create(now));
+    // the create function declines a strike where it does not strike
+    const strike = create(now);
+    if (strike) {
+      strikes.push(strike);
+    }
   }
 }

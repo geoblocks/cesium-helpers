@@ -1,5 +1,6 @@
 import {Cartesian4} from '@cesium/core';
 import {PostProcessStage, PostProcessStageComposite} from '@cesium/engine';
+import {hasCloudCover} from './cloud-cover.js';
 import {acquireTerrainDepth, releaseTerrainDepth} from './depth-test.js';
 import Effect from './effect.js';
 import {acquireFrames, releaseFrames} from './frame-clock.js';
@@ -12,6 +13,9 @@ import PrecipitationShader from './shaders/Precipitation.js';
 import PrecipitationShaftBlur from './shaders/PrecipitationShaftBlur.js';
 import PrecipitationShafts from './shaders/PrecipitationShafts.js';
 import PrecipitationWind from './shaders/PrecipitationWind.js';
+import RainHaze from './shaders/RainHaze.js';
+import WeatherMapShader from './shaders/WeatherMap.js';
+import WeatherMap from './weather-map.js';
 
 // the streaks are the drops' motion over a frame's exposure
 const FRAME_RATE = 30;
@@ -51,6 +55,24 @@ const MAX_STEP = 0.1;
 const SHAFT_SCALE = 0.125;
 // the sunlight under the clouds, as a share of its intensity
 const OVERCAST = 0.5;
+// the camera goes from under the clouds to above them over this height around the cloud base, in
+// meters, as the drops in Precipitation.glsl
+const CLOUD_BASE_FADE = 50;
+
+/**
+ * GLSL's smoothstep.
+ * @param {number} edge0
+ * @param {number} edge1
+ * @param {number} x
+ */
+function smoothstep(edge0, edge1, x) {
+  const t = Math.min(Math.max((x - edge0) / (edge1 - edge0), 0), 1);
+  return t * t * (3 - 2 * t);
+}
+
+/**
+ * @typedef {import('./weather-map.js').WeatherMapOptions} PrecipitationMapOptions
+ */
 
 // the scenes under clouds, with their light and shadows before: rain and snow may be active at
 // once, the first one dims the light, the last one restores it
@@ -69,6 +91,20 @@ function acquireOvercast(scene) {
   overcast.set(scene, {count: 1, light: scene.light, intensity: scene.light.intensity, shadows: scene.shadowMap.enabled});
   scene.light.intensity *= OVERCAST;
   scene.shadowMap.enabled = false;
+}
+
+/**
+ * The sunlight and the shadows under the clouds, in proportion to how hard it rains at the camera.
+ * @param {import('@cesium/engine').Scene} scene
+ * @param {number} local
+ */
+function shadeOvercast(scene, local) {
+  const clouds = overcast.get(scene);
+  if (!clouds) {
+    return;
+  }
+  clouds.light.intensity = clouds.intensity * (1 - (1 - OVERCAST) * local);
+  scene.shadowMap.enabled = clouds.shadows && local < 0.5;
 }
 
 /**
@@ -92,12 +128,15 @@ function releaseOvercast(scene) {
  * and snow, the same drops slow down, shorten and soften, as in sleet. While
  * active, the sky is overcast: no shadows, and a dimmer sunlight. The
  * precipitation falls, so while active with an intensity the scene renders at
- * 30 frames per second, also in requestRenderMode.
+ * 30 frames per second, also in requestRenderMode. With a map, it falls where
+ * the map says, in cells seen from outside through their shafts and haze,
+ * and the sky is overcast in proportion to the map at the camera, but not
+ * above the cloud base.
  */
 export default class Precipitation extends Effect {
   /**
    * @param {import('@cesium/engine').CesiumWidget} viewer
-   * @param {{intensity?: number, wind?: number, speed?: number, cloudBase?: number, snow?: number}} [options]
+   * @param {{intensity?: number, wind?: number, speed?: number, cloudBase?: number, snow?: number, map?: PrecipitationMapOptions}} [options]
    */
   constructor(viewer, options = {}) {
     super(viewer);
@@ -106,6 +145,11 @@ export default class Precipitation extends Effect {
     this.speed_ = options.speed ?? 1;
     this.cloudBase_ = options.cloudBase ?? 2500;
     this.snow_ = options.snow ?? 0;
+    // without a map, it rains everywhere
+    this.weatherMap_ = new WeatherMap(1);
+    this.weatherMap_.map = options.map;
+    // the map's intensity at the camera, read each frame
+    this.localIntensity_ = 1;
     // the scroll of the grid, added up from frame to frame: the speed changes with the snow, and
     // time times the speed would move all the drops when it does
     this.offset_ = 0;
@@ -119,6 +163,11 @@ export default class Precipitation extends Effect {
       this.lastTime_ = now;
       this.offset_ = (this.offset_ + (dt * this.fallSpeed_() * this.cellsAlong_()) / NEAREST) % PERIOD;
       this.updateLayers_();
+      const {longitude, latitude, height} = this.viewer.scene.camera.positionCartographic;
+      this.localIntensity_ = this.weatherMap_.intensityAt(longitude, latitude);
+      // above the clouds, the sun shines
+      const below = 1 - smoothstep(this.cloudBase_ - CLOUD_BASE_FADE, this.cloudBase_ + CLOUD_BASE_FADE, height);
+      shadeOvercast(this.viewer.scene, this.localIntensity_ * below);
     };
   }
 
@@ -187,8 +236,13 @@ export default class Precipitation extends Effect {
       snow: () => this.snow_,
     };
     const shafts = new PostProcessStage({
-      fragmentShader: EyeFromDepth + Noise + Height + PrecipitationWind + PrecipitationShafts,
-      uniforms: shared,
+      fragmentShader: EyeFromDepth + Noise + Height + PrecipitationWind + WeatherMapShader + PrecipitationShafts,
+      uniforms: {
+        ...shared,
+        // @ts-expect-error the scene's context is not typed
+        map: () => this.weatherMap_.texture(scene.context),
+        mapBounds: () => this.weatherMap_.bounds,
+      },
       textureScale: SHAFT_SCALE,
     });
     // blurred at the same resolution
@@ -202,10 +256,12 @@ export default class Precipitation extends Effect {
         shafts,
         blurredShafts,
         new PostProcessStage({
-          fragmentShader: EyeFromDepth + Hash + Height + PrecipitationWind + PrecipitationShader,
+          fragmentShader: EyeFromDepth + Hash + Height + PrecipitationWind + RainHaze + PrecipitationShader,
           uniforms: {
             ...shared,
             shaftTexture: blurredShafts.name,
+            localIntensity: () => this.localIntensity_,
+            clouds: () => (hasCloudCover(scene) ? 1 : 0),
             trail: () => this.trail_(),
             layerShape: () => this.layerShape_,
             layerLook: () => this.layerLook_,
@@ -247,6 +303,30 @@ export default class Precipitation extends Effect {
     releaseOvercast(scene);
     releaseTerrainDepth(scene);
     scene.preRender.removeEventListener(this.onPreRender_);
+    this.weatherMap_.destroy();
+  }
+
+  /**
+   * Where it rains, or undefined for everywhere: an image whose red channel
+   * is the local intensity, 0 to 1, over a rectangle of longitudes and
+   * latitudes, north up. The precipitation fades in over a pixel of the
+   * image. Set it again after drawing on the image, which is read then.
+   */
+  get map() {
+    return this.weatherMap_.map;
+  }
+
+  /**
+   * The map's intensity at the camera, 0 to 1, read each frame while active;
+   * 1 without a map.
+   */
+  get localIntensity() {
+    return this.localIntensity_;
+  }
+
+  set map(value) {
+    this.weatherMap_.map = value;
+    this.viewer.scene.requestRender();
   }
 
   /**

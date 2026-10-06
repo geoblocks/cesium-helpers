@@ -16,11 +16,14 @@
   },
   "devDependencies": {
     "@awesome.me/webawesome": "3.14.0",
+    "@camptocamp/ogc-client": "2.0.2",
     "@cesium/core": "0.1.0",
     "@cesium/engine": "26.4.0",
     "gh-pages": "6.3.0",
+    "jsfive": "0.4.2",
     "lerna": "10.0.1",
     "mediabunny": "1.61.3",
+    "ol": "10.11.0",
     "typescript": "7.0.2",
     "vite": "8.3.3"
   }

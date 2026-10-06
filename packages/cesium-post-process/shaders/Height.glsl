@@ -12,3 +12,14 @@ float heightAt(vec3 eye) {
   float across = dot(eye, eye) - rise * rise;
   return cameraHeight + rise + across / (2.0 * radius);
 }
+
+// the part below a height of the ray from the camera to a point in eye coordinates, as shares of
+// it, from its start to its end, the height taken as linear along it; none when both ends are above
+vec2 belowHeight(vec3 rayEnd, float height) {
+  float h0 = cameraHeight;
+  float h1 = heightAt(rayEnd);
+  if (min(h0, h1) >= height) {
+    return vec2(0.0);
+  }
+  return vec2(h0 > height ? (h0 - height) / (h0 - h1) : 0.0, h1 > height ? (height - h0) / (h1 - h0) : 1.0);
+}
