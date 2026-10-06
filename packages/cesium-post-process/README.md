@@ -18,7 +18,7 @@ Each effect is inactive after construction. Every option is also a property, app
 
 ```javascript
 import {Color} from '@cesium/engine';
-import {AnalogVideo, ColorIsolation, DigitalVideo, DroneDisplay, Infrared, Jello, LensDistortion, Lightning, MotionBlur, Precipitation, SnowLine, SpeedLines, Spotlight, Super8, Technicolor, TiltShift, ValleyFog} from '@geoblocks/cesium-post-process';
+import {Alpenglow, AnalogVideo, ColorIsolation, DigitalVideo, DroneDisplay, Infrared, Jello, LensDistortion, Lightning, MotionBlur, Precipitation, SnowLine, SpeedLines, Spotlight, Super8, Technicolor, TiltShift, ValleyFog} from '@geoblocks/cesium-post-process';
 
 const snowLine = new SnowLine(viewer, {
   altitude: 2000,  // meters above the ellipsoid where the snow is half covering
@@ -27,6 +27,13 @@ const snowLine = new SnowLine(viewer, {
   coverage: 1,     // opacity of the snow, 0 to 1
 });
 snowLine.active = true;
+
+const alpenglow = new Alpenglow(viewer, {
+  altitude: 2500,  // meters above the ellipsoid where the peaks start to glow
+  transition: 500, // height of the band over which the glow fades into the shadow, in meters
+  strength: 1,     // 0 to 1
+});
+alpenglow.active = true;
 
 const valleyFog = new ValleyFog(viewer, {
   top: 1500,       // altitude of the top of the fog, meters above the ellipsoid
@@ -161,7 +168,7 @@ super8.destroy();
 
 ### Order of the effects
 
-Cesium runs the stages in the order they are added and cannot insert one elsewhere. Activate the effects in this order: `SnowLine`, `ValleyFog`, `Spotlight`, `Precipitation`, `Lightning`, `TiltShift`, `MotionBlur`, `SpeedLines`, `ColorIsolation`, `Infrared`, `Technicolor`, `Super8`, `LensDistortion`, `Jello`, `DroneDisplay`, `AnalogVideo` or `DigitalVideo`. The snow is then under the fog, the rain or the falling snow in the scene, the lens effects apply to the whole scene, and the film looks apply to everything, their black bars included. The drone camera comes last, in the order of a real one: its lens bends the picture, its sensor reads it with the jello of its shake, its display is drawn over the picture and stays straight, and the video signal, analog or digital, disturbs both. To activate an effect later, deactivate and activate again the active effects that come after it.
+Cesium runs the stages in the order they are added and cannot insert one elsewhere. Activate the effects in this order: `SnowLine`, `Alpenglow`, `ValleyFog`, `Spotlight`, `Precipitation`, `Lightning`, `TiltShift`, `MotionBlur`, `SpeedLines`, `ColorIsolation`, `Infrared`, `Technicolor`, `Super8`, `LensDistortion`, `Jello`, `DroneDisplay`, `AnalogVideo` or `DigitalVideo`. The snow is then under the glow of the peaks, both under the fog, the rain or the falling snow in the scene, the lens effects apply to the whole scene, and the film looks apply to everything, their black bars included. The drone camera comes last, in the order of a real one: its lens bends the picture, its sensor reads it with the jello of its shake, its display is drawn over the picture and stays straight, and the video signal, analog or digital, disturbs both. To activate an effect later, deactivate and activate again the active effects that come after it.
 
 ### Notes
 
@@ -183,7 +190,7 @@ Its `snow`, from 0 to 1, turns the rain to snow in one population, so that nothi
 
 `Spotlight`'s beam in the air is raymarched, as Killzone Shadow Fall's volumetrics (Valient, SIGGRAPH 2014), in a pass at half the resolution: 8 samples along the part of each view ray inside the cone, found analytically, dithered per pixel, each weighted by the cone's penumbra, the dust, the inverse square from the light softened around it and the extinction of the haze so far, then scattered toward the camera with a Henyey-Greenstein phase of asymmetry `beamAnisotropy`. A 3 x 3 blur at that resolution, weighted by the scene distance, smooths the dither out, and the full resolution takes the four texels around each pixel, interpolated where they are at its distance, else the nearest in distance, so that the haze stops at the ridges in front of it rather than spilling onto them; the half-float texture holds the log2 of the distance. On an Intel UHD 630 at 1920 x 1080, the beam costs about 1.9 ms, from 5 ms at full resolution with 16 samples. It holds from any viewpoint, inside the cone included, where the former analytic beam, which took its penumbra where the ray passes closest to the axis, went dark; its dust streaks are noise sampled along the beam, radiating from the light. The light is added to a picture Cesium has already tone mapped, so the output goes through a filmic roll-off (ACES) rather than clipping to flat white.
 
-`SnowLine` and `ValleyFog` compute each pixel's height relative to the camera, in double precision on the CPU for the camera, so they stay accurate far from the origin. The snow's slope comes from the normal rebuilt from the neighboring pixels. The fog is lit by the sun like Cesium's own fog: its color during the day, a moonlit blue at night, as bright as `scene.fog.minimumBrightness`. Both work in 3D only.
+`SnowLine`, `Alpenglow` and `ValleyFog` compute each pixel's height relative to the camera, in double precision on the CPU for the camera, so they stay accurate far from the origin. The snow's slope and the side of the peaks facing the sun come from the normal rebuilt from the neighboring pixels. `Alpenglow` does not follow the time of day: it lights the peaks as at sunset whatever the sun's elevation, and only takes the sun's direction from the scene. At strength 0 its stage is disabled. The fog is lit by the sun like Cesium's own fog: its color during the day, a moonlit blue at night, as bright as `scene.fog.minimumBrightness`. All three work in 3D only.
 
 `SnowLine`, `ValleyFog`, `Precipitation`, `Lightning`, `TiltShift`, `Spotlight` and `MotionBlur` read the depth buffer. The post-process stages only get the terrain's depth when it is depth tested, so `globe.depthTestAgainstTerrain` is on while any of them is active and restored when the last one is deactivated: billboards and labels that show through the terrain can be hidden by it meanwhile.
 
