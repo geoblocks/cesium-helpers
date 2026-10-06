@@ -40,6 +40,7 @@ export default defineConfig({
         'cesium-view-cube': resolve(__dirname, 'demos/cesium-view-cube.html'),
         'cesium-walk': resolve(__dirname, 'demos/cesium-walk.html'),
         'flyover-studio': resolve(__dirname, 'demos/flyover-studio.html'),
+        weather: resolve(__dirname, 'demos/weather.html'),
       },
     },
   },

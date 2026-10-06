@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en" class="wa-theme-default wa-palette-default wa-light">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://cdn.jsdelivr.net/npm/cesium@1.146.0/Build/Cesium/Cesium.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/cesium@1.146.0/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+    }
+    /* the globe above, the timeline at the bottom of the page, out of the picture */
+    body {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    main {
+      position: relative;
+      flex: 1;
+      min-block-size: 0;
+    }
+    #cesiumContainer {
+      block-size: 100%;
+    }
+    #controls {
+      position: absolute;
+      inset-block-start: var(--wa-space-xl);
+      inset-inline-end: var(--wa-space-xl);
+      --spacing: var(--wa-space-s);
+      max-inline-size: 30ch;
+      max-block-size: calc(100% - 2 * var(--wa-space-xl));
+      overflow: auto;
+    }
+    /* on a phone, the panel in a corner, without the tips for a keyboard and headphones */
+    @media (max-width: 480px) {
+      #controls {
+        inset-block-start: var(--wa-space-s);
+        inset-inline-end: var(--wa-space-s);
+        max-inline-size: 22ch;
+        max-block-size: calc(100% - 2 * var(--wa-space-s));
+      }
+      #controls ul {
+        display: none;
+      }
+    }
+    #timeline {
+      display: flex;
+      align-items: center;
+      gap: var(--wa-space-s);
+      /* room above the track for the hour's bubble */
+      padding: var(--wa-space-2xl) var(--wa-space-m) var(--wa-space-s);
+      background: var(--wa-color-surface-default);
+      border-block-start: var(--wa-border-width-s) solid var(--wa-color-surface-border);
+    }
+    #track {
+      position: relative;
+      flex: 1;
+      container-type: inline-size;
+    }
+    #track wa-slider {
+      inline-size: 100%;
+    }
+    /* the hour shown, above the slider's thumb */
+    #hour {
+      position: absolute;
+      inset-block-end: calc(100% + var(--wa-space-2xs));
+      transform: translateX(-50%);
+      padding: var(--wa-space-3xs) var(--wa-space-xs);
+      border-radius: var(--wa-border-radius-s);
+      background: var(--wa-color-neutral-fill-loud);
+      color: var(--wa-color-neutral-on-loud);
+      font-size: var(--wa-font-size-xs);
+      /* on one line, unless the track is narrower */
+      inline-size: max-content;
+      max-inline-size: 100%;
+      box-sizing: border-box;
+      text-align: center;
+      pointer-events: none;
+    }
+    #hour::after {
+      content: '';
+      position: absolute;
+      inset-block-start: 100%;
+      inset-inline-start: var(--arrow, 50%);
+      transform: translateX(-50%);
+      border: 5px solid transparent;
+      border-block-start-color: var(--wa-color-neutral-fill-loud);
+    }
+    #hour.error {
+      background: var(--wa-color-danger-fill-loud);
+    }
+    #hour.error::after {
+      border-block-start-color: var(--wa-color-danger-fill-loud);
+    }
+    /* the days under the track: a tick at each midnight, the day's name at its noon */
+    .midnight {
+      position: absolute;
+      inset-block-start: 0;
+      block-size: 0.6em;
+      border-inline-start: var(--wa-border-width-s) solid var(--wa-color-neutral-border-normal);
+    }
+    .day {
+      position: absolute;
+      transform: translateX(-50%);
+      white-space: nowrap;
+    }
+    /* the days' numbers alone on a narrow track */
+    @container (max-width: 420px) {
+      .weekday {
+        display: none;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main>
+    <div id="cesiumContainer"></div>
+    <wa-card id="controls">
+      <div class="wa-stack wa-gap-xs">
+        <h2 class="wa-heading-s">Weather from the radar</h2>
+        <p class="wa-caption-m">Rain, clouds and lightning where MeteoSwiss' radars saw them, hour by hour over the last 7 days.</p>
+        <ul class="wa-caption-s">
+          <li>Zoom out to see the clouds from above, fly in to enter them.</li>
+          <li>Press play, or <kbd>←</kbd> <kbd>→</kbd>, to step through the hours.</li>
+          <li>With sound, the thunder comes from the strike, a second for every 343 m. Headphones recommended.</li>
+        </ul>
+        <wa-switch name="sound" size="s">Sound</wa-switch>
+      </div>
+    </wa-card>
+  </main>
+  <footer id="timeline">
+    <div class="wa-cluster wa-gap-3xs">
+      <wa-button id="previous" size="s" appearance="plain" disabled>
+        <wa-icon name="backward-step" variant="solid" label="Previous hour"></wa-icon>
+      </wa-button>
+      <wa-button id="play" size="s" variant="brand" disabled>
+        <wa-icon name="play" variant="solid" label="Play"></wa-icon>
+      </wa-button>
+      <wa-button id="next" size="s" appearance="plain" disabled>
+        <wa-icon name="forward-step" variant="solid" label="Next hour"></wa-icon>
+      </wa-button>
+    </div>
+    <div id="track">
+      <output id="hour" style="left: 100%">Loading the radar…</output>
+      <wa-slider id="time" size="s" min="0" max="167" step="1" value="167" disabled>
+        <span slot="label" class="wa-visually-hidden">Hour</span>
+      </wa-slider>
+    </div>
+  </footer>
+  <script type="module">
+    import {createViewer} from './setup.js';
+    import CesiumAudio from '../packages/cesium-audio/cesium-audio.js';
+    import {Clouds, Lightning, Precipitation} from '../packages/cesium-post-process/cesium-post-process.js';
+    import {hourlyRadarMap, latestHour} from './meteoswiss.js';
+    import '@awesome.me/webawesome/dist/styles/webawesome.css';
+    import '@awesome.me/webawesome/dist/components/card/card.js';
+    import '@awesome.me/webawesome/dist/components/switch/switch.js';
+    import '@awesome.me/webawesome/dist/components/slider/slider.js';
+    import '@awesome.me/webawesome/dist/components/button/button.js';
+    import '@awesome.me/webawesome/dist/components/icon/icon.js';
+
+    // meters per second
+    const SPEED_OF_SOUND = 343;
+    // the farthest a strike is heard, in meters
+    const THUNDER_RANGE = 20000;
+    // the gain of the rain at intensity 1
+    const RAIN_GAIN = 0.5;
+    const HOUR = 3600 * 1000;
+    // how long each hour shows while playing, once its radar is loaded, in milliseconds, and how many
+    // hours ahead are loaded meanwhile
+    const FRAME_DURATION = 700;
+    const PRELOAD = 3;
+    // the hours in a row that fail to load before playing stops
+    const MAX_FAILURES = 3;
+
+    createViewer('cesiumContainer').then(viewer => {
+      const controls = document.querySelector('#controls');
+
+      // in the order of the stages: the clouds, the rain in front of them, then the lightning
+      const clouds = new Clouds(viewer);
+      // the radar's map alone says how hard it rains, at the camera and along each view
+      const precipitation = new Precipitation(viewer, {intensity: 1});
+      // striking once it has a map, which says where: within 30 km from the ground, farther from higher up
+      const lightning = new Lightning(viewer, {intensity: 0, radius: 30000});
+      clouds.active = true;
+      precipitation.active = true;
+      lightning.active = true;
+
+      let audioContext;
+      let rainGain;
+      let thunderBuffer;
+
+      const thunder = async ground => {
+        if (audioContext?.state !== 'running') {
+          return;
+        }
+        const distance = Cesium.Cartesian3.distance(ground, viewer.scene.camera.positionWC);
+        if (distance > THUNDER_RANGE) {
+          return;
+        }
+        const panner = new PannerNode(audioContext, {panningModel: 'HRTF', distanceModel: 'inverse', refDistance: 1000});
+        panner.connect(audioContext.destination);
+        const audio = new CesiumAudio(viewer, ground, panner);
+        audio.active = true;
+        const source = new AudioBufferSourceNode(audioContext, {buffer: await thunderBuffer});
+        source.connect(panner);
+        source.onended = () => {
+          audio.active = false;
+          panner.disconnect();
+        };
+        source.start(audioContext.currentTime + distance / SPEED_OF_SOUND);
+      };
+      lightning.strikeEvent.addEventListener(thunder);
+
+      // the rain sound follows the rain at the camera, none above the clouds
+      viewer.scene.postRender.addEventListener(() => {
+        const below = viewer.scene.camera.positionCartographic.height < precipitation.cloudBase;
+        rainGain?.gain.setTargetAtTime(below ? RAIN_GAIN * precipitation.localIntensity : 0, audioContext.currentTime, 0.1);
+      });
+
+      const timeSlider = document.querySelector('#time');
+      const track = document.querySelector('#track');
+      const hourBubble = document.querySelector('#hour');
+      const playButton = document.querySelector('#play');
+      const playIcon = playButton.querySelector('wa-icon');
+      const previousButton = document.querySelector('#previous');
+      const nextButton = document.querySelector('#next');
+      const last = Number(timeSlider.max);
+      const index = () => Number(timeSlider.value);
+
+      // the end of the hour at the slider's start, 7 days before the latest one
+      let first;
+      const hourAt = i => new Date(first.getTime() + i * HOUR);
+      // the hour of the slider at a time of the clock
+      const indexAt = time => Cesium.Math.clamp(Math.floor((Cesium.JulianDate.toDate(time) - first) / HOUR) + 1, 0, last);
+
+      // the clock, and so the sun, at the hour shown: an hour every FRAME_DURATION while playing
+      const clock = viewer.clock;
+      clock.multiplier = HOUR / FRAME_DURATION;
+      clock.clockRange = Cesium.ClockRange.LOOP_STOP;
+      // the sun moving renders every 5 minutes of the clock, not every frame
+      viewer.scene.maximumRenderTimeChange = 300;
+      // the clock at the middle of the slider's hour
+      const syncClock = () => {
+        clock.currentTime = Cesium.JulianDate.fromDate(new Date(hourAt(index()).getTime() - HOUR / 2));
+      };
+      // the hour of rain a radar file sums, from the hour before its time to its time
+      const hours = new Intl.DateTimeFormat([], {hour: '2-digit', minute: '2-digit'});
+      const describeHour = i => {
+        const end = hourAt(i);
+        const start = new Date(end.getTime() - HOUR);
+        return `${start.toLocaleDateString([], {weekday: 'short', day: 'numeric', month: 'short'})} · ${hours.formatRange(start, end)}`;
+      };
+
+      // the bubble above the slider's thumb, kept inside the track, its arrow on the thumb
+      const placeBubble = () => {
+        const sliderTrack = timeSlider.shadowRoot?.querySelector('[part~="track"]') ?? timeSlider;
+        const trackBox = sliderTrack.getBoundingClientRect();
+        const box = track.getBoundingClientRect();
+        const thumb = trackBox.left - box.left + (index() / last) * trackBox.width;
+        const half = hourBubble.offsetWidth / 2;
+        const left = Cesium.Math.clamp(thumb, half, box.width - half);
+        hourBubble.style.left = `${left}px`;
+        hourBubble.style.setProperty('--arrow', `${50 + (100 * (thumb - left)) / hourBubble.offsetWidth}%`);
+      };
+      const showBubble = (text, error = false) => {
+        hourBubble.textContent = text;
+        hourBubble.classList.toggle('error', error);
+        placeBubble();
+      };
+      new ResizeObserver(placeBubble).observe(track);
+
+      const syncButtons = () => {
+        previousButton.disabled = index() === 0;
+        nextButton.disabled = index() === last;
+      };
+
+      // whether the hour's radar loaded
+      const showHour = async () => {
+        const i = index();
+        const hour = hourAt(i);
+        syncButtons();
+        showBubble(`${describeHour(i)} · loading…`);
+        try {
+          const map = await hourlyRadarMap(hour);
+          // unless the slider moved on meanwhile
+          if (i === index()) {
+            precipitation.map = map;
+            clouds.map = map;
+            lightning.map = map;
+            lightning.intensity = 1;
+            showBubble(describeHour(i));
+          }
+          return true;
+        } catch (error) {
+          console.error(error);
+          if (i === index()) {
+            showBubble(`${describeHour(i)} · no radar`, true);
+          }
+          return false;
+        }
+      };
+
+      // the hours one after the other as the clock runs, back to the first after the latest
+      let playing = false;
+      // each play and pause starts a new run, for a step of an earlier one not to go on
+      let run = 0;
+      let failures = 0;
+      const setPlaying = value => {
+        playing = value;
+        run++;
+        failures = 0;
+        clock.shouldAnimate = playing;
+        playIcon.name = playing ? 'pause' : 'play';
+        playIcon.label = playing ? 'Pause' : 'Play';
+      };
+      // the clock waits for the hour's radar
+      const step = async i => {
+        const current = run;
+        clock.shouldAnimate = false;
+        timeSlider.value = i;
+        const loaded = await showHour();
+        if (current !== run) {
+          return;
+        }
+        failures = loaded ? 0 : failures + 1;
+        if (failures === MAX_FAILURES) {
+          setPlaying(false);
+          return;
+        }
+        for (let ahead = 1; ahead <= PRELOAD; ahead++) {
+          hourlyRadarMap(hourAt((i + ahead) % (last + 1))).catch(() => {});
+        }
+        clock.shouldAnimate = true;
+      };
+      clock.onTick.addEventListener(() => {
+        if (clock.shouldAnimate) {
+          const i = indexAt(clock.currentTime);
+          if (i !== index()) {
+            step(i);
+          }
+        }
+      });
+      const togglePlay = () => setPlaying(!playing);
+      // stepping by hand stops the animation
+      const goTo = i => {
+        setPlaying(false);
+        timeSlider.value = Cesium.Math.clamp(i, 0, last);
+        syncClock();
+        showHour();
+      };
+
+      playButton.addEventListener('click', togglePlay);
+      previousButton.addEventListener('click', () => goTo(index() - 1));
+      nextButton.addEventListener('click', () => goTo(index() + 1));
+      // the bubble follows the thumb while dragging, the radar loads where it stops
+      timeSlider.addEventListener('input', () => showBubble(describeHour(index())));
+      timeSlider.addEventListener('change', () => {
+        syncClock();
+        showHour();
+      });
+      // the arrows step an hour and the space bar plays, but in a field or on the slider, which has
+      // its own keys
+      document.addEventListener('keydown', event => {
+        if (timeSlider.disabled || event.altKey || event.ctrlKey || event.metaKey || event.target.closest?.('input, textarea, wa-slider')) {
+          return;
+        }
+        if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+          event.preventDefault();
+          goTo(index() + (event.key === 'ArrowLeft' ? -1 : 1));
+        } else if (event.key === ' ' && !event.target.closest?.('wa-button, wa-switch')) {
+          event.preventDefault();
+          togglePlay();
+        }
+      });
+
+      latestHour().then(latest => {
+        first = new Date(latest.getTime() - last * HOUR);
+        clock.startTime = Cesium.JulianDate.fromDate(hourAt(-1));
+        clock.stopTime = Cesium.JulianDate.fromDate(latest);
+        // the days under the track: a tick at each midnight, the day's name at its noon, but the
+        // days cut at either end
+        const at = (className, i, ...content) => {
+          const mark = document.createElement('span');
+          mark.slot = 'reference';
+          mark.className = className;
+          mark.append(...content);
+          mark.style.left = `${(100 * i) / last}%`;
+          timeSlider.append(mark);
+        };
+        const midnight = new Date(first);
+        midnight.setHours(24, 0, 0, 0);
+        for (; midnight <= latest; midnight.setDate(midnight.getDate() + 1)) {
+          at('midnight', (midnight - first) / HOUR);
+          const noon = (midnight - first) / HOUR + 12;
+          if (noon <= last - 6) {
+            const day = new Date(midnight.getTime() + 12 * HOUR);
+            const weekday = document.createElement('span');
+            weekday.className = 'weekday';
+            weekday.textContent = `${day.toLocaleDateString([], {weekday: 'short'})} `;
+            at('day', noon, weekday, String(day.getDate()));
+          }
+        }
+        timeSlider.disabled = playButton.disabled = false;
+        syncClock();
+        showHour();
+      }, error => {
+        console.error(error);
+        showBubble('The radar is unavailable', true);
+      });
+
+      const load = async url => {
+        const response = await fetch(url);
+        return audioContext.decodeAudioData(await response.arrayBuffer());
+      };
+
+      controls.addEventListener('change', async event => {
+        if (event.target.name !== 'sound') {
+          return;
+        }
+        if (!audioContext) {
+          // the audio context can only start from a user gesture
+          audioContext = new AudioContext();
+          thunderBuffer = load('sounds/thunder.mp3');
+          rainGain = new GainNode(audioContext, {gain: 0});
+          rainGain.connect(audioContext.destination);
+          const rain = new AudioBufferSourceNode(audioContext, {buffer: await load('sounds/rain.mp3'), loop: true});
+          rain.connect(rainGain);
+          rain.start();
+        } else if (event.target.checked) {
+          await audioContext.resume();
+        } else {
+          await audioContext.suspend();
+        }
+      });
+    });
+  </script>
+</body>
+
+</html>
