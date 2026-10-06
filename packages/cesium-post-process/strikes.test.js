@@ -32,3 +32,8 @@ test('there are never more than the maximum', () => {
   }
   assert.equal(strikes.length, MAX_STRIKES);
 });
+test('a strike the create function declines is not added', () => {
+  const strikes = [];
+  advanceStrikes(strikes, 10, 0.1, 5, () => 0, () => undefined);
+  assert.deepEqual(strikes, []);
+});

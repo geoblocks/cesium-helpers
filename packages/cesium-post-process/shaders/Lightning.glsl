@@ -9,7 +9,9 @@
 // over the slope of the wander, so that the width stays the same where it zigzags: a function of the
 // position along the line, a handful of noise lookups for each channel, not a polyline for each pixel.
 // The channel is hidden behind nearer terrain. The flash lights each pixel in proportion to its own color,
-// less with its distance to the strike, and the sky toward the cloud above it. Needs EyeFromDepth and Hash.
+// less with its distance to the strike, and the sky toward the cloud above it. Seen from above the cloud
+// base, the channel is hidden in the cloud, and the flash lights the cloud over the strike from inside, as
+// a glow. Needs EyeFromDepth and Hash.
 const int STRIKES = 4;
 const int BRANCHES = 5;
 uniform sampler2D colorTexture;
@@ -21,6 +23,10 @@ uniform vec4 strikeBottom[STRIKES];
 // the branches of each strike's channel, from the CPU: where along the channel they leave it, the cosine
 // and the sine of their angle from it, and their length as a share of the channel's, 0 for none
 uniform vec4 strikeBranches[STRIKES * BRANCHES];
+// the glow of each strike in the clouds, in eye coordinates, and the map's intensity at the strike,
+// 0 for none; and 0 below the cloud base to 1 above it, where the glow replaces the channel
+uniform vec4 strikeGlow[STRIKES];
+uniform float above;
 in vec2 v_textureCoordinates;
 
 const int MAX_STROKES = 4;
@@ -57,6 +63,12 @@ const float SKY_DISTANCE = 20000.0;
 // time constants of the channel's flicker and of the flash, in seconds
 const float BOLT_DECAY = 0.05;
 const float FLASH_DECAY = 0.15;
+// the glow in the clouds above a strike, seen from above: as wide as this, in meters, and as bright
+const float GLOW_RADIUS = 4000.0;
+const float GLOW_BRIGHTNESS = 0.9;
+// seen from above, most of the way to the glow is through thin air: its light is dimmed by at most
+// this many meters of the air near the ground, about the height over which the air thins by e
+const float GLOW_AIR = 8000.0;
 
 // noise of one coordinate, in [-0.5, 0.5), and its slope: linear between the random values of the whole
 // numbers, not smoothed, so that the path is made of straight segments with sharp turns, as a bolt is
@@ -184,6 +196,15 @@ void main() {
     light += FLASH_COLOR * seen * flash * (color * 1.2 + 0.08) / (1.0 + reach * reach);
     light += FLASH_COLOR * seen * flash * sky * 0.5;
 
+    // seen from above, the flash lights the cloud over the strike from inside: a glow around the
+    // point of the view ray nearest to it, hidden behind nearer terrain
+    vec4 glow = strikeGlow[k];
+    float along = dot(glow.xyz, normalize(eye.xyz));
+    if (above > 0.0 && glow.w > 0.0 && along > 0.0 && sceneDistance > along * 0.98) {
+      float across = length(glow.xyz - normalize(eye.xyz) * along);
+      light += FLASH_COLOR * transmittance(min(along, GLOW_AIR)) * flash * glow.w * above * GLOW_BRIGHTNESS * exp(-across * across / (GLOW_RADIUS * GLOW_RADIUS));
+    }
+
     // the channel, when both its ends are in front of the camera, and the pixel is near it
     if (top.z > -1.0 || bottom.z > -1.0) {
       continue;
@@ -228,7 +249,7 @@ void main() {
     }
     // hidden behind terrain nearer than the channel at this height
     if (sceneDistance > boltDistance * 0.98 - 30.0) {
-      channel += bolt * transmittance(boltDistance) * (profile.x + profile.y * HALO_COLOR);
+      channel += (1.0 - above) * bolt * transmittance(boltDistance) * (profile.x + profile.y * HALO_COLOR);
     }
   }
   out_FragColor = vec4(color + light + channel, sceneColor.a);
