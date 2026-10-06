@@ -1,4 +1,4 @@
-import"./lit-BFn1CURT.js";/* empty css                   */import"./card-BcpQSzF3.js";import{t as e}from"./setup-DMh09s7J.js";import{D as t,N as n,T as r,a as i,b as a,c as o,i as s,w as c,y as l}from"./cesium-shim-deYMRcZt.js";import"./switch-PsQ7BZQb.js";import"./button-CI_sKcZA.js";import{a as u,i as d,n as f,o as p,r as m,t as ee}from"./motion-blur-H9Tf_aeZ.js";import{a as h,i as g,n as te,o as _,r as v,t as y}from"./details-DWYmLCUG.js";import"./slider-sLn6HB47.js";var b=`// Color isolation: one hue keeps its color, the rest of the scene turns gray. After prod80's
+import"./lit-BFn1CURT.js";/* empty css                   */import"./card-BcpQSzF3.js";import{t as e}from"./setup-DMh09s7J.js";import{D as t,N as n,T as r,a as i,b as a,c as o,i as s,o as c,w as l,x as u,y as d}from"./cesium-shim-deYMRcZt.js";import"./switch-PsQ7BZQb.js";import"./button-CI_sKcZA.js";import{a as f,i as p,n as m,o as h,r as g,t as ee}from"./motion-blur-H9Tf_aeZ.js";import{a as _,i as v,n as te,o as y,r as ne,t as re}from"./details-DWYmLCUG.js";import"./slider-sLn6HB47.js";var ie=`// Color isolation: one hue keeps its color, the rest of the scene turns gray. After prod80's
 // ReShade Color Isolation (MIT), https://github.com/prod80/prod80-ReShade-Repository
 uniform sampler2D colorTexture;
 // the hue kept and the half width of the selection, 0 to 1 for the whole circle
@@ -23,7 +23,7 @@ void main() {
   vec3 isolated = mix(vec3(gray), color, keep);
   out_FragColor = vec4(mix(color, isolated, strength), sceneColor.a);
 }
-`,x=`// Hue (0 to 1, red at 0), saturation and lightness of a color.
+`,b=`// Hue (0 to 1, red at 0), saturation and lightness of a color.
 vec3 rgbToHsl(vec3 color) {
   float maxc = max(color.r, max(color.g, color.b));
   float minc = min(color.r, min(color.g, color.b));
@@ -38,7 +38,7 @@ vec3 rgbToHsl(vec3 color) {
     : (color.r - color.g) / delta + 4.0;
   return vec3(hue / 6.0, saturation, lightness);
 }
-`,ne=class extends p{constructor(e,t={}){super(e),this.hue_=t.hue??0,this.range_=t.range??60,this.strength_=t.strength??1}createStage_(){return new c({fragmentShader:x+b,uniforms:{hue:()=>this.hue_/360,range:()=>this.range_/360,strength:()=>this.strength_}})}get hue(){return this.hue_}set hue(e){this.hue_=e,this.viewer.scene.requestRender()}get range(){return this.range_}set range(e){this.range_=e,this.viewer.scene.requestRender()}get strength(){return this.strength_}set strength(e){this.strength_=e,this.viewer.scene.requestRender()}},re=`// Black and white infrared film: foliage, which reflects the near infrared, turns bright, the sky
+`,x=class extends h{constructor(e,t={}){super(e),this.hue_=t.hue??0,this.range_=t.range??60,this.strength_=t.strength??1}createStage_(){return new l({fragmentShader:b+ie,uniforms:{hue:()=>this.hue_/360,range:()=>this.range_/360,strength:()=>this.strength_}})}get hue(){return this.hue_}set hue(e){this.hue_=e,this.viewer.scene.requestRender()}get range(){return this.range_}set range(e){this.range_=e,this.viewer.scene.requestRender()}get strength(){return this.strength_}set strength(e){this.strength_=e,this.viewer.scene.requestRender()}},S=`// Black and white infrared film: foliage, which reflects the near infrared, turns bright, the sky
 // and water dark. The gray is the lightness raised or lowered by a weight per hue. After prod80's
 // ReShade Black & White (MIT), its Infrared preset, https://github.com/prod80/prod80-ReShade-Repository
 uniform sampler2D colorTexture;
@@ -81,7 +81,7 @@ void main() {
   float gray = clamp(hsl.z + hsl.z * weight * saturation * (1.0 - hsl.z), 0.0, 1.0);
   out_FragColor = vec4(mix(sceneColor.rgb, vec3(gray), strength), sceneColor.a);
 }
-`,ie=class extends p{constructor(e,t={}){super(e),this.strength_=t.strength??1}createStage_(){return new c({fragmentShader:x+re,uniforms:{strength:()=>this.strength_}})}get strength(){return this.strength_}set strength(e){this.strength_=e,this.viewer.scene.requestRender()}},S=`// The barrel distortion and dark corners of a wide-angle lens, like those of FPV cameras: straight
+`,C=class extends h{constructor(e,t={}){super(e),this.strength_=t.strength??1}createStage_(){return new l({fragmentShader:b+S,uniforms:{strength:()=>this.strength_}})}get strength(){return this.strength_}set strength(e){this.strength_=e,this.viewer.scene.requestRender()}},w=`// The barrel distortion and dark corners of a wide-angle lens, like those of FPV cameras: straight
 // lines bend outward away from the middle. The corners stay in place and the middle is
 // magnified, so the picture keeps filling the screen.
 uniform sampler2D colorTexture;
@@ -104,7 +104,242 @@ void main() {
   float dark = 1.0 - vignette * smoothstep(0.3, 1.0, r2);
   out_FragColor = vec4(sceneColor.rgb * dark, sceneColor.a);
 }
-`,ae=class extends p{constructor(e,t={}){super(e),this.distortion_=t.distortion??.5,this.vignette_=t.vignette??.5}createStage_(){let e=new c({fragmentShader:S,uniforms:{distortion:()=>this.distortion_,vignette:()=>this.vignette_}});return e.enabled=this.enabled_(),e}enabled_(){return this.distortion_>0||this.vignette_>0}get distortion(){return this.distortion_}set distortion(e){this.distortion_=e,this.update_()}get vignette(){return this.vignette_}set vignette(e){this.vignette_=e,this.update_()}update_(){this.stage_&&(this.stage_.enabled=this.enabled_()),this.viewer.scene.requestRender()}},C=new s,w=new s;function T(e){return{cameraHeight:()=>e.camera.positionCartographic.height,up:()=>{let t=e.ellipsoid.geodeticSurfaceNormal(e.camera.positionWC,C);return a.multiplyByPointAsVector(e.camera.viewMatrix,t,t)},radius:()=>{let t=e.ellipsoid.scaleToGeodeticSurface(e.camera.positionWC,w);return t?s.magnitude(t):e.ellipsoid.maximumRadius}}}var E=`// Height above the ellipsoid of a point in eye coordinates, computed relative to the camera: in
+`,ae=class extends h{constructor(e,t={}){super(e),this.distortion_=t.distortion??.5,this.vignette_=t.vignette??.5}createStage_(){let e=new l({fragmentShader:w,uniforms:{distortion:()=>this.distortion_,vignette:()=>this.vignette_}});return e.enabled=this.enabled_(),e}enabled_(){return this.distortion_>0||this.vignette_>0}get distortion(){return this.distortion_}set distortion(e){this.distortion_=e,this.update_()}get vignette(){return this.vignette_}set vignette(e){this.vignette_=e,this.update_()}update_(){this.stage_&&(this.stage_.enabled=this.enabled_()),this.viewer.scene.requestRender()}};function oe(e,t,n,r,i,a){for(let n=e.length-1;n>=0;n--)t-e[n].start>1&&e.splice(n,1);e.length<4&&i()<1-Math.exp(-r*n)&&e.push(a(t))}var se=`// Lightning, cloud-to-ground strikes: a branching channel from the cloud base to the ground, with 2 to 4
+// return strokes tens of milliseconds apart, down one channel, and a flash that follows their flicker, as
+// in the descriptions of the lightning flash (Rakov and Uman, "Lightning: Physics and Effects", 2003). The
+// channel is drawn over the picture in screen space as a hot core in a halo, at least a pixel and a half
+// wide: a channel is centimeters wide, and a thousand meters away it would not show at its true width. It
+// is a line from the cloud to the ground that wanders to either side, by value noise of the position along
+// it in four octaves, pinned at both ends, with branches that leave it downward at an angle and wander the
+// same way, fading toward their ends. The distance to it is the pixel's across the line, less the wander,
+// over the slope of the wander, so that the width stays the same where it zigzags: a function of the
+// position along the line, a handful of noise lookups for each channel, not a polyline for each pixel.
+// The channel is hidden behind nearer terrain. The flash lights each pixel in proportion to its own color,
+// less with its distance to the strike, and the sky toward the cloud above it. Needs EyeFromDepth and Hash.
+const int STRIKES = 4;
+const int BRANCHES = 5;
+uniform sampler2D colorTexture;
+uniform sampler2D depthTexture;
+// the top of each strike's channel, at the cloud base, in eye coordinates, and its seed; and its foot
+// and its age in seconds, negative when there is no strike in the slot
+uniform vec4 strikeTop[STRIKES];
+uniform vec4 strikeBottom[STRIKES];
+// the branches of each strike's channel, from the CPU: where along the channel they leave it, the cosine
+// and the sine of their angle from it, and their length as a share of the channel's, 0 for none
+uniform vec4 strikeBranches[STRIKES * BRANCHES];
+in vec2 v_textureCoordinates;
+
+const int MAX_STROKES = 4;
+// how far the main channel and the branches wander to either side, as a fraction of their length
+const float MAIN_WANDER = 0.7;
+const float BRANCH_WANDER = 0.6;
+// the brightness of the branches against the main channel's
+const float BRANCH_BRIGHTNESS = 0.5;
+// how far from the line between its ends a channel reaches, as a fraction of its length: the main one's
+// wander, then its branches; and the widest halo in pixels. Pixels farther than that skip the channel
+const float MAIN_REACH = 0.35;
+const float BRANCH_REACH = 0.5;
+const float MAX_HALO = 80.0;
+const float MAX_SLOPE = 2.5;
+// the channel's flicker under which it is not drawn
+const float FAINT = 0.01;
+// the width of the core and of the halo, in meters: scaled to pixels by the distance, the core to no
+// less than a pixel and a half
+const float CORE_WIDTH = 1.0;
+const float HALO_WIDTH = 25.0;
+// how bright the halo is against the core
+const float HALO = 0.35;
+// the channel is white at its core and blue around it, from the nitrogen lines of a 30000 K plasma, with a
+// violet cast from the hydrogen line of the water in a storm's air (Kieu et al., 2021)
+const vec3 HALO_COLOR = vec3(0.68, 0.66, 1.0);
+const vec3 FLASH_COLOR = vec3(0.8, 0.82, 1.0);
+// the extinction of the light of a strike per meter, in red, green and blue: the scattering of the air goes
+// with the wavelength to the minus 4, so far strikes turn yellow, then red, as at sunset
+const vec3 EXTINCTION = vec3(1.0, 1.9, 3.4) * 2e-5;
+// the distance, in meters, at which the flash on the land has fallen to half
+const float FLASH_REACH = 3000.0;
+// the sky is a ray this long
+const float SKY_DISTANCE = 20000.0;
+// time constants of the channel's flicker and of the flash, in seconds
+const float BOLT_DECAY = 0.05;
+const float FLASH_DECAY = 0.15;
+
+// noise of one coordinate, in [-0.5, 0.5), and its slope: linear between the random values of the whole
+// numbers, not smoothed, so that the path is made of straight segments with sharp turns, as a bolt is
+vec2 valueNoise(float x, float seed) {
+  float cell = floor(x);
+  float low = hash(vec2(cell, seed));
+  float high = hash(vec2(cell + 1.0, seed));
+  return vec2(mix(low, high, fract(x)) - 0.5, high - low);
+}
+
+// four octaves of it along a channel, from 4 segments to 34: the wander at s and its slope
+vec2 wander(float s, float seed) {
+  vec2 sum = vec2(0.0);
+  float amplitude = 1.0;
+  float frequency = 4.0;
+  for (int i = 0; i < 4; i++) {
+    sum += amplitude * valueNoise(s * frequency, seed + 7.0 * float(i)) * vec2(1.0, frequency);
+    amplitude *= 0.45;
+    frequency *= 2.1;
+  }
+  return sum;
+}
+
+// how far a channel is from its line at s, in its lengths, and the slope of that: the wander held to 0
+// at the start, by a smoothstep over the first quarter of a branch, and at both ends of the main
+// channel, by a sine, so that it leaves the cloud and reaches the ground upright
+vec2 offsetAt(float s, float seed, bool main) {
+  vec2 w = wander(s, seed);
+  float envelope = sin(czm_pi * s);
+  float slope = czm_pi * cos(czm_pi * s);
+  if (!main) {
+    float u = clamp(4.0 * s, 0.0, 1.0);
+    envelope = u * u * (3.0 - 2.0 * u);
+    slope = 24.0 * u * (1.0 - u);
+  }
+  return vec2(w.x * envelope, w.y * envelope + w.x * slope);
+}
+
+// the distance in pixels from p to a channel that leaves a along dir, len pixels long, and the share s
+// of the way along it where p is nearest
+float channelDistance(vec2 p, vec2 a, vec2 dir, float len, float amplitude, float seed, bool main, out float s) {
+  vec2 r = p - a;
+  float along = dot(r, dir);
+  s = clamp(along / len, 0.0, 1.0);
+  vec2 offset = offsetAt(s, seed, main);
+  float across = dot(r, vec2(-dir.y, dir.x)) - amplitude * len * offset.x;
+  // the estimate holds near the channel only: past a slope of a few, the halo of a steep segment would
+  // stretch sideways
+  float slope = clamp(amplitude * offset.y, -MAX_SLOPE, MAX_SLOPE);
+  // past the ends, the distance to the end
+  return length(vec2(across / sqrt(1.0 + slope * slope), along - s * len));
+}
+
+// the core and the halo of the channel at a distance in pixels
+vec2 channelProfile(float d, float core, float halo) {
+  return vec2(exp(-d * d / (core * core)), HALO * exp(-d / halo));
+}
+
+// the light of a strike seen from this far, in each color
+vec3 transmittance(float d) {
+  return exp(-EXTINCTION * d);
+}
+
+// the flicker of the channel and the light of the flash, at an age in seconds: each stroke lights it up
+// at once and fades, the first one the brightest, and a dimmer current keeps the channel lit between them
+void strokes(float age, float seed, out float bolt, out float flash) {
+  bolt = 0.3 * exp(-age / 0.3);
+  flash = 0.0;
+  float count = 2.0 + floor(3.0 * hash(vec2(seed, 91.0)));
+  float start = 0.0;
+  for (int i = 0; i < MAX_STROKES; i++) {
+    if (float(i) >= count) {
+      break;
+    }
+    float strength = i == 0 ? 1.0 : 0.35 + 0.5 * hash(vec2(seed, 50.0 + float(i)));
+    float since = age - start;
+    if (since >= 0.0) {
+      bolt += strength * exp(-since / BOLT_DECAY);
+      flash += strength * exp(-since / FLASH_DECAY);
+    }
+    start += 0.04 + 0.08 * hash(vec2(seed, 70.0 + float(i)));
+  }
+}
+
+vec2 screenPoint(vec3 eye) {
+  vec4 clip = czm_projection * vec4(eye, 1.0);
+  return (0.5 * clip.xy / clip.w + 0.5) * czm_viewport.zw;
+}
+
+// the distance from p to the segment ab
+float segmentDistance(vec2 p, vec2 a, vec2 b) {
+  vec2 ab = b - a;
+  return length(p - a - ab * clamp(dot(p - a, ab) / dot(ab, ab), 0.0, 1.0));
+}
+
+void main() {
+  vec2 uv = v_textureCoordinates;
+  vec4 sceneColor = texture(colorTexture, uv);
+  vec3 color = sceneColor.rgb;
+  vec4 eye = eyeAt(depthTexture, uv);
+  float sceneDistance = eye.w > 0.0 ? length(eye.xyz) : 1e9;
+  vec3 pixelEye = eye.w > 0.0 ? eye.xyz : eye.xyz * SKY_DISTANCE;
+  vec2 pixel = uv * czm_viewport.zw;
+  // the focal length in pixels
+  float focal = 0.5 * czm_projection[1][1] * czm_viewport.w;
+
+  vec3 light = vec3(0.0);
+  vec3 channel = vec3(0.0);
+  for (int k = 0; k < STRIKES; k++) {
+    float age = strikeBottom[k].w;
+    if (age < 0.0) {
+      continue;
+    }
+    vec3 top = strikeTop[k].xyz;
+    vec3 bottom = strikeBottom[k].xyz;
+    float seed = strikeTop[k].w;
+    float bolt;
+    float flash;
+    strokes(age, seed, bolt, flash);
+
+    // the land around the foot of the strike, and the sky toward the cloud above it
+    float reach = distance(pixelEye, bottom) / FLASH_REACH;
+    float sky = eye.w > 0.0 ? 0.0 : pow(max(dot(eye.xyz, normalize(top)), 0.0), 6.0);
+    vec3 seen = transmittance(length(bottom));
+    light += FLASH_COLOR * seen * flash * (color * 1.2 + 0.08) / (1.0 + reach * reach);
+    light += FLASH_COLOR * seen * flash * sky * 0.5;
+
+    // the channel, when both its ends are in front of the camera, and the pixel is near it
+    if (top.z > -1.0 || bottom.z > -1.0) {
+      continue;
+    }
+    vec2 a = screenPoint(top);
+    vec2 b = screenPoint(bottom);
+    float len = distance(a, b);
+    // the halo's widest reach, around the middle of the channel: pixels farther than that skip the channel
+    float margin = 3.0 * clamp(HALO_WIDTH * focal / length(0.5 * (top + bottom)), 4.0, MAX_HALO);
+    // the branches reach further from the line than the main channel's wander does
+    float fromLine = segmentDistance(pixel, a, b);
+    if (bolt < FAINT || len < 2.0 || fromLine > BRANCH_REACH * len + margin) {
+      continue;
+    }
+    vec2 dir = (b - a) / len;
+    float s = clamp(dot(pixel - a, dir) / len, 0.0, 1.0);
+    float boltDistance = length(mix(top, bottom, s));
+    float core = max(1.5, CORE_WIDTH * focal / boltDistance);
+    float halo = clamp(HALO_WIDTH * focal / boltDistance, 4.0, MAX_HALO);
+    vec2 profile = vec2(0.0);
+    if (fromLine < MAIN_REACH * len + margin) {
+      profile = channelProfile(channelDistance(pixel, a, dir, len, MAIN_WANDER, seed, true, s), core, halo);
+    }
+    for (int j = 0; j < BRANCHES; j++) {
+      vec4 branch = strikeBranches[k * BRANCHES + j];
+      float branchLen = len * branch.w;
+      if (branchLen <= 0.0) {
+        continue;
+      }
+      float at = branch.x;
+      vec2 branchDir = vec2(branch.y * dir.x - branch.z * dir.y, branch.z * dir.x + branch.y * dir.y);
+      // nowhere near the branch, which stays within its length and wander of its middle, and the main
+      // channel's wander of its line
+      vec2 onLine = a + dir * len * at;
+      if (distance(pixel, onLine + branchDir * 0.5 * branchLen) > (0.5 + 0.5 * BRANCH_WANDER) * branchLen + MAIN_REACH * len + margin) {
+        continue;
+      }
+      vec2 base = onLine + vec2(-dir.y, dir.x) * MAIN_WANDER * len * offsetAt(at, seed, true).x;
+      float along;
+      float branchDistance = channelDistance(pixel, base, branchDir, branchLen, BRANCH_WANDER, seed + 5.0 * float(j + 1), false, along);
+      profile = max(profile, BRANCH_BRIGHTNESS * (1.0 - 0.7 * along) * channelProfile(branchDistance, core, halo));
+    }
+    // hidden behind terrain nearer than the channel at this height
+    if (sceneDistance > boltDistance * 0.98 - 30.0) {
+      channel += bolt * transmittance(boltDistance) * (profile.x + profile.y * HALO_COLOR);
+    }
+  }
+  out_FragColor = vec4(color + light + channel, sceneColor.a);
+}
+`,T=30,ce=.4,E=300,le=500,ue=.1,de=2*Math.PI,D=5,fe=.7,O=[.25,.75],pe=Math.PI/6,k=new s,me=class extends h{constructor(e,t={}){super(e),this.intensity_=t.intensity??.5,this.cloudBase_=t.cloudBase??2500,this.radius_=t.radius??5e3,this.inFront_=t.inFront??!1,this.strikes_=[],this.strikeTop_=Array.from({length:4},()=>new i),this.strikeBottom_=Array.from({length:4},()=>new i(0,0,0,-1)),this.strikeBranches_=Array.from({length:4*D},()=>new i),this.lastTime_=0,this.onPreRender_=()=>{let e=this.viewer.scene,t=performance.now()/1e3,n=Math.min(t-this.lastTime_,ue);this.lastTime_=t;let r=e.camera.positionCartographic.height<this.cloudBase_;oe(this.strikes_,t,n,r?this.intensity_*ce:0,Math.random,e=>this.createStrike_(e));let o=e.camera.viewMatrix;for(let e=0;e<4;e++){let n=this.strikes_[e];if(!n){this.strikeBottom_[e].w=-1;continue}a.multiplyByPoint(o,n.top,k),i.fromElements(k.x,k.y,k.z,n.seed,this.strikeTop_[e]),a.multiplyByPoint(o,n.ground,k),i.fromElements(k.x,k.y,k.z,t-n.start,this.strikeBottom_[e]);for(let t=0;t<D;t++){let[r,a,o]=n.branches[t];i.fromElements(r,Math.cos(a),Math.sin(a),o,this.strikeBranches_[e*D+t])}}}}createStrike_(e){let t=this.viewer.scene,{longitude:n,latitude:r}=t.camera.positionCartographic,i=this.inFront_?t.camera.heading+(Math.random()*2-1)*pe:Math.random()*de,a=E+Math.max(this.radius_-E,0)*Math.sqrt(Math.random()),o=t.ellipsoid.maximumRadius,l=n+a*Math.sin(i)/(o*Math.cos(r)),u=r+a*Math.cos(i)/o,d=Array.from({length:D},()=>{let e=.1+.7*Math.random();return[e,(Math.random()<.5?-1:1)*(O[0]+(O[1]-O[0])*Math.random()),Math.random()<fe?(1-e)*(.25+.4*Math.random()):0]}),f=t.globe?.getHeight(new c(l,u))??0;return{start:e,seed:Math.random()*100,branches:d,ground:s.fromRadians(l,u,f,t.ellipsoid),top:s.fromRadians(l,u,Math.max(this.cloudBase_,f+le),t.ellipsoid)}}createStage_(e){let t=new l({fragmentShader:f+m+se,uniforms:{strikeTop:()=>this.strikeTop_,strikeBottom:()=>this.strikeBottom_,strikeBranches:()=>this.strikeBranches_}});return t.enabled=this.intensity_>0,t}activated_(e){this.lastTime_=performance.now()/1e3,e.preRender.addEventListener(this.onPreRender_),g(e),this.intensity_>0&&_(e,T)}deactivating_(e){this.intensity_>0&&y(e,T),p(e),e.preRender.removeEventListener(this.onPreRender_),this.strikes_.length=0;for(let e of this.strikeBottom_)e.w=-1}get intensity(){return this.intensity_}set intensity(e){let t=this.intensity_>0;this.intensity_=e,this.stage_&&t!==e>0&&(this.stage_.enabled=e>0,(e>0?_:y)(this.viewer.scene,T)),this.viewer.scene.requestRender()}get cloudBase(){return this.cloudBase_}set cloudBase(e){this.cloudBase_=e,this.viewer.scene.requestRender()}get inFront(){return this.inFront_}set inFront(e){this.inFront_=e}get radius(){return this.radius_}set radius(e){this.radius_=e,this.viewer.scene.requestRender()}},he=new s,ge=new s;function A(e){return{cameraHeight:()=>e.camera.positionCartographic.height,up:()=>{let t=e.ellipsoid.geodeticSurfaceNormal(e.camera.positionWC,he);return a.multiplyByPointAsVector(e.camera.viewMatrix,t,t)},radius:()=>{let t=e.ellipsoid.scaleToGeodeticSurface(e.camera.positionWC,ge);return t?s.magnitude(t):e.ellipsoid.maximumRadius}}}var j=`// Height above the ellipsoid of a point in eye coordinates, computed relative to the camera: in
 // world coordinates, single precision would round the position to about half a meter. The
 // uniforms come from the CPU in double precision (height.js).
 uniform float cameraHeight;
@@ -118,7 +353,7 @@ float heightAt(vec3 eye) {
   float across = dot(eye, eye) - rise * rise;
   return cameraHeight + rise + across / (2.0 * radius);
 }
-`,D=`// random gradient in [-1, 1] at a lattice point
+`,M=`// random gradient in [-1, 1] at a lattice point
 vec3 gradient(vec3 p) {
   p = fract(p * vec3(0.1031, 0.1030, 0.0973));
   p += dot(p, p.yxz + 33.33);
@@ -161,7 +396,7 @@ float gradientNoise(vec2 p, float seed) {
     mix(dot(gradient(i + vec2(0.0, 1.0), seed), f - vec2(0.0, 1.0)), dot(gradient(i + vec2(1.0, 1.0), seed), f - vec2(1.0, 1.0)), u.x),
     u.y);
 }
-`,oe=`// Precipitation, rain or snow: streaks of falling drops in four layers, nearer ones larger, faster
+`,N=`// Precipitation, rain or snow: streaks of falling drops in four layers, nearer ones larger, faster
 // and more opaque, in one pass over the scene, after the composite rainfall of ToyShop (Tatarchuk
 // 2006). The drops are laid out on the sphere of view directions, around the direction they fall
 // toward: drops falling along parallel lines appear on great circles through it, so in its Mercator
@@ -349,7 +584,7 @@ void main() {
   }
   out_FragColor = vec4(color, sceneColor.a);
 }
-`,se=`// The shafts' opacity, blurred over the neighboring texels at their own resolution: they fade out
+`,P=`// The shafts' opacity, blurred over the neighboring texels at their own resolution: they fade out
 // around the ridges in front of them rather than stopping at their outline. A 3 x 3 binomial
 // kernel here costs a 64th of the reads the same blur would take at the full resolution.
 uniform sampler2D shaftTexture;
@@ -367,7 +602,7 @@ void main() {
   }
   out_FragColor = vec4(sum / 16.0, 0.0, 0.0, 1.0);
 }
-`,ce=`// The shafts of the rain or the snow, at a fraction of the resolution: their opacity along each
+`,F=`// The shafts of the rain or the snow, at a fraction of the resolution: their opacity along each
 // view ray, for Precipitation.glsl to shade. Along the part of the ray below the cloud base,
 // patches of noise on the ground under each sample, more of them as it rains harder, slanting with
 // the wind from the cloud base and drifting with it. Not dithered: at this resolution the dither
@@ -420,7 +655,7 @@ void main() {
   }
   out_FragColor = vec4(opacity, 0.0, 0.0, 1.0);
 }
-`,O=`// What the passes of the precipitation share: the local frame at the camera and the wind, in gusts.
+`,I=`// What the passes of the precipitation share: the local frame at the camera and the wind, in gusts.
 // Needs Height.
 // seconds, wrapped at an hour
 uniform float time;
@@ -453,7 +688,7 @@ float gustingTilt() {
   float gust = 1.0 + GUSTS * (0.6 * sin(czm_twoPi * time / 18.0) + 0.4 * sin(czm_twoPi * time / 7.2 + 1.3));
   return radians(wind) * gust;
 }
-`,k=30,A=3600,j=9,M=1,N=4.44,P=20,F=2,I=1/30,L=1/90,R=1,z=2*Math.PI,B=4,V=20,H=4,U=1e3,W=.1,G=.125,le=.5,K=new WeakMap;function ue(e){let t=K.get(e);if(t){t.count++;return}K.set(e,{count:1,light:e.light,intensity:e.light.intensity,shadows:e.shadowMap.enabled}),e.light.intensity*=le,e.shadowMap.enabled=!1}function de(e){let t=K.get(e);!t||--t.count>0||(t.light.intensity=t.intensity,e.shadowMap.enabled=t.shadows,K.delete(e))}var fe=class extends p{constructor(e,t={}){super(e),this.intensity_=t.intensity??.5,this.wind_=t.wind??10,this.speed_=t.speed??1,this.cloudBase_=t.cloudBase??2500,this.snow_=t.snow??0,this.offset_=0,this.lastTime_=0,this.layerShape_=Array.from({length:B},()=>new i),this.layerLook_=Array.from({length:B},()=>new i),this.onPreRender_=()=>{let e=performance.now()/1e3,t=Math.min(e-this.lastTime_,W);this.lastTime_=e,this.offset_=(this.offset_+t*this.fallSpeed_()*this.cellsAlong_()/F)%U,this.updateLayers_()}}fallSpeed_(){return this.speed_*j*(M/j)**this.snow_}updateLayers_(){let e=this.cellsAlong_();for(let t=0;t<B;t++){let n=2**t,r=Math.floor(z*V*n+.5);i.fromElements(r/z,e*n,r,F*n,this.layerShape_[t]);let a=Math.max(.5,1-.25*t),o=Math.max(H/n,.75),s=.45-.07*t,c=.8-.12*t,l=t===0?1.4*o*1.8:1.4*o+.5;i.fromElements(s+(c-s)*this.snow_,a+.5+(l-a-.5)*this.snow_,a,o,this.layerLook_[t])}}trail_(){let e=I*(L/I)**this.snow_;return Math.min(this.fallSpeed_()*e*this.cellsAlong_()/F,R)}cellsAlong_(){return N*(P/N)**this.snow_}createStage_(e){let t={...T(e),time:()=>performance.now()/1e3%A,wind:()=>this.wind_,speed:()=>this.speed_,cloudBase:()=>this.cloudBase_,intensity:()=>this.intensity_,snow:()=>this.snow_},n=new c({fragmentShader:f+D+E+O+ce,uniforms:t,textureScale:G}),i=new c({fragmentShader:se,uniforms:{shaftTexture:n.name},textureScale:G}),a=new r({stages:[n,i,new c({fragmentShader:f+u+E+O+oe,uniforms:{...t,shaftTexture:i.name,trail:()=>this.trail_(),layerShape:()=>this.layerShape_,layerLook:()=>this.layerLook_,offset:()=>this.offset_}})],inputPreviousStageTexture:!1});return a.enabled=this.intensity_>0,a}activated_(e){this.lastTime_=performance.now()/1e3,this.updateLayers_(),e.preRender.addEventListener(this.onPreRender_),m(e),ue(e),this.intensity_>0&&h(e,k)}deactivating_(e){this.intensity_>0&&_(e,k),de(e),d(e),e.preRender.removeEventListener(this.onPreRender_)}get intensity(){return this.intensity_}set intensity(e){let t=this.intensity_>0;this.intensity_=e,this.stage_&&t!==e>0&&(this.stage_.enabled=e>0,(e>0?h:_)(this.viewer.scene,k)),this.viewer.scene.requestRender()}get wind(){return this.wind_}set wind(e){this.wind_=e,this.viewer.scene.requestRender()}get speed(){return this.speed_}set speed(e){this.speed_=e,this.viewer.scene.requestRender()}get cloudBase(){return this.cloudBase_}set cloudBase(e){this.cloudBase_=e,this.viewer.scene.requestRender()}get snow(){return this.snow_}set snow(e){this.snow_=e,this.viewer.scene.requestRender()}},q=`// normal at the pixel from its neighbors at this distance in pixels: on each axis the nearer
+`,L=30,_e=3600,R=9,ve=1,z=4.44,ye=20,B=2,V=1/30,be=1/90,xe=1,H=2*Math.PI,U=4,Se=20,Ce=4,we=1e3,Te=.1,W=.125,Ee=.5,G=new WeakMap;function De(e){let t=G.get(e);if(t){t.count++;return}G.set(e,{count:1,light:e.light,intensity:e.light.intensity,shadows:e.shadowMap.enabled}),e.light.intensity*=Ee,e.shadowMap.enabled=!1}function Oe(e){let t=G.get(e);!t||--t.count>0||(t.light.intensity=t.intensity,e.shadowMap.enabled=t.shadows,G.delete(e))}var ke=class extends h{constructor(e,t={}){super(e),this.intensity_=t.intensity??.5,this.wind_=t.wind??10,this.speed_=t.speed??1,this.cloudBase_=t.cloudBase??2500,this.snow_=t.snow??0,this.offset_=0,this.lastTime_=0,this.layerShape_=Array.from({length:U},()=>new i),this.layerLook_=Array.from({length:U},()=>new i),this.onPreRender_=()=>{let e=performance.now()/1e3,t=Math.min(e-this.lastTime_,Te);this.lastTime_=e,this.offset_=(this.offset_+t*this.fallSpeed_()*this.cellsAlong_()/B)%we,this.updateLayers_()}}fallSpeed_(){return this.speed_*R*(ve/R)**this.snow_}updateLayers_(){let e=this.cellsAlong_();for(let t=0;t<U;t++){let n=2**t,r=Math.floor(H*Se*n+.5);i.fromElements(r/H,e*n,r,B*n,this.layerShape_[t]);let a=Math.max(.5,1-.25*t),o=Math.max(Ce/n,.75),s=.45-.07*t,c=.8-.12*t,l=t===0?1.4*o*1.8:1.4*o+.5;i.fromElements(s+(c-s)*this.snow_,a+.5+(l-a-.5)*this.snow_,a,o,this.layerLook_[t])}}trail_(){let e=V*(be/V)**this.snow_;return Math.min(this.fallSpeed_()*e*this.cellsAlong_()/B,xe)}cellsAlong_(){return z*(ye/z)**this.snow_}createStage_(e){let t={...A(e),time:()=>performance.now()/1e3%_e,wind:()=>this.wind_,speed:()=>this.speed_,cloudBase:()=>this.cloudBase_,intensity:()=>this.intensity_,snow:()=>this.snow_},n=new l({fragmentShader:m+M+j+I+F,uniforms:t,textureScale:W}),i=new l({fragmentShader:P,uniforms:{shaftTexture:n.name},textureScale:W}),a=new r({stages:[n,i,new l({fragmentShader:m+f+j+I+N,uniforms:{...t,shaftTexture:i.name,trail:()=>this.trail_(),layerShape:()=>this.layerShape_,layerLook:()=>this.layerLook_,offset:()=>this.offset_}})],inputPreviousStageTexture:!1});return a.enabled=this.intensity_>0,a}activated_(e){this.lastTime_=performance.now()/1e3,this.updateLayers_(),e.preRender.addEventListener(this.onPreRender_),g(e),De(e),this.intensity_>0&&_(e,L)}deactivating_(e){this.intensity_>0&&y(e,L),Oe(e),p(e),e.preRender.removeEventListener(this.onPreRender_)}get intensity(){return this.intensity_}set intensity(e){let t=this.intensity_>0;this.intensity_=e,this.stage_&&t!==e>0&&(this.stage_.enabled=e>0,(e>0?_:y)(this.viewer.scene,L)),this.viewer.scene.requestRender()}get wind(){return this.wind_}set wind(e){this.wind_=e,this.viewer.scene.requestRender()}get speed(){return this.speed_}set speed(e){this.speed_=e,this.viewer.scene.requestRender()}get cloudBase(){return this.cloudBase_}set cloudBase(e){this.cloudBase_=e,this.viewer.scene.requestRender()}get snow(){return this.snow_}set snow(e){this.snow_=e,this.viewer.scene.requestRender()}},K=`// normal at the pixel from its neighbors at this distance in pixels: on each axis the nearer
 // side, so that the edges of the scene do not bend it
 vec3 normalAt(sampler2D depthTexture, vec2 uv, vec3 center, float distance) {
   vec2 step = distance / czm_viewport.zw;
@@ -473,9 +708,10 @@ vec3 normalAt(sampler2D depthTexture, vec2 uv, vec3 center, float distance) {
 vec3 smoothNormalAt(sampler2D depthTexture, vec2 uv, vec3 center) {
   return normalize(normalAt(depthTexture, uv, center, 2.0 * czm_pixelRatio) + normalAt(depthTexture, uv, center, 6.0 * czm_pixelRatio));
 }
-`,J=`// Snow above an altitude, on slopes gentle enough to hold it, shaded by the sun and by the
+`,Ae=`// Snow above an altitude, on slopes gentle enough to hold it, shaded by the sun and by the
 // brightness of the scene so that the relief stays readable. The slope comes from a normal
-// rebuilt from the neighboring pixels and smoothed over the facets of the terrain.
+// rebuilt from the neighboring pixels and smoothed over the facets of the terrain. Noise anchored
+// to the ground breaks up the edge of the snow, which lasts lower on the slopes away from the sun.
 uniform sampler2D colorTexture;
 uniform sampler2D depthTexture;
 // meters above the ellipsoid: half covered at the altitude, over a band transition meters high
@@ -487,10 +723,38 @@ uniform float maxSlope;
 uniform float coverage;
 in vec2 v_textureCoordinates;
 
-const vec3 SNOW = vec3(0.92, 0.94, 1.0);
+const vec3 SNOW_SHADE = vec3(0.80, 0.87, 1.0);
+const vec3 SNOW_SUN = vec3(1.0, 0.98, 0.94);
+// meters the snow line moves down on a slope facing away from the sun, and up on one facing it
+const float ASPECT_SHIFT = 0.6;
+// meters the noise moves the snow line, as a fraction of the transition
+const float NOISE_SHIFT = 0.8;
+// part of the snow that still covers the steep slopes at the limit, as a fraction of the coverage
+const float STEEP_SNOW = 0.35;
 // half width of the slope limit, in radians (8 degrees), so that the snow thins out across the
 // facets of the terrain rather than stopping at their edges
 const float SLOPE_EDGE = 0.14;
+
+float hash(vec3 p) {
+  p = fract(p * 0.3183099 + 0.1);
+  p *= 17.0;
+  return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+}
+
+float valueNoise(vec3 p) {
+  vec3 i = floor(p);
+  vec3 f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(
+    mix(mix(hash(i), hash(i + vec3(1, 0, 0)), f.x), mix(hash(i + vec3(0, 1, 0)), hash(i + vec3(1, 1, 0)), f.x), f.y),
+    mix(mix(hash(i + vec3(0, 0, 1)), hash(i + vec3(1, 0, 1)), f.x), mix(hash(i + vec3(0, 1, 1)), hash(i + vec3(1, 1, 1)), f.x), f.y),
+    f.z);
+}
+
+// 0 to 1, from a few octaves anchored to the ground
+float groundNoise(vec3 world) {
+  return 0.55 * valueNoise(world / 90.0) + 0.3 * valueNoise(world / 30.0) + 0.15 * valueNoise(world / 10.0);
+}
 
 void main() {
   vec4 sceneColor = texture(colorTexture, v_textureCoordinates);
@@ -498,16 +762,25 @@ void main() {
   vec3 normal = smoothNormalAt(depthTexture, v_textureCoordinates, eye.xyz);
   float slope = acos(clamp(dot(normal, up), -1.0, 1.0));
 
-  float snow = smoothstep(altitude - 0.5 * transition, altitude + 0.5 * transition, heightAt(eye.xyz));
-  snow *= 1.0 - smoothstep(maxSlope - SLOPE_EDGE, maxSlope + SLOPE_EDGE, slope);
+  float sun = max(dot(normal, czm_sunDirectionEC), 0.0);
+  float noise = groundNoise((czm_inverseView * vec4(eye.xyz, 1.0)).xyz) - 0.5;
+  // lower on the slopes away from the sun, irregular along the edge
+  float shift = transition * (NOISE_SHIFT * noise + ASPECT_SHIFT * (0.5 - sun));
+  float snowLine = altitude + shift;
+  float snow = smoothstep(snowLine - 0.5 * transition, snowLine + 0.5 * transition, heightAt(eye.xyz));
+  // opaque before the top of the band, so that the imagery does not show through the snow
+  snow = smoothstep(0.0, 0.7, snow);
+  // the steep slopes keep a thin, patchy cover, and the rock shows through
+  float steep = smoothstep(maxSlope - SLOPE_EDGE, maxSlope + SLOPE_EDGE, slope);
+  snow *= 1.0 - steep * (1.0 - STEEP_SNOW * smoothstep(0.35, 0.65, noise + 0.5));
   // eye.w is 0 for the sky
   snow *= coverage * eye.w;
-  float sun = max(dot(normal, czm_sunDirectionEC), 0.0);
   float brightness = dot(sceneColor.rgb, vec3(0.2126, 0.7152, 0.0722));
-  vec3 lit = SNOW * clamp(0.6 + 0.25 * sun + 0.3 * brightness, 0.0, 1.0);
+  // blue in the shade, warm in the sun, with the relief of the scene kept in the brightness
+  vec3 lit = mix(SNOW_SHADE, SNOW_SUN, sun) * clamp(0.68 + 0.25 * sun + 0.1 * brightness, 0.0, 1.0);
   out_FragColor = vec4(mix(sceneColor.rgb, lit, snow), sceneColor.a);
 }
-`,pe=class extends p{constructor(e,t={}){super(e),this.altitude_=t.altitude??2e3,this.transition_=t.transition??200,this.maxSlope_=t.maxSlope??40,this.coverage_=t.coverage??1}createStage_(e){return new c({fragmentShader:f+E+q+J,uniforms:{...T(e),altitude:()=>this.altitude_,transition:()=>this.transition_,maxSlope:()=>l.toRadians(this.maxSlope_),coverage:()=>this.coverage_}})}activated_(e){m(e)}deactivating_(e){d(e)}get altitude(){return this.altitude_}set altitude(e){this.altitude_=e,this.viewer.scene.requestRender()}get transition(){return this.transition_}set transition(e){this.transition_=e,this.viewer.scene.requestRender()}get maxSlope(){return this.maxSlope_}set maxSlope(e){this.maxSlope_=e,this.viewer.scene.requestRender()}get coverage(){return this.coverage_}set coverage(e){this.coverage_=e,this.viewer.scene.requestRender()}},me=new s;function Y(e,t,n){let r=typeof t==`function`?t():t;if(!r)return i.fromElements(0,0,0,0,n);let o=a.multiplyByPoint(e.camera.viewMatrix,r,me);return i.fromElements(o.x,o.y,o.z,1,n)}var he=`// Speed lines: the picture zooms toward the focus, more toward the edges of the screen, and thin
+`,je=class extends h{constructor(e,t={}){super(e),this.altitude_=t.altitude??2e3,this.transition_=t.transition??200,this.maxSlope_=t.maxSlope??50,this.coverage_=t.coverage??1}createStage_(e){return new l({fragmentShader:m+j+K+Ae,uniforms:{...A(e),altitude:()=>this.altitude_,transition:()=>this.transition_,maxSlope:()=>d.toRadians(this.maxSlope_),coverage:()=>this.coverage_}})}activated_(e){g(e)}deactivating_(e){p(e)}get altitude(){return this.altitude_}set altitude(e){this.altitude_=e,this.viewer.scene.requestRender()}get transition(){return this.transition_}set transition(e){this.transition_=e,this.viewer.scene.requestRender()}get maxSlope(){return this.maxSlope_}set maxSlope(e){this.maxSlope_=e,this.viewer.scene.requestRender()}get coverage(){return this.coverage_}set coverage(e){this.coverage_=e,this.viewer.scene.requestRender()}},Me=new s;function q(e,t,n){let r=typeof t==`function`?t():t;if(!r)return i.fromElements(0,0,0,0,n);let o=a.multiplyByPoint(e.camera.viewMatrix,r,Me);return i.fromElements(o.x,o.y,o.z,1,n)}var Ne=`// Speed lines: the picture zooms toward the focus, more toward the edges of the screen, and thin
 // streaks radiate from it, a new pattern many times a second, as in comics.
 uniform sampler2D colorTexture;
 // in eye coordinates; w is 0 for the middle of the screen
@@ -567,7 +840,7 @@ void main() {
   }
   out_FragColor = vec4(color, sceneColor.a);
 }
-`,ge=new i,_e=class extends p{constructor(e,t={}){super(e),this.focus_=t.focus,this.strength_=t.strength??1}createStage_(e){let t=new c({fragmentShader:u+he,uniforms:{focus:()=>Y(e,this.focus_,ge),strength:()=>this.strength_,time:()=>performance.now()/1e3}});return t.enabled=this.strength_>0,t}get focus(){return this.focus_}set focus(e){this.focus_=e,this.viewer.scene.requestRender()}get strength(){return this.strength_}set strength(e){this.strength_=e,this.stage_&&(this.stage_.enabled=e>0),this.viewer.scene.requestRender()}},ve=`// The beam of a cone of light in the haze, for the spotlight and for lights of your own:
+`,Pe=new i,Fe=class extends h{constructor(e,t={}){super(e),this.focus_=t.focus,this.strength_=t.strength??1}createStage_(e){let t=new l({fragmentShader:f+Ne,uniforms:{focus:()=>q(e,this.focus_,Pe),strength:()=>this.strength_,time:()=>performance.now()/1e3}});return t.enabled=this.strength_>0,t}get focus(){return this.focus_}set focus(e){this.focus_=e,this.viewer.scene.requestRender()}get strength(){return this.strength_}set strength(e){this.strength_=e,this.stage_&&(this.stage_.enabled=e>0),this.viewer.scene.requestRender()}},Ie=`// The beam of a cone of light in the haze, for the spotlight and for lights of your own:
 // raymarched along the part of the view ray inside the cone, found analytically, so that no
 // sample is wasted and pixels next to each other see the same stretch of it. Needs Hash, and
 // Noise for the dust.
@@ -602,7 +875,7 @@ struct Beam {
   float dustScale;
 };
 
-const int BEAM_SAMPLES = 16;
+const int BEAM_SAMPLES = 8;
 
 // the part of the view ray, from the camera at the origin, inside the cone: entry and exit
 // distances, exit before entry when the ray misses it
@@ -655,7 +928,8 @@ float beamAlong(vec3 ray, float sceneDistance, Beam beam) {
   for (int i = 0; i < BEAM_SAMPLES; i++) {
     float u = (float(i) + jitter) / float(BEAM_SAMPLES);
     float t = start + length_ * pow(u, beam.spacing);
-    float step = length_ * beam.spacing * pow(u, beam.spacing - 1.0) / float(BEAM_SAMPLES);
+    // pow(0, 0) is undefined, a NaN on some GPUs, where the jitter is 0
+    float step = length_ * beam.spacing * pow(max(u, 1e-6), beam.spacing - 1.0) / float(BEAM_SAMPLES);
     vec3 p = ray * t;
     vec3 fromApex = p - beam.apex;
     float cosine = dot(fromApex, beam.forward) / length(fromApex);
@@ -674,40 +948,110 @@ float beamAlong(vec3 ray, float sceneDistance, Beam beam) {
   }
   return scattered * henyeyGreenstein(dot(ray, beam.forward), beam.anisotropy);
 }
-`,ye=`// a filmic roll-off (ACES, Narkowicz's fit) for the effects that add light to the picture: Cesium
+`,Le=`// a filmic roll-off (ACES, Narkowicz's fit) for the effects that add light to the picture: Cesium
 // has already tone mapped it, so their light would clip to flat white without it
 vec3 filmic(vec3 x) {
   return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0);
 }
-`,be=`// A searchlight above the focus, pointing down: it throws a pool of warm light radius meters
+`,Re=`// A searchlight above the focus, pointing down: it throws a pool of warm light radius meters
 // wide on flat ground, with a soft penumbra, shades the relief under it and lights up the haze
-// in its beam, raymarched; the rest of the scene darkens and loses its color. The cone and the
-// falloff follow three.js's SpotLight.
+// in its beam, from SpotlightBeam.glsl; the rest of the scene darkens and loses its color. The
+// cone and the falloff follow three.js's SpotLight. Needs EyeFromDepth, Normal, Filmic and
+// SpotlightCone.
 uniform sampler2D colorTexture;
-uniform sampler2D depthTexture;
-// in eye coordinates; w is 0 for what is in the middle of the screen
-uniform vec4 focus;
-// local up direction, in eye coordinates
-uniform vec3 up;
-// meters
-uniform float radius;
-// width of the penumbra, as a fraction of the radius
-uniform float softness;
+// the beam's haze and the log2 of the scene distance, at a fraction of the resolution
+uniform sampler2D beamTexture;
 // 0 to 1
 uniform float darkness;
 // brightness of the beam in the air, 0 to 1
 uniform float beam;
 // brightness of the light, 1 for the searchlight: the pool and the beam scale with it
 uniform float power;
+in vec2 v_textureCoordinates;
+
+const vec3 LIGHT_COLOR = vec3(1.0, 0.93, 0.8);
+const float INTENSITY = 1.4;
+// difference of the log2 of the distances, about 10 %, under which the beam's texels around a
+// pixel are interpolated
+const float SOFT_DEPTH = 0.14;
+
+// light reaching a point fromLight away from the light: the cone around the axis with its
+// penumbra, and the inverse square, 1 at the focus, capped for what is close to the light
+float spotAt(vec3 fromLight, vec3 axis, float height, float coneCos, float penumbraCos) {
+  float lightDistance = length(fromLight);
+  float spot = smoothstep(coneCos, penumbraCos, dot(fromLight, -axis) / lightDistance);
+  return spot * min(height * height / (lightDistance * lightDistance), 4.0);
+}
+
+// the beam's haze at the pixel, from the four texels of its lower resolution around it:
+// interpolated where they are all at the pixel's distance, else the one nearest to it, so that the
+// haze stops at the ridges in front of it rather than spilling onto them
+float beamAt(vec2 uv, float depth) {
+  ivec2 size = textureSize(beamTexture, 0);
+  vec2 position = uv * vec2(size) - 0.5;
+  ivec2 base = ivec2(floor(position));
+  vec2 f = fract(position);
+  float interpolated = 0.0;
+  float nearest = 0.0;
+  float nearestGap = 1e38;
+  float widestGap = 0.0;
+  for (int i = 0; i < 4; i++) {
+    ivec2 offset = ivec2(i & 1, i >> 1);
+    vec2 texel = texelFetch(beamTexture, clamp(base + offset, ivec2(0), size - 1), 0).rg;
+    float gap = abs(texel.g - depth);
+    vec2 weights = mix(1.0 - f, f, vec2(offset));
+    interpolated += weights.x * weights.y * texel.r;
+    if (gap < nearestGap) {
+      nearestGap = gap;
+      nearest = texel.r;
+    }
+    widestGap = max(widestGap, gap);
+  }
+  return widestGap < SOFT_DEPTH ? interpolated : nearest;
+}
+
+void main() {
+  vec4 sceneColor = texture(colorTexture, v_textureCoordinates);
+  Cone spot;
+  if (!spotlightCone(spot)) {
+    out_FragColor = sceneColor;
+    return;
+  }
+  vec3 color = sceneColor.rgb;
+  vec3 ambient = mix(color, vec3(dot(color, vec3(0.2126, 0.7152, 0.0722))), darkness) * (1.0 - darkness);
+  vec4 eye = eyeAt(depthTexture, v_textureCoordinates);
+
+  // eye.w is 0 for the sky, where the view ray goes on
+  float sceneDistance = eye.w == 0.0 ? 1e30 : length(eye.xyz);
+  float scattered = beam > 0.0 ? beamAt(v_textureCoordinates, log2(sceneDistance)) : 0.0;
+  vec3 haze = LIGHT_COLOR * (power * beam * scattered);
+  if (eye.w == 0.0) {
+    out_FragColor = vec4(filmic(ambient + haze), sceneColor.a);
+    return;
+  }
+
+  vec3 toLight = spot.light - eye.xyz;
+  // the normal over wider steps where the surface is seen at a grazing angle, where the facets
+  // of the terrain mesh would show as blotches; over fine ones elsewhere, for the relief
+  vec3 coarse = normalize(normalAt(depthTexture, v_textureCoordinates, eye.xyz, 6.0 * czm_pixelRatio)
+    + normalAt(depthTexture, v_textureCoordinates, eye.xyz, 18.0 * czm_pixelRatio));
+  float grazing = smoothstep(0.7, 0.95, 1.0 - abs(dot(coarse, normalize(-eye.xyz))));
+  vec3 normal = normalize(mix(smoothNormalAt(depthTexture, v_textureCoordinates, eye.xyz), coarse, grazing));
+  float lambert = max(dot(normal, normalize(toLight)), 0.0);
+  vec3 light = LIGHT_COLOR * (power * INTENSITY * spotAt(-toLight, up, spot.height, spot.coneCos, spot.penumbraCos) * lambert);
+  out_FragColor = vec4(filmic(ambient + color * light + haze), sceneColor.a);
+}
+`,ze=`// The haze lit by the searchlight's beam, at a fraction of the resolution, as in Killzone Shadow
+// Fall's volumetrics (Valient, SIGGRAPH 2014): r is the light scattered along the view ray, g the
+// log2 of the scene distance for SpotlightBeamBlur.glsl and the upsampling: half floats hold it, and
+// distances compare as ratios. Needs EyeFromDepth, Hash, Noise, SpotlightCone and Beam.
+// brightness of the beam in the air, 0 to 1
+uniform float beam;
 // Henyey-Greenstein asymmetry of the haze, 0 to 1: it scatters mostly forward, so the beam is
 // brighter when looking toward the light
 uniform float beamAnisotropy;
 in vec2 v_textureCoordinates;
 
-const vec3 LIGHT_COLOR = vec3(1.0, 0.93, 0.8);
-const float INTENSITY = 1.4;
-// height of the light above the focus, in radii: a cone of 53 degrees
-const float HEIGHT = 2.0;
 // radius of the beam's bright core around the light, in heights: the inverse square is softened
 // within it, as the pool's is capped, so that the top of the beam does not burn out
 const float BEAM_CORE = 0.25;
@@ -718,73 +1062,97 @@ const float BEAM_DENSITY = 19.0;
 const float STREAKS = 0.2;
 const float STREAK_SCALE = 4.0;
 
-// light reaching a point fromLight away from the light: the cone around the axis with its
-// penumbra, and the inverse square, 1 at the focus, capped for what is close to the light
-float spotAt(vec3 fromLight, vec3 axis, float height, float coneCos, float penumbraCos) {
-  float lightDistance = length(fromLight);
-  float spot = smoothstep(coneCos, penumbraCos, dot(fromLight, -axis) / lightDistance);
-  return spot * min(height * height / (lightDistance * lightDistance), 4.0);
-}
-
 void main() {
-  vec4 sceneColor = texture(colorTexture, v_textureCoordinates);
-  vec4 target = focus.w > 0.0 ? focus : eyeAt(depthTexture, vec2(0.5));
-  // no light without a focus in front of the camera (the sky in the middle, a focus behind)
-  if (target.w == 0.0 || target.z >= 0.0) {
-    out_FragColor = sceneColor;
-    return;
-  }
-  vec3 color = sceneColor.rgb;
-  vec3 ambient = mix(color, vec3(dot(color, vec3(0.2126, 0.7152, 0.0722))), darkness) * (1.0 - darkness);
   vec4 eye = eyeAt(depthTexture, v_textureCoordinates);
-
-  float height = HEIGHT * radius;
-  vec3 lightPosition = target.xyz + height * up;
-  // cosines of the angles, from the light's axis, at which the pool ends and its penumbra starts
-  float inner = radius * (1.0 - softness);
-  float coneCos = height / sqrt(height * height + radius * radius);
-  float penumbraCos = height / sqrt(height * height + inner * inner);
-
   // eye.w is 0 for the sky, where the view ray goes on
   float sceneDistance = eye.w == 0.0 ? 1e30 : length(eye.xyz);
-  float scattered = 0.0;
-  if (beam > 0.0) {
-    Beam cone;
-    cone.apex = lightPosition;
-    cone.forward = -up;
-    cone.edgeCos = coneCos;
-    cone.coreCos = penumbraCos;
-    cone.hotCore = 0.0;
-    cone.light = lightPosition;
-    cone.reference = height;
-    cone.core = BEAM_CORE * height;
-    cone.reach = 1e30;
-    cone.extinction = 0.0;
-    cone.anisotropy = beamAnisotropy;
-    cone.spacing = 1.0;
-    cone.nearFade = vec2(0.0);
-    cone.dust = STREAKS;
-    cone.dustScale = STREAK_SCALE;
-    scattered = BEAM_DENSITY / height * beamAlong(normalize(eye.xyz), sceneDistance, cone);
-  }
-  vec3 haze = LIGHT_COLOR * (power * beam * scattered);
-  if (eye.w == 0.0) {
-    out_FragColor = vec4(filmic(ambient + haze), sceneColor.a);
+  Cone spot;
+  if (beam <= 0.0 || !spotlightCone(spot)) {
+    out_FragColor = vec4(0.0, log2(sceneDistance), 0.0, 1.0);
     return;
   }
-
-  vec3 toLight = lightPosition - eye.xyz;
-  // the normal over wider steps where the surface is seen at a grazing angle, where the facets
-  // of the terrain mesh would show as blotches; over fine ones elsewhere, for the relief
-  vec3 coarse = normalize(normalAt(depthTexture, v_textureCoordinates, eye.xyz, 6.0 * czm_pixelRatio)
-    + normalAt(depthTexture, v_textureCoordinates, eye.xyz, 18.0 * czm_pixelRatio));
-  float grazing = smoothstep(0.7, 0.95, 1.0 - abs(dot(coarse, normalize(-eye.xyz))));
-  vec3 normal = normalize(mix(smoothNormalAt(depthTexture, v_textureCoordinates, eye.xyz), coarse, grazing));
-  float lambert = max(dot(normal, normalize(toLight)), 0.0);
-  vec3 light = LIGHT_COLOR * (power * INTENSITY * spotAt(-toLight, up, height, coneCos, penumbraCos) * lambert);
-  out_FragColor = vec4(filmic(ambient + color * light + haze), sceneColor.a);
+  Beam cone;
+  cone.apex = spot.light;
+  cone.forward = -up;
+  cone.edgeCos = spot.coneCos;
+  cone.coreCos = spot.penumbraCos;
+  cone.hotCore = 0.0;
+  cone.light = spot.light;
+  cone.reference = spot.height;
+  cone.core = BEAM_CORE * spot.height;
+  cone.reach = 1e30;
+  cone.extinction = 0.0;
+  cone.anisotropy = beamAnisotropy;
+  cone.spacing = 1.0;
+  cone.nearFade = vec2(0.0);
+  cone.dust = STREAKS;
+  cone.dustScale = STREAK_SCALE;
+  float scattered = BEAM_DENSITY / spot.height * beamAlong(normalize(eye.xyz), sceneDistance, cone);
+  out_FragColor = vec4(scattered, log2(sceneDistance), 0.0, 1.0);
 }
-`,xe=new i,Se=class extends p{constructor(e,t={}){super(e),this.focus_=t.focus,this.power_=t.power??1,this.radius_=t.radius??200,this.softness_=t.softness??.5,this.darkness_=t.darkness??.8,this.beam_=t.beam??.25,this.beamAnisotropy_=t.beamAnisotropy??.4}createStage_(e){return new c({fragmentShader:f+u+D+q+ve+ye+be,uniforms:{focus:()=>Y(e,this.focus_,xe),up:T(e).up,radius:()=>this.radius_,softness:()=>this.softness_,darkness:()=>this.darkness_,beam:()=>this.beam_,power:()=>this.power_,beamAnisotropy:()=>this.beamAnisotropy_}})}activated_(e){m(e)}deactivating_(e){d(e)}get focus(){return this.focus_}set focus(e){this.focus_=e,this.viewer.scene.requestRender()}get power(){return this.power_}set power(e){this.power_=e,this.viewer.scene.requestRender()}get radius(){return this.radius_}set radius(e){this.radius_=e,this.viewer.scene.requestRender()}get softness(){return this.softness_}set softness(e){this.softness_=e,this.viewer.scene.requestRender()}get darkness(){return this.darkness_}set darkness(e){this.darkness_=e,this.viewer.scene.requestRender()}get beam(){return this.beam_}set beam(e){this.beam_=e,this.viewer.scene.requestRender()}get beamAnisotropy(){return this.beamAnisotropy_}set beamAnisotropy(e){this.beamAnisotropy_=e,this.viewer.scene.requestRender()}};function X(e,i=1){let a=[`x`,`y`].map((r,a)=>new c({name:`${e}_${r}`,fragmentShader:`#define USE_STEP_SIZE\n${n}`,uniforms:{delta:1,sigma:2,stepSize:1,direction:a},sampleMode:t.LINEAR,textureScale:i})),o=e=>({get:()=>a[0].uniforms[e],set:t=>{for(let n of a)n.uniforms[e]=t}});return new r({name:e,stages:a,uniforms:Object.defineProperties({},{sigma:o(`sigma`),stepSize:o(`stepSize`)})})}var Z=`// Size of the visible frame of the given width over height, centered in the canvas, in texture
+`,Be=`// The beam's haze, blurred over the neighboring texels at its own resolution, each weighted by how
+// close its scene distance is to the texel's: the dither of the samples along the rays smooths
+// out, but the haze in front of a ridge does not spill onto the ridge.
+uniform sampler2D beamTexture;
+in vec2 v_textureCoordinates;
+
+// difference of the log2 of the distances at which a neighbor no longer counts, about 10 %
+const float SOFT_DEPTH = 0.14;
+
+void main() {
+  // czm_viewport is this pass's texture, the size of the beam's
+  vec2 texel = 1.0 / czm_viewport.zw;
+  float centerDepth = texture(beamTexture, v_textureCoordinates).g;
+  float sum = 0.0;
+  float total = 0.0;
+  for (int y = -1; y <= 1; y++) {
+    for (int x = -1; x <= 1; x++) {
+      vec2 sample_ = texture(beamTexture, v_textureCoordinates + vec2(float(x), float(y)) * texel).rg;
+      float gap = abs(sample_.g - centerDepth);
+      float weight = (x == 0 ? 2.0 : 1.0) * (y == 0 ? 2.0 : 1.0) * clamp(1.0 - gap / SOFT_DEPTH, 0.0, 1.0);
+      sum += weight * sample_.r;
+      total += weight;
+    }
+  }
+  out_FragColor = vec4(sum / total, centerDepth, 0.0, 1.0);
+}
+`,J=`// The searchlight's cone, for its beam and for its pool of light: the light hangs above the focus,
+// pointing down. Needs EyeFromDepth.
+uniform sampler2D depthTexture;
+// in eye coordinates; w is 0 for what is in the middle of the screen
+uniform vec4 focus;
+// local up direction, in eye coordinates
+uniform vec3 up;
+// meters
+uniform float radius;
+// width of the penumbra, as a fraction of the radius
+uniform float softness;
+
+// height of the light above the focus, in radii: a cone of 53 degrees
+const float HEIGHT = 2.0;
+
+struct Cone {
+  vec3 light;
+  float height;
+  // cosines of the angles, from the light's axis, at which the pool ends and its penumbra starts
+  float coneCos;
+  float penumbraCos;
+};
+
+// false without a focus in front of the camera (the sky in the middle, a focus behind)
+bool spotlightCone(out Cone cone) {
+  vec4 target = focus.w > 0.0 ? focus : eyeAt(depthTexture, vec2(0.5));
+  if (target.w == 0.0 || target.z >= 0.0) {
+    return false;
+  }
+  cone.height = HEIGHT * radius;
+  cone.light = target.xyz + cone.height * up;
+  float inner = radius * (1.0 - softness);
+  cone.coneCos = cone.height / sqrt(cone.height * cone.height + radius * radius);
+  cone.penumbraCos = cone.height / sqrt(cone.height * cone.height + inner * inner);
+  return true;
+}
+`,Ve=new i,He=class extends h{constructor(e,t={}){super(e),this.focus_=t.focus,this.power_=t.power??1,this.radius_=t.radius??200,this.softness_=t.softness??.5,this.darkness_=t.darkness??.8,this.beam_=t.beam??.25,this.beamAnisotropy_=t.beamAnisotropy??.4}createStage_(e){let t={focus:()=>q(e,this.focus_,Ve),up:A(e).up,radius:()=>this.radius_,softness:()=>this.softness_},n=new l({fragmentShader:m+f+M+J+Ie+ze,uniforms:{...t,beam:()=>this.beam_,beamAnisotropy:()=>this.beamAnisotropy_},textureScale:.5,pixelDatatype:u.HALF_FLOAT}),i=new l({fragmentShader:Be,uniforms:{beamTexture:n.name},textureScale:.5,pixelDatatype:u.HALF_FLOAT});return new r({stages:[n,i,new l({fragmentShader:m+K+Le+J+Re,uniforms:{...t,beamTexture:i.name,darkness:()=>this.darkness_,beam:()=>this.beam_,power:()=>this.power_}})],inputPreviousStageTexture:!1})}activated_(e){g(e)}deactivating_(e){p(e)}get focus(){return this.focus_}set focus(e){this.focus_=e,this.viewer.scene.requestRender()}get power(){return this.power_}set power(e){this.power_=e,this.viewer.scene.requestRender()}get radius(){return this.radius_}set radius(e){this.radius_=e,this.viewer.scene.requestRender()}get softness(){return this.softness_}set softness(e){this.softness_=e,this.viewer.scene.requestRender()}get darkness(){return this.darkness_}set darkness(e){this.darkness_=e,this.viewer.scene.requestRender()}get beam(){return this.beam_}set beam(e){this.beam_=e,this.viewer.scene.requestRender()}get beamAnisotropy(){return this.beamAnisotropy_}set beamAnisotropy(e){this.beamAnisotropy_=e,this.viewer.scene.requestRender()}};function Y(e,i=1){let a=[`x`,`y`].map((r,a)=>new l({name:`${e}_${r}`,fragmentShader:`#define USE_STEP_SIZE\n${n}`,uniforms:{delta:1,sigma:2,stepSize:1,direction:a},sampleMode:t.LINEAR,textureScale:i})),o=e=>({get:()=>a[0].uniforms[e],set:t=>{for(let n of a)n.uniforms[e]=t}});return new r({name:e,stages:a,uniforms:Object.defineProperties({},{sigma:o(`sigma`),stepSize:o(`stepSize`)})})}var X=`// Size of the visible frame of the given width over height, centered in the canvas, in texture
 // coordinates: bars above and below when the canvas is narrower than the ratio, on the sides when
 // it is wider; the whole canvas for a ratio of 0.
 vec2 frameSize(float aspectRatio) {
@@ -794,7 +1162,7 @@ vec2 frameSize(float aspectRatio) {
   float canvas = czm_viewport.z / czm_viewport.w;
   return aspectRatio < canvas ? vec2(aspectRatio / canvas, 1.0) : vec2(1.0, canvas / aspectRatio);
 }
-`,Ce=`// A Super 8 home movie: faded warm colors, halation around the highlights, heavy grain, the frame
+`,Ue=`// A Super 8 home movie: faded warm colors, halation around the highlights, heavy grain, the frame
 // drifting in the gate, flicker, light leaks, a strong vignette and the rounded corners of the
 // camera gate.
 uniform sampler2D colorTexture;
@@ -887,7 +1255,7 @@ void main() {
 
   out_FragColor = vec4(clamp(color, 0.0, 1.0) * gate, 1.0);
 }
-`,we=6,Te=1,Ee=.5,Q=18,De=class extends p{constructor(e,t={}){super(e),this.fade_=t.fade??.5,this.halation_=t.halation??.5,this.grain_=t.grain??.15,this.weave_=t.weave??1.5,this.flicker_=t.flicker??.08,this.lightLeaks_=t.lightLeaks??.5,this.aspectRatio_=t.aspectRatio??4/3}createStage_(){let e=X(`czm_super8_halation`,Ee),t=new r({stages:[e,new c({fragmentShader:Z+D+Ce,uniforms:{blurTexture:e.name,time:()=>performance.now()/1e3,fade:()=>this.fade_,halation:()=>this.halation_,grain:()=>this.grain_,weave:()=>this.weave_,flicker:()=>this.flicker_,lightLeaks:()=>this.lightLeaks_,aspectRatio:()=>this.aspectRatio_}})],inputPreviousStageTexture:!1,uniforms:e.uniforms});return t.uniforms.sigma=we,t.uniforms.stepSize=Te,t}activated_(e){h(e,Q)}deactivating_(e){_(e,Q)}get fade(){return this.fade_}set fade(e){this.fade_=e}get halation(){return this.halation_}set halation(e){this.halation_=e}get grain(){return this.grain_}set grain(e){this.grain_=e}get weave(){return this.weave_}set weave(e){this.weave_=e}get flicker(){return this.flicker_}set flicker(e){this.flicker_=e}get lightLeaks(){return this.lightLeaks_}set lightLeaks(e){this.lightLeaks_=e}get aspectRatio(){return this.aspectRatio_}set aspectRatio(e){this.aspectRatio_=e}},Oe=`// Three-strip Technicolor: the camera split the scene into red, green and blue records, each
+`,Z=6,We=1,Ge=.5,Q=18,Ke=class extends h{constructor(e,t={}){super(e),this.fade_=t.fade??.5,this.halation_=t.halation??.5,this.grain_=t.grain??.15,this.weave_=t.weave??1.5,this.flicker_=t.flicker??.08,this.lightLeaks_=t.lightLeaks??.5,this.aspectRatio_=t.aspectRatio??4/3}createStage_(){let e=Y(`czm_super8_halation`,Ge),t=new r({stages:[e,new l({fragmentShader:X+M+Ue,uniforms:{blurTexture:e.name,time:()=>performance.now()/1e3,fade:()=>this.fade_,halation:()=>this.halation_,grain:()=>this.grain_,weave:()=>this.weave_,flicker:()=>this.flicker_,lightLeaks:()=>this.lightLeaks_,aspectRatio:()=>this.aspectRatio_}})],inputPreviousStageTexture:!1,uniforms:e.uniforms});return t.uniforms.sigma=Z,t.uniforms.stepSize=We,t}activated_(e){_(e,Q)}deactivating_(e){y(e,Q)}get fade(){return this.fade_}set fade(e){this.fade_=e}get halation(){return this.halation_}set halation(e){this.halation_=e}get grain(){return this.grain_}set grain(e){this.grain_=e}get weave(){return this.weave_}set weave(e){this.weave_=e}get flicker(){return this.flicker_}set flicker(e){this.flicker_=e}get lightLeaks(){return this.lightLeaks_}set lightLeaks(e){this.lightLeaks_=e}get aspectRatio(){return this.aspectRatio_}set aspectRatio(e){this.aspectRatio_=e}},qe=`// Three-strip Technicolor: the camera split the scene into red, green and blue records, each
 // printed with its complementary dye, the three dyes over each other. Each color gains its purity,
 // what it has over the other two, and loses some of theirs: grays stay, primaries deepen. After
 // prod80's ReShade Technicolor (MIT), https://github.com/prod80/prod80-ReShade-Repository
@@ -916,7 +1284,7 @@ void main() {
   vec3 printed = color + purity - taken.yxy - taken.zzx;
   out_FragColor = vec4(clamp(mix(color, printed, strength), 0.0, 1.0), sceneColor.a);
 }
-`,ke=class extends p{constructor(e,t={}){super(e),this.strength_=t.strength??1,this.aspectRatio_=t.aspectRatio??0}createStage_(){return new c({fragmentShader:Z+Oe,uniforms:{strength:()=>this.strength_,aspectRatio:()=>this.aspectRatio_}})}get strength(){return this.strength_}set strength(e){this.strength_=e,this.viewer.scene.requestRender()}get aspectRatio(){return this.aspectRatio_}set aspectRatio(e){this.aspectRatio_=e,this.viewer.scene.requestRender()}},Ae=`// Tilt-shift: a narrow band of sharpness around the focal distance and the blurred image further
+`,Je=class extends h{constructor(e,t={}){super(e),this.strength_=t.strength??1,this.aspectRatio_=t.aspectRatio??0}createStage_(){return new l({fragmentShader:X+qe,uniforms:{strength:()=>this.strength_,aspectRatio:()=>this.aspectRatio_}})}get strength(){return this.strength_}set strength(e){this.strength_=e,this.viewer.scene.requestRender()}get aspectRatio(){return this.aspectRatio_}set aspectRatio(e){this.aspectRatio_=e,this.viewer.scene.requestRender()}},Ye=`// Tilt-shift: a narrow band of sharpness around the focal distance and the blurred image further
 // off, with the punchy colors of miniature photographs. Distances compare as ratios, like a lens:
 // sharp within range factors of two of the focal distance, fully blurred at twice that.
 uniform sampler2D colorTexture;
@@ -945,7 +1313,7 @@ void main() {
   color = mix(color, smoothstep(0.0, 1.0, color), saturation);
   out_FragColor = vec4(clamp(color, 0.0, 1.0), sceneColor.a);
 }
-`,je=new i,Me=class extends p{constructor(e,t={}){super(e),this.focus_=t.focus,this.range_=t.range??.3,this.blur_=t.blur??4,this.saturation_=t.saturation??.3}createStage_(e){let t=X(`czm_tilt_shift_blur`),n=new r({stages:[t,new c({fragmentShader:f+Ae,uniforms:{blurTexture:t.name,focus:()=>Y(e,this.focus_,je),range:()=>this.range_,saturation:()=>this.saturation_}})],inputPreviousStageTexture:!1,uniforms:t.uniforms});return n.uniforms.sigma=this.blur_,n}activated_(e){m(e)}deactivating_(e){d(e)}get focus(){return this.focus_}set focus(e){this.focus_=e,this.viewer.scene.requestRender()}get range(){return this.range_}set range(e){this.range_=e,this.viewer.scene.requestRender()}get blur(){return this.blur_}set blur(e){this.blur_=e,this.stage_&&(this.stage_.uniforms.sigma=e),this.viewer.scene.requestRender()}get saturation(){return this.saturation_}set saturation(e){this.saturation_=e,this.viewer.scene.requestRender()}},Ne=`// Fog filling the valleys below an altitude: the fog along the ray from the camera to the pixel
+`,Xe=new i,Ze=class extends h{constructor(e,t={}){super(e),this.focus_=t.focus,this.range_=t.range??.3,this.blur_=t.blur??4,this.saturation_=t.saturation??.3}createStage_(e){let t=Y(`czm_tilt_shift_blur`),n=new r({stages:[t,new l({fragmentShader:m+Ye,uniforms:{blurTexture:t.name,focus:()=>q(e,this.focus_,Xe),range:()=>this.range_,saturation:()=>this.saturation_}})],inputPreviousStageTexture:!1,uniforms:t.uniforms});return n.uniforms.sigma=this.blur_,n}activated_(e){g(e)}deactivating_(e){p(e)}get focus(){return this.focus_}set focus(e){this.focus_=e,this.viewer.scene.requestRender()}get range(){return this.range_}set range(e){this.range_=e,this.viewer.scene.requestRender()}get blur(){return this.blur_}set blur(e){this.blur_=e,this.stage_&&(this.stage_.uniforms.sigma=e),this.viewer.scene.requestRender()}get saturation(){return this.saturation_}set saturation(e){this.saturation_=e,this.viewer.scene.requestRender()}},Qe=`// Fog filling the valleys below an altitude: the fog along the ray from the camera to the pixel
 // is the part of the ray below the top, the density thinning over a soft band under the top.
 uniform sampler2D colorTexture;
 uniform sampler2D depthTexture;
@@ -989,4 +1357,4 @@ void main() {
   vec3 fogColor = mix(NIGHT * czm_fogMinimumBrightness, color.rgb, day);
   out_FragColor = vec4(mix(sceneColor.rgb, fogColor, amount * color.a), sceneColor.a);
 }
-`,Pe=class extends p{constructor(e,t={}){super(e),this.top_=t.top??1500,this.density_=t.density??.005,this.softness_=t.softness??100,this.color_=t.color??new o(.85,.88,.92,1)}createStage_(e){return new c({fragmentShader:f+E+Ne,uniforms:{...T(e),top:()=>this.top_,density:()=>this.density_,softness:()=>this.softness_,color:()=>this.color_}})}activated_(e){m(e)}deactivating_(e){d(e)}get top(){return this.top_}set top(e){this.top_=e,this.viewer.scene.requestRender()}get density(){return this.density_}set density(e){this.density_=e,this.viewer.scene.requestRender()}get softness(){return this.softness_}set softness(e){this.softness_=e,this.viewer.scene.requestRender()}get color(){return this.color_}set color(e){this.color_=e,this.viewer.scene.requestRender()}},Fe={m:e=>`${e} m`,deg:e=>`${e}°`,percent:e=>`${Math.round(e*100)} %`,shutter:e=>`1/${Math.round(1/e)} s`,px:e=>`${+e.toFixed(1)} px`,hz:e=>`${e} Hz`,"per-m":e=>`${+e.toFixed(4)} /m`};for(let e of document.querySelectorAll(`#controls wa-slider[data-unit]`))e.valueFormatter=Fe[e.dataset.unit];var $=[`snowLine`,`valleyFog`,`spotlight`,`precipitation`,`tiltShift`,`motionBlur`,`speedLines`,`colorIsolation`,`infrared`,`technicolor`,`super8`,`lensDistortion`,`jello`,`droneDisplay`,`analogVideo`,`digitalVideo`];e(`cesiumContainer`).then(e=>{e.clock.currentTime=Cesium.JulianDate.fromIso8601(`2026-09-25T14:00:00+02:00`),e.clock.shouldAnimate=!1;let t={snowLine:new pe(e),valleyFog:new Pe(e),tiltShift:new Me(e),motionBlur:new ee(e,{exposure:.04}),speedLines:new _e(e),spotlight:new Se(e),precipitation:new fe(e),colorIsolation:new ne(e),infrared:new ie(e),technicolor:new ke(e),super8:new De(e),lensDistortion:new ae(e),jello:new y(e),droneDisplay:new te(e),analogVideo:new g(e),digitalVideo:new v(e)},n=!1;document.querySelector(`#controls`).addEventListener(`input`,e=>{let{name:r,value:i,checked:a}=e.target,o=e.target.closest(`[data-effect]`).dataset.effect;if(r===`followCursor`){n=a;return}if(r!==`active`){let e=Number(i);t[o][r]=Number.isNaN(e)?i:e;return}if(t[o].active=a,a){e.target.closest(`wa-details`).open=!0;for(let e of $.slice($.indexOf(o)+1))t[e].active&&(t[e].active=!1,t[e].active=!0)}});let r=e=>{t.tiltShift.focus=e,t.spotlight.focus=e,t.speedLines.focus=e};e.screenSpaceEventHandler.setInputAction(({position:t})=>{let n=e.scene.pickPosition(t);n&&r(n)},Cesium.ScreenSpaceEventType.LEFT_CLICK),e.screenSpaceEventHandler.setInputAction(({endPosition:r})=>{let i=n&&e.scene.pickPosition(r);i&&(t.spotlight.focus=i)},Cesium.ScreenSpaceEventType.MOUSE_MOVE),document.querySelector(`#center`).addEventListener(`click`,()=>r(void 0))});
+`,$e=class extends h{constructor(e,t={}){super(e),this.top_=t.top??1500,this.density_=t.density??.005,this.softness_=t.softness??100,this.color_=t.color??new o(.85,.88,.92,1)}createStage_(e){return new l({fragmentShader:m+j+Qe,uniforms:{...A(e),top:()=>this.top_,density:()=>this.density_,softness:()=>this.softness_,color:()=>this.color_}})}activated_(e){g(e)}deactivating_(e){p(e)}get top(){return this.top_}set top(e){this.top_=e,this.viewer.scene.requestRender()}get density(){return this.density_}set density(e){this.density_=e,this.viewer.scene.requestRender()}get softness(){return this.softness_}set softness(e){this.softness_=e,this.viewer.scene.requestRender()}get color(){return this.color_}set color(e){this.color_=e,this.viewer.scene.requestRender()}},et={m:e=>`${e} m`,deg:e=>`${e}°`,percent:e=>`${Math.round(e*100)} %`,shutter:e=>`1/${Math.round(1/e)} s`,px:e=>`${+e.toFixed(1)} px`,hz:e=>`${e} Hz`,"per-m":e=>`${+e.toFixed(4)} /m`};for(let e of document.querySelectorAll(`#controls wa-slider[data-unit]`))e.valueFormatter=et[e.dataset.unit];var $=[`snowLine`,`valleyFog`,`spotlight`,`precipitation`,`lightning`,`tiltShift`,`motionBlur`,`speedLines`,`colorIsolation`,`infrared`,`technicolor`,`super8`,`lensDistortion`,`jello`,`droneDisplay`,`analogVideo`,`digitalVideo`];e(`cesiumContainer`).then(e=>{e.clock.currentTime=Cesium.JulianDate.fromIso8601(`2026-09-25T14:00:00+02:00`),e.clock.shouldAnimate=!1;let t={snowLine:new je(e),valleyFog:new $e(e),tiltShift:new Ze(e),motionBlur:new ee(e,{exposure:.04}),speedLines:new Fe(e),spotlight:new He(e),precipitation:new ke(e),lightning:new me(e),colorIsolation:new x(e),infrared:new C(e),technicolor:new Je(e),super8:new Ke(e),lensDistortion:new ae(e),jello:new re(e),droneDisplay:new te(e),analogVideo:new v(e),digitalVideo:new ne(e)},n=!1;document.querySelector(`#controls`).addEventListener(`input`,e=>{let{name:r,value:i,checked:a}=e.target,o=e.target.closest(`[data-effect]`).dataset.effect;if(r===`followCursor`){n=a;return}if(r===`inFront`){t.lightning.inFront=a;return}if(r!==`active`){let e=Number(i);t[o][r]=Number.isNaN(e)?i:e;return}if(t[o].active=a,a){e.target.closest(`wa-details`).open=!0;for(let e of $.slice($.indexOf(o)+1))t[e].active&&(t[e].active=!1,t[e].active=!0)}});let r=e=>{t.tiltShift.focus=e,t.spotlight.focus=e,t.speedLines.focus=e};e.screenSpaceEventHandler.setInputAction(({position:t})=>{let n=e.scene.pickPosition(t);n&&r(n)},Cesium.ScreenSpaceEventType.LEFT_CLICK),e.screenSpaceEventHandler.setInputAction(({endPosition:r})=>{let i=n&&e.scene.pickPosition(r);i&&(t.spotlight.focus=i)},Cesium.ScreenSpaceEventType.MOUSE_MOVE),document.querySelector(`#center`).addEventListener(`click`,()=>r(void 0))});
