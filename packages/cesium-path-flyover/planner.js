@@ -261,6 +261,10 @@ export async function reliefProfile(targets, heights, ranges, ellipsoid, heights
  * @typedef {Object} Plan
  * @property {number[]} headingOffset radians, per sample
  * @property {number[]} lift meters, per sample
+ * @property {number[]} required meters, per sample: the lift the chosen heading needed before
+ *   the smoothing spread it along the path, for tooling
+ * @property {{offsets: number[], lifts: number[][]}} candidates the heading offsets searched, radians,
+ *   and per sample the lift each would have needed, for tooling
  */
 
 /**
@@ -398,8 +402,11 @@ export async function planCamera(samples, options, heightsAt) {
     options,
     heightsAt
   );
+  const required = finalLifts.map((lifts) => lifts[0]);
   return {
     headingOffset,
-    lift: smoothConstraint(finalLifts.map((lifts) => lifts[0]), options.ahead, SMOOTH_SIGMA),
+    lift: smoothConstraint(required, options.ahead, SMOOTH_SIGMA),
+    required,
+    candidates: {offsets: OFFSET_RADIANS, lifts: candidateLifts},
   };
 }

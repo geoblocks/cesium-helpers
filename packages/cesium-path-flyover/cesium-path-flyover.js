@@ -101,7 +101,25 @@ const enuScratch = new Matrix4();
  * @property {number[]} lift meters, per sample: the terrain planner's lift, the climb toward the surrounding relief and the breathing drift
  * @property {number[]} roll radians, per sample: the bank into the turns of the heading plus the breathing drift, positive leans right
  * @property {number[]} ground per spline point, its fraction of the track's length on the ground, where the trail measures it
+ * @property {import('./planner.js').Plan | undefined} plan the terrain planner's decisions, for tooling; none without terrain
  */
+
+/**
+ * The look of the run and the mechanics, with their defaults
+ * @param {Options} options
+ */
+function settings(options) {
+  const run = deriveRun(options);
+  return {
+    run_: run,
+    pitch: CesiumMath.toRadians(run.pitch),
+    clearance: options.clearance ?? 40,
+    maxLift: options.maxLift ?? 250,
+    screenSpaceError: options.screenSpaceError ?? false,
+    freeLook: options.freeLook ?? true,
+    recenterDelay: options.recenterDelay ?? 2,
+  };
+}
 
 export default class CesiumPathFlyover {
   /**
@@ -110,13 +128,20 @@ export default class CesiumPathFlyover {
    */
   constructor(viewer, options = {}) {
     this.viewer = viewer;
-    this.run_ = deriveRun(options);
-    this.pitch = CesiumMath.toRadians(this.run_.pitch);
-    this.clearance = options.clearance ?? 40;
-    this.maxLift = options.maxLift ?? 250;
-    this.screenSpaceError = options.screenSpaceError ?? false;
-    this.freeLook = options.freeLook ?? true;
-    this.recenterDelay = options.recenterDelay ?? 2;
+    const {run_, pitch, clearance, maxLift, screenSpaceError, freeLook, recenterDelay} = settings(options);
+    this.run_ = run_;
+    this.pitch = pitch;
+    this.clearance = clearance;
+    this.maxLift = maxLift;
+    this.screenSpaceError = screenSpaceError;
+    this.freeLook = freeLook;
+    this.recenterDelay = recenterDelay;
+    /**
+     * The loaded track's terrain samplers, kept for a replan: the tiles they fetched
+     * serve it again
+     * @type {[TerrainSampler, TerrainSampler] | undefined}
+     */
+    this.samplers_ = undefined;
     /**
      * Free look while playing: the look, its input handler, and the camera
      * controller's inputs to restore.
@@ -135,7 +160,7 @@ export default class CesiumPathFlyover {
     this.times_ = undefined;
     /** @type {Path | undefined} */
     this.path_ = undefined;
-    /** @type {object | undefined} the load under way */
+    /** @type {object | undefined} the load or replan under way */
     this.load_ = undefined;
     this.t_ = 0;
     // the wall clock at progress 0 of the current playback
@@ -170,6 +195,33 @@ export default class CesiumPathFlyover {
   }
 
   /**
+   * Plans the loaded track again with other options, without fetching or sampling it
+   * again: the run changes, the track and the marker stay where they are. For tooling
+   * that turns the dials on a loaded track. Not while a load or a replan is under way.
+   * @param {Options} options
+   */
+  async replan(options) {
+    if (!this.samplers_ || !this.path_) {
+      throw new Error("Call load() before replan()");
+    }
+    if (this.load_) {
+      throw new Error("A load or replan is under way");
+    }
+    this.stop();
+    Object.assign(this, settings(options));
+    // a load started meanwhile wins
+    const replan = (this.load_ = {});
+    const path = await this.computePath_(...this.samplers_);
+    if (replan !== this.load_) {
+      return;
+    }
+    this.path_ = path;
+    this.load_ = undefined;
+    // the frame a scrub asked for while the plan was pending
+    this.placeFrame_();
+  }
+
+  /**
    * @param {string} url GPX or GeoJSON
    */
   async load(url) {
@@ -183,6 +235,7 @@ export default class CesiumPathFlyover {
     }
     const coords = decimate(parseTrack(text), MIN_POINT_DISTANCE, scene.ellipsoid);
     if (coords.length < 2) {
+      this.load_ = undefined;
       throw new Error(`A track needs at least two points more than ${MIN_POINT_DISTANCE} m apart`);
     }
     // the track drapes on the terrain, so it needs no heights and can show right away
@@ -213,11 +266,13 @@ export default class CesiumPathFlyover {
     this.name_ = parseTrackName(text);
     this.times_ = coords.every((c) => c.length > 2) ? coords.map((c) => /** @type {number} */ (c[2])) : undefined;
     const planSampler = this.totalLength_ > LONG_TRACK ? new TerrainSampler(scene.terrainProvider, LONG_TRACK_PLAN_LEVEL) : sampler;
+    this.samplers_ = [sampler, planSampler];
     const path = await this.computePath_(sampler, planSampler);
     if (load !== this.load_) {
       return;
     }
     this.path_ = path;
+    this.load_ = undefined;
     this.t_ = 0;
     // a scrub during the load placed the split on the previous track's path
     if (this.trail_) {
@@ -290,6 +345,8 @@ export default class CesiumPathFlyover {
     }
     const range = this.rangeProfile_(progresses);
     const {targets, heights} = await this.smoothTargets_(positions, sampler);
+    /** @type {import('./planner.js').Plan | undefined} */
+    let plan;
     if (!(scene.terrainProvider instanceof EllipsoidTerrainProvider)) {
       const heightsAt = (/** @type {Cartographic[]} */ cartographics) => planSampler.heightsAt(cartographics);
       if (run.reliefRise > 0) {
@@ -300,7 +357,7 @@ export default class CesiumPathFlyover {
           rise[k] += run.reliefRise * r;
         });
       }
-      const plan = await planCamera(
+      plan = await planCamera(
         {positions: targets, headings, ranges: range, rise},
         {
           pitch: this.pitch,
@@ -313,12 +370,13 @@ export default class CesiumPathFlyover {
         },
         heightsAt
       );
+      const {lift} = plan;
       plan.headingOffset.forEach((offset, k) => {
         headings[k] += offset;
-        rise[k] += plan.lift[k];
+        rise[k] += lift[k];
       });
     }
-    return {targets, headings, range, lift: rise, roll: this.rollProfile_(headings, dt), ground: this.groundFractions_()};
+    return {targets, headings, range, lift: rise, roll: this.rollProfile_(headings, dt), ground: this.groundFractions_(), plan};
   }
 
   /**
@@ -464,7 +522,8 @@ export default class CesiumPathFlyover {
     this.t_ = CesiumMath.clamp(value, 0, 1);
     if (this.play_) {
       this.startTime_ = this.now_() - this.t_ * this.duration;
-    } else if (this.path_) {
+    } else if (this.path_ && !this.load_) {
+      // not while a replan is pending: its options are in, its path is not yet
       this.placeFrame_();
     }
   }

@@ -35,6 +35,8 @@ export default defineConfig({
         'cesium-first-person-mode': resolve(__dirname, 'demos/cesium-first-person-mode.html'),
         'cesium-flyto': resolve(__dirname, 'demos/cesium-flyto.html'),
         'cesium-path-flyover': resolve(__dirname, 'demos/cesium-path-flyover.html'),
+        // a debugging page for the flyover's terrain planner, not listed on the index
+        'cesium-path-flyover-skatepark': resolve(__dirname, 'demos/cesium-path-flyover-skatepark.html'),
         'cesium-post-process': resolve(__dirname, 'demos/cesium-post-process.html'),
         'cesium-sphere-camera': resolve(__dirname, 'demos/cesium-sphere-camera.html'),
         'cesium-view-cube': resolve(__dirname, 'demos/cesium-view-cube.html'),
