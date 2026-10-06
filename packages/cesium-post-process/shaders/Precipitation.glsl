@@ -11,12 +11,21 @@
 // from 0 to 1, turns the rain to snow in one population: the drops slow down from 9 m/s to 1 m/s,
 // which shortens their streak, and grow from thin sharp lines into soft round flakes that flutter,
 // the nearest layer out of focus as in Andrew Baldwin's "Just snow", in a thicker, whiter haze.
-// Needs EyeFromDepth, Hash, Height and PrecipitationWind.
+// Where it rains comes from the map: the shafts and the share of each ray in the rain from the
+// shafts' pass, the drops from the map's intensity at the camera, read on the CPU. The haze's length
+// below the cloud base is this pass's, from each pixel's depth, sharp at the ridges. Seen from
+// above, where Clouds draws the clouds, they hide the rain under them: no shafts nor haze.
+// Needs EyeFromDepth, Hash, Height, PrecipitationWind and RainHaze.
 const int LAYERS = 4;
 uniform sampler2D colorTexture;
 uniform sampler2D depthTexture;
-// the shafts' opacity, from PrecipitationShafts.glsl at a fraction of the resolution
+// the shafts' opacity and the share of the ray in the rain, from PrecipitationShafts.glsl at a
+// fraction of the resolution
 uniform sampler2D shaftTexture;
+// 1 when Clouds draws the clouds, 0 otherwise
+uniform float clouds;
+// the map's intensity at the camera, 0 to 1
+uniform float localIntensity;
 // from the CPU, as they change with the snow: the length of a drop's trail, its motion over the
 // exposure, in cells, and the scroll of the grid along the fall, in cells, wrapped at PERIOD, which
 // has to follow the speed without a jump
@@ -39,21 +48,11 @@ const float NEAREST = 2.0;
 const float DENSITY = 0.6;
 // the sky is a ray this long
 const float SKY_DISTANCE = 50000.0;
-// the haze never quite hides the sky and the far terrain
-const float MAX_HAZE = 0.9;
-// tint of the haze at night, scaled by fog.minimumBrightness
-const vec3 NIGHT = vec3(0.45, 0.55, 0.85);
 // a drop is a capsule from a point in its cell, its trail within a cell: the cells are taller than
 // wide in the rain, square in the snow
 // how far a flake flutters across its cell, in cells, and a streak wavers in the gusts
 const float FLUTTER = 0.12;
 const float WAVER = 0.08;
-// visibility, in meters, from intensity 0 to 1: much less in the snow than in the rain
-const vec2 RAIN_VISIBILITY = vec2(40000.0, 4000.0);
-const vec2 SNOW_VISIBILITY = vec2(20000.0, 500.0);
-// the haze under the clouds by day, a brighter gray under snow clouds
-const vec3 RAIN_HAZE = vec3(0.6, 0.64, 0.68);
-const vec3 SNOW_HAZE = vec3(0.7, 0.72, 0.76);
 // the drops refract the haze's light, whiter than they would, as the milk film crews add to the
 // water, for rain that shows; the flakes scatter it, near white
 const float RAIN_MILK = 0.25;
@@ -64,9 +63,9 @@ const float SNOW_SHAFT_SHADE = 1.1;
 // the shafts' resolution, precipitation.js's SHAFT_SCALE
 const float SHAFT_SCALE = 0.125;
 
-// the shafts' opacity, blurred by PrecipitationShaftBlur.glsl and upsampled bilinearly from their texture,
-// which is read at its nearest texel
-float shaftOpacity() {
+// the shafts' opacity and the share of the ray in the rain, blurred by PrecipitationShaftBlur.glsl
+// and upsampled bilinearly from their texture, which is read at its nearest texel
+vec2 shafts() {
   // the size Cesium gives the texture
   vec2 size = ceil(czm_viewport.zw * SHAFT_SCALE);
   vec2 p = v_textureCoordinates * size - 0.5;
@@ -74,8 +73,8 @@ float shaftOpacity() {
   vec2 f = p - i;
   vec2 center = (i + 0.5) / size;
   vec2 texel = 1.0 / size;
-  float bottom = mix(texture(shaftTexture, center).r, texture(shaftTexture, center + vec2(texel.x, 0.0)).r, f.x);
-  float top = mix(texture(shaftTexture, center + vec2(0.0, texel.y)).r, texture(shaftTexture, center + texel).r, f.x);
+  vec2 bottom = mix(texture(shaftTexture, center).rg, texture(shaftTexture, center + vec2(texel.x, 0.0)).rg, f.x);
+  vec2 top = mix(texture(shaftTexture, center + vec2(0.0, texel.y)).rg, texture(shaftTexture, center + texel).rg, f.x);
   return mix(bottom, top, f.y);
 }
 
@@ -126,20 +125,19 @@ void main() {
   vec3 northWorld = cross(upWorld, eastWorld);
   float tilt = gustingTilt();
 
-  // the haze, as thick as the visibility: 3.912 / visibility is the extinction that leaves 2 %
-  // of the light; lit by the sun as ValleyFog's fog, a moonlit blue at night
-  // from the rain's to the snow's, in proportion
-  vec2 range = RAIN_VISIBILITY * pow(SNOW_VISIBILITY / RAIN_VISIBILITY, vec2(snow));
-  float visibility = range.x * pow(range.y / range.x, intensity);
-  float haze = MAX_HAZE * (1.0 - exp(-3.912 * sceneDistance / visibility));
-  float day = smoothstep(-0.1, 0.3, dot(up, czm_sunDirectionEC));
-  vec3 hazeColor = mix(NIGHT * czm_fogMinimumBrightness, mix(RAIN_HAZE, SNOW_HAZE, snow), day);
+  // none above the cloud base; as hard as it rains at the camera
+  float raining = 1.0 - smoothstep(cloudBase - 50.0, cloudBase + 50.0, cameraHeight);
+
+  // the haze over the part of the ray below the cloud base, as rainy as the shafts' pass found it,
+  // from the rain's to the snow's color; from above, hidden by the clouds where Clouds draws them
+  vec2 below = belowHeight(view * sceneDistance, cloudBase);
+  vec2 shaft = shafts() * (1.0 - clouds * (1.0 - raining));
+  float haze = rainHaze((below.y - below.x) * sceneDistance * shaft.y, rainVisibility(intensity, snow));
+  vec3 hazeColor = rainHazeColor(daylight(), snow);
   vec3 color = mix(sceneColor.rgb, hazeColor, haze);
 
-  color = mix(color, min(mix(RAIN_SHAFT_SHADE, SNOW_SHAFT_SHADE, snow) * hazeColor, vec3(1.0)), shaftOpacity());
-
-  // none above the cloud base
-  float raining = 1.0 - smoothstep(cloudBase - 50.0, cloudBase + 50.0, cameraHeight);
+  color = mix(color, min(mix(RAIN_SHAFT_SHADE, SNOW_SHAFT_SHADE, snow) * hazeColor, vec3(1.0)), shaft.x);
+  float local = intensity * localIntensity;
   // in eye coordinates: the direction the drops fall toward, tilted toward the east by the wind,
   // and north across it
   vec3 fall = czm_viewRotation * (sin(tilt) * eastWorld - cos(tilt) * upWorld);
@@ -150,15 +148,15 @@ void main() {
   float cosTheta = dot(view, fall);
   float sinTheta = sqrt(max(1.0 - cosTheta * cosTheta, 0.0));
   // none toward the poles, where the cells shrink below a pixel
-  if (raining > 0.0 && sinTheta > 0.01) {
+  if (raining > 0.0 && local > 0.0 && sinTheta > 0.01) {
     float around = atan(dot(view, cross(fall, across)), dot(view, across));
     float along = log(sinTheta / max(1.0 + cosTheta, 1e-6));
-    float density = DENSITY * intensity;
+    float density = DENSITY * local;
     float streak = trail;
     float amplitude = mix(WAVER, FLUTTER, snow);
     // a pixel in radians, around the pole of the fall, where cells shrink
     float pixelOverSin = pixel / sinTheta;
-    float brightness = raining * (0.5 + 0.5 * intensity);
+    float brightness = raining * (0.5 + 0.5 * local);
     for (int i = 0; i < LAYERS; i++) {
       vec4 shape = layerShape[i];
       // hidden behind what is nearer than the layer

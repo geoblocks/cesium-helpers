@@ -1,4 +1,5 @@
 export {default as AnalogVideo} from './analog-video.js';
+export {default as Clouds} from './clouds.js';
 export {default as ColorIsolation} from './color-isolation.js';
 export {default as DigitalVideo} from './digital-video.js';
 export {default as DroneDisplay} from './drone-display.js';
