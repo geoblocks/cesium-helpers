@@ -1,5 +1,5 @@
-import {Cartesian4} from '@cesium/core';
-import {PostProcessStage} from '@cesium/engine';
+import {Cartesian4, PixelDatatype} from '@cesium/core';
+import {PostProcessStage, PostProcessStageComposite} from '@cesium/engine';
 import {acquireTerrainDepth, releaseTerrainDepth} from './depth-test.js';
 import Effect from './effect.js';
 import {eyeFocus} from './focus.js';
@@ -11,6 +11,9 @@ import Hash from './shaders/Hash.js';
 import Noise from './shaders/Noise.js';
 import Normal from './shaders/Normal.js';
 import SpotlightShader from './shaders/Spotlight.js';
+import SpotlightBeam from './shaders/SpotlightBeam.js';
+import SpotlightBeamBlur from './shaders/SpotlightBeamBlur.js';
+import SpotlightCone from './shaders/SpotlightCone.js';
 
 const focusScratch = new Cartesian4();
 
@@ -40,18 +43,47 @@ export default class Spotlight extends Effect {
    * @param {import('@cesium/engine').Scene} scene
    */
   createStage_(scene) {
-    return new PostProcessStage({
-      fragmentShader: EyeFromDepth + Hash + Noise + Normal + Beam + Filmic + SpotlightShader,
+    // SpotlightCone's uniforms, for all the passes
+    const cone = {
+      focus: () => eyeFocus(scene, this.focus_, focusScratch),
+      up: heightUniforms(scene).up,
+      radius: () => this.radius_,
+      softness: () => this.softness_,
+    };
+    // the beam is raymarched at half the resolution, then blurred at it
+    const beam = new PostProcessStage({
+      fragmentShader: EyeFromDepth + Hash + Noise + SpotlightCone + Beam + SpotlightBeam,
       uniforms: {
-        focus: () => eyeFocus(scene, this.focus_, focusScratch),
-        up: heightUniforms(scene).up,
-        radius: () => this.radius_,
-        softness: () => this.softness_,
-        darkness: () => this.darkness_,
+        ...cone,
         beam: () => this.beam_,
-        power: () => this.power_,
         beamAnisotropy: () => this.beamAnisotropy_,
       },
+      textureScale: 0.5,
+      pixelDatatype: PixelDatatype.HALF_FLOAT,
+    });
+    const blurredBeam = new PostProcessStage({
+      fragmentShader: SpotlightBeamBlur,
+      uniforms: {beamTexture: beam.name},
+      textureScale: 0.5,
+      pixelDatatype: PixelDatatype.HALF_FLOAT,
+    });
+    return new PostProcessStageComposite({
+      stages: [
+        beam,
+        blurredBeam,
+        new PostProcessStage({
+          fragmentShader: EyeFromDepth + Normal + Filmic + SpotlightCone + SpotlightShader,
+          uniforms: {
+            ...cone,
+            beamTexture: blurredBeam.name,
+            darkness: () => this.darkness_,
+            beam: () => this.beam_,
+            power: () => this.power_,
+          },
+        }),
+      ],
+      // the light is drawn over the scene, not over the beam
+      inputPreviousStageTexture: false,
     });
   }
 
