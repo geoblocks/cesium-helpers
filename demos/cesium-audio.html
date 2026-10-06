@@ -77,7 +77,7 @@
           audioContext = new AudioContext();
           const panner = new PannerNode(audioContext, {panningModel: 'HRTF', distanceModel: 'inverse', refDistance: 1000});
           panner.connect(audioContext.destination);
-          new CesiumAudio(viewer.scene, position, panner).active = true;
+          new CesiumAudio(viewer, position, panner).active = true;
 
           const response = await fetch('sounds/goat.mp3');
           const buffer = await audioContext.decodeAudioData(await response.arrayBuffer());
