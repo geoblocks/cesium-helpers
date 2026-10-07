@@ -48,6 +48,10 @@
       <wa-switch id="rain" size="s">Rain</wa-switch>
       <wa-switch id="jammers" size="s" checked>Jammers</wa-switch>
       <wa-switch id="show-jammers" size="s">Show jammers</wa-switch>
+      <wa-select id="layout" size="s" label="Controller" value="game">
+        <wa-option value="game">Game: left stick moves, triggers climb</wa-option>
+        <wa-option value="mode2">Drone radio (Mode 2)</wa-option>
+      </wa-select>
       <wa-select id="video" size="s" label="Video" value="analog">
         <wa-option value="analog">Analog</wa-option>
         <wa-option value="digital">Digital</wa-option>
@@ -98,6 +102,8 @@
       const fly = document.querySelector('#fly');
       const rain = document.querySelector('#rain');
       const video = document.querySelector('#video');
+      const layout = document.querySelector('#layout');
+      layout.addEventListener('change', () => drone.layout = layout.value);
       const jammers = document.querySelector('#jammers');
       const showJammers = document.querySelector('#show-jammers');
       const lost = document.querySelector('#lost');

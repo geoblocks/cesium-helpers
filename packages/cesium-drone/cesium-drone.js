@@ -66,7 +66,7 @@ function deadZone(value) {
 export default class CesiumDrone {
   /**
    * @param {import('@cesium/engine').CesiumWidget} viewer
-   * @param {{speed?: number, boostSpeed?: number, climbSpeed?: number, turnRate?: number, clearance?: number, crashSpeed?: number, cameraTilt?: number, failsafeDelay?: number}} [options]
+   * @param {{speed?: number, boostSpeed?: number, climbSpeed?: number, turnRate?: number, clearance?: number, crashSpeed?: number, cameraTilt?: number, failsafeDelay?: number, layout?: 'game' | 'mode2'}} [options]
    */
   constructor(viewer, options = {}) {
     this.viewer = viewer;
@@ -86,6 +86,13 @@ export default class CesiumDrone {
     this.cameraTilt = options.cameraTilt ?? 20;
     /** the time the drone keeps its last command after losing its control link, in seconds, before its motors stop */
     this.failsafeDelay = options.failsafeDelay ?? 1.5;
+    /**
+     * The gamepad's layout: 'game', the left stick moving, the right one turning and tilting the
+     * camera, the triggers climbing and descending, as in most games; or 'mode2', the sticks of a
+     * drone's radio, the left one climbing and turning, the right one moving.
+     * @type {'game' | 'mode2'}
+     */
+    this.layout = options.layout ?? 'game';
 
     /**
      * Whether the control link is lost, set by the application (from jamming, for example): the
@@ -230,13 +237,24 @@ export default class CesiumDrone {
     }
     const pad = navigator.getGamepads?.().find(gamepad => gamepad?.mapping === 'standard');
     if (pad) {
-      // the sticks' Y axes are positive down
-      sticks.turn += deadZone(pad.axes[0] ?? 0);
-      sticks.climb -= deadZone(pad.axes[1] ?? 0);
-      sticks.right += deadZone(pad.axes[2] ?? 0);
-      sticks.forward -= deadZone(pad.axes[3] ?? 0);
-      sticks.boost ||= (pad.buttons[7]?.value ?? 0) > 0.5;
-      sticks.tilt += (pad.buttons[4]?.pressed ? 1 : 0) - (pad.buttons[5]?.pressed ? 1 : 0);
+      // the sticks' Y axes are positive down; buttons 4 and 5 are the bumpers, 6 and 7 the triggers
+      const axis = (/** @type {number} */ i) => deadZone(pad.axes[i] ?? 0);
+      const button = (/** @type {number} */ i) => pad.buttons[i]?.value ?? 0;
+      if (this.layout === 'mode2') {
+        sticks.turn += axis(0);
+        sticks.climb -= axis(1);
+        sticks.right += axis(2);
+        sticks.forward -= axis(3);
+        sticks.boost ||= button(7) > 0.5;
+        sticks.tilt += button(4) - button(5);
+      } else {
+        sticks.right += axis(0);
+        sticks.forward -= axis(1);
+        sticks.turn += axis(2);
+        sticks.tilt -= axis(3);
+        sticks.climb += button(7) - button(6);
+        sticks.boost ||= button(5) > 0.5;
+      }
     }
     sticks.climb = CesiumMath.clamp(sticks.climb, -1, 1);
     sticks.turn = CesiumMath.clamp(sticks.turn, -1, 1);

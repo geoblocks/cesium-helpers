@@ -2,18 +2,21 @@
 
 An arcade drone for CesiumJS: it stays level, holds its altitude when the sticks are released, slides
 along the terrain when it touches it slowly, stops against slopes steeper than 45 degrees, and crashes
-when it runs into the terrain fast: its velocity across the slope ahead of it, its descent on flat ground,
-its speed against a wall. It is flown with the
-keyboard or a gamepad, as the two sticks of a "Mode 2" radio.
+when it runs into the terrain fast: its velocity across the slope ahead of it, its descent on flat
+ground, its speed against a wall. It is flown with the keyboard, as the two sticks of a "Mode 2"
+radio, or a gamepad, as in most games or as a radio.
 
-| Action | Keyboard | Gamepad |
-|---|---|---|
-| Climb / descend | W / S | left stick up / down |
-| Turn left / right | A / D | left stick left / right |
-| Forward / backward | Up / Down | right stick up / down |
-| Sideways left / right | Left / Right | right stick left / right |
-| Boost | Shift | right trigger |
-| Camera tilt down / up | R / F | right / left bumper |
+| Action | Keyboard | Gamepad, `game` layout (default) | Gamepad, `mode2` layout |
+|---|---|---|---|
+| Climb / descend | W / S | right / left trigger | left stick up / down |
+| Turn left / right | A / D | right stick left / right | left stick left / right |
+| Forward / backward | Up / Down | left stick up / down | right stick up / down |
+| Sideways left / right | Left / Right | left stick left / right | right stick left / right |
+| Boost | Shift | right bumper | right trigger |
+| Camera tilt down / up | R / F | right stick down / up | right / left bumper |
+
+The `game` layout is the one of most games: the left stick moves, the right one turns and looks, the
+triggers climb and descend. The `mode2` layout is the one of a drone's radio.
 
 The keys are matched by their position, so the same keys work on AZERTY and QWERTZ keyboards. They are
 left alone with Ctrl, Alt or Cmd held, and in text fields. The gamepad must be in the browser's
@@ -44,6 +47,7 @@ const drone = new CesiumDrone(viewer, {
   crashSpeed: 8,   // speed into the terrain above which touching it is a crash, in m/s
   cameraTilt: 20,  // the camera's tilt up on the frame at take-off, in degrees: level when cruising nose down
   failsafeDelay: 1.5, // seconds the drone keeps its last command without its control link, before its motors stop
+  layout: 'game',  // the gamepad's layout: 'game', or 'mode2' as a drone's radio
 });
 drone.active = true; // takes the camera from where it is (its position and heading), and the mouse navigation off
 
