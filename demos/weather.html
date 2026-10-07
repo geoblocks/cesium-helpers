@@ -279,6 +279,15 @@
         nextButton.disabled = index() === last;
       };
 
+      // the fraction of the hours the maps show while playing, from the cross-fade below
+      let blendedAt;
+      const setMap = (map, at) => {
+        precipitation.map = map;
+        clouds.map = map;
+        lightning.map = map;
+        blendedAt = at;
+      };
+
       // whether the hour's radar loaded
       const showHour = async () => {
         const i = index();
@@ -287,11 +296,11 @@
         showBubble(`${describeHour(i)} · loading…`);
         try {
           const map = await hourlyRadarMap(hour);
-          // unless the slider moved on meanwhile
+          // unless the slider moved on meanwhile; while playing, the hours cross-fade instead
           if (i === index()) {
-            precipitation.map = map;
-            clouds.map = map;
-            lightning.map = map;
+            if (!playing) {
+              setMap(map);
+            }
             lightning.intensity = 1;
             showBubble(describeHour(i));
           }
@@ -343,6 +352,56 @@
           if (i !== index()) {
             step(i);
           }
+        }
+      });
+      // while playing, each hour's map fades into the next one's as the clock goes from the middle
+      // of the one to the middle of the other, rather than replacing it at once
+      const blends = new Map();
+      const pixels = async i => {
+        if (!blends.has(i)) {
+          blends.set(i, hourlyRadarMap(hourAt(i)).then(({image, rectangle}) => ({
+            data: image.getContext('2d').getImageData(0, 0, image.width, image.height),
+            rectangle,
+          })));
+        }
+        return blends.get(i);
+      };
+      let blended;
+      let blending = false;
+      clock.onTick.addEventListener(async () => {
+        if (!playing || blending) {
+          return;
+        }
+        // the hours as a fraction: i at the middle of hour i, in steps of a 16th of an hour
+        const at = Cesium.Math.clamp((Cesium.JulianDate.toDate(clock.currentTime) - first) / HOUR + 0.5, 0, last);
+        const a = Math.floor(at);
+        const b = Math.min(a + 1, last);
+        const weight = Math.round((at - a) * 16) / 16;
+        if (a + weight === blendedAt) {
+          return;
+        }
+        blending = true;
+        try {
+          const [from, to] = await Promise.all([pixels(a), pixels(b)]);
+          for (const i of blends.keys()) {
+            if (i !== a && i !== b) {
+              blends.delete(i);
+            }
+          }
+          if (playing) {
+            blended ??= new ImageData(from.data.width, from.data.height);
+            const out = blended.data;
+            for (let k = 0; k < out.length; k += 4) {
+              out[k] = from.data.data[k] + (to.data.data[k] - from.data.data[k]) * weight;
+              out[k + 3] = 255;
+            }
+            setMap({image: blended, rectangle: from.rectangle}, a + weight);
+          }
+        } catch {
+          // an hour without radar, which the step to it shows: the last blend stays, and the failure
+          // is kept, not fetched again at each tick
+        } finally {
+          blending = false;
         }
       });
       const togglePlay = () => setPlaying(!playing);
