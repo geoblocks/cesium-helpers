@@ -11,8 +11,15 @@
   "main": "cesium-walk.js",
   "module": "cesium-walk.js",
   "sideEffects": false,
+  "files": [
+    "cesium-walk.js"
+  ],
   "publishConfig": {
     "access": "public"
+  },
+  "dependencies": {
+    "@geoblocks/cesium-input": "^0.0.0",
+    "@geoblocks/cesium-obstacles": "^0.0.0"
   },
   "peerDependencies": {
     "@cesium/core": ">=0.1.0",
