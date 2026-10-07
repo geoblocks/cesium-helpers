@@ -50,9 +50,18 @@ const DIGITS = [
   '.##.\n#..#\n#..#\n#..#\n.###\n...#\n...#\n...#\n.##.',
 ];
 
+// the letters of the warnings, as the digits
+const LETTERS = {
+  R: '###.\n#..#\n#..#\n#..#\n###.\n#.#.\n#..#\n#..#\n#..#',
+  X: '#..#\n#..#\n#..#\n.##.\n.##.\n.##.\n#..#\n#..#\n#..#',
+  L: '#...\n#...\n#...\n#...\n#...\n#...\n#...\n#...\n####',
+  O: '.##.\n#..#\n#..#\n#..#\n#..#\n#..#\n#..#\n#..#\n.##.',
+  S: '.###\n#...\n#...\n#...\n.##.\n...#\n...#\n...#\n###.',
+};
+
 // in the order of the shader's glyph constants: the digits, DOT, SPACE, MINUS, VOLT, METER,
 // ALTITUDE, LINK_QUALITY, MARKER_RIGHT, MARKER_LEFT, CROSS_LEFT, CROSS_MIDDLE, CROSS_RIGHT,
-// RETICLE_V, RETICLE_HEART
+// RETICLE_V, RETICLE_HEART, LETTER_R, LETTER_X, LETTER_L, LETTER_O, LETTER_S
 /** @type {[string, boolean[][]][]} */
 const GLYPHS = [
   ...DIGITS.map((drawing, n) => /** @type {[string, boolean[][]]} */ ([String(n), place(drawing, 4, 4)])),
@@ -73,6 +82,7 @@ const GLYPHS = [
   ['the cross, right', place('####', 1, 8)],
   ['a V with wings, a reticle', place('#.#......#.#\n...#....#...\n....#..#....\n.....##.....', 0, 5)],
   ['a heart, a reticle', place('.##..##.\n#..##..#\n#......#\n.#....#.\n..#..#..\n...##...', 2, 6)],
+  ...Object.entries(LETTERS).map(([letter, drawing]) => /** @type {[string, boolean[][]]} */ ([letter, place(drawing, 4, 4)])),
 ];
 
 /**

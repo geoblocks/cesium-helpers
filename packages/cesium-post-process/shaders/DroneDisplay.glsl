@@ -11,6 +11,7 @@
 //   heart.
 // - The readouts: the battery symbol, filled in 7 steps, and its voltage; the altitude since the
 //   display turned on; the link quality.
+// - The RXLOSS warning, blinking in the middle of the lower third while the control link is lost.
 uniform sampler2D colorTexture;
 // 0 to 1
 uniform float opacity;
@@ -26,6 +27,8 @@ uniform float voltage;
 uniform float linkQuality;
 // 0 for Betaflight's cross, 1 for a V, 2 for a heart
 uniform float reticle;
+// 1 while the RXLOSS warning is shown, 0 otherwise (and while it blinks off)
+uniform float warning;
 in vec2 v_textureCoordinates;
 
 const float COLUMNS = 30.0;
@@ -68,7 +71,16 @@ const int CROSS_RIGHT = 21;
 // custom reticles
 const int RETICLE_V = 22;
 const int RETICLE_HEART = 23;
-const int FONT[432] = int[432](
+// the letters of the warning
+const int LETTER_R = 24;
+const int LETTER_X = 25;
+const int LETTER_L = 26;
+const int LETTER_O = 27;
+const int LETTER_S = 28;
+// the warning's row and first column: RXLOSS, centered under the middle
+const int WARNING_ROW = 11;
+const int WARNING_COLUMN = 12;
+const int FONT[522] = int[522](
   0, 0, 0, 983040, 1671264, 1474704, 1474704, 1474704, 1474704, 1474704, 1474704, 1474704, 1671264, 983040, 0, 0, 0, 0, // 0
   0, 0, 0, 917504, 1704000, 1179840, 1704000, 655424, 655424, 655424, 655424, 1769536, 1114336, 2031616, 0, 0, 0, 0, // 1
   0, 0, 0, 983040, 1671264, 1474704, 1998864, 426000, 884768, 1769536, 1441920, 1540224, 1081584, 2064384, 0, 0, 0, 0, // 2
@@ -92,7 +104,12 @@ const int FONT[432] = int[432](
   0, 0, 0, 0, 0, 983040, 1671264, 16183440, 3591315, 16183440, 1474704, 1671264, 983040, 0, 0, 0, 0, 0, // the cross, a ring in the middle
   0, 0, 0, 0, 0, 0, 0, 16515072, 8652672, 16515072, 0, 0, 0, 0, 0, 0, 0, 0, // the cross, right
   0, 0, 0, 0, 15790080, 5876229, 15692040, 3588240, 1671264, 983040, 0, 0, 0, 0, 0, 0, 0, 0, // a V with wings, a reticle
-  0, 0, 0, 0, 0, 4177920, 6709656, 5874276, 6267396, 7299336, 3588240, 1671264, 983040, 0, 0, 0, 0, 0 // a heart, a reticle
+  0, 0, 0, 0, 0, 4177920, 6709656, 5874276, 6267396, 7299336, 3588240, 1671264, 983040, 0, 0, 0, 0, 0, // a heart, a reticle
+  0, 0, 0, 2031616, 1147104, 1474704, 1474704, 1474704, 1147104, 1409184, 1474704, 1474704, 1474704, 2064384, 0, 0, 0, 0, // R
+  0, 0, 0, 2064384, 1474704, 1474704, 1474704, 1671264, 589920, 1671264, 1474704, 1474704, 1474704, 2064384, 0, 0, 0, 0, // X
+  0, 0, 0, 1835008, 1310848, 1310848, 1310848, 1310848, 1310848, 1310848, 1310848, 1540224, 1081584, 2064384, 0, 0, 0, 0, // L
+  0, 0, 0, 983040, 1671264, 1474704, 1474704, 1474704, 1474704, 1474704, 1474704, 1474704, 1671264, 983040, 0, 0, 0, 0, // O
+  0, 0, 0, 1015808, 1605744, 1540224, 1310848, 1507456, 1671264, 950288, 163856, 1998864, 1147104, 2031616, 0, 0, 0, 0 // S
 );
 
 int digit(float value, float power) {
@@ -116,6 +133,11 @@ int glyphAt(int column, int row) {
   }
   if (row == MIDDLE_ROW && abs(offset) == SIDEBAR_COLUMN - 1) {
     return offset < 0 ? MARKER_RIGHT : MARKER_LEFT;
+  }
+  // the warning
+  if (warning > 0.5 && row == WARNING_ROW && column >= WARNING_COLUMN && column < WARNING_COLUMN + 6) {
+    int i = column - WARNING_COLUMN;
+    return i == 0 ? LETTER_R : i == 1 ? LETTER_X : i == 2 ? LETTER_L : i == 3 ? LETTER_O : LETTER_S;
   }
   // battery voltage, bottom left after the battery symbol: 16.4v
   if (row == 14 && column >= 2 && column <= 6) {

@@ -15,7 +15,8 @@ const RETICLES = ['ring', 'v', 'heart'];
  * camera's pitch and roll as Betaflight's does, sidebars with level markers, a
  * cross in the middle, and the altitude since the display turned on, the
  * battery voltage and the link quality (the last two made up), in the blocky
- * white style of the MAX7456 chip.
+ * white style of the MAX7456 chip; and the RXLOSS warning while the control
+ * link is lost.
  */
 export default class DroneDisplay extends Effect {
   /**
@@ -26,6 +27,7 @@ export default class DroneDisplay extends Effect {
     super(viewer);
     this.opacity_ = options.opacity ?? 1;
     this.reticle_ = options.reticle ?? 'v';
+    this.rxLoss_ = false;
     // when the display turned on, and the camera's height then
     this.startTime_ = 0;
     this.startHeight_ = 0;
@@ -46,6 +48,8 @@ export default class DroneDisplay extends Effect {
         voltage: () => this.voltage_(),
         linkQuality: () => this.linkQuality_(),
         reticle: () => Math.max(RETICLES.indexOf(this.reticle_), 0),
+        // blinking twice per second, as Betaflight's warnings
+        warning: () => (this.rxLoss_ && Math.floor(performance.now() / 250) % 2 === 0 ? 1 : 0),
       },
     });
   }
@@ -97,6 +101,19 @@ export default class DroneDisplay extends Effect {
 
   set reticle(value) {
     this.reticle_ = value;
+    this.viewer.scene.requestRender();
+  }
+
+  /**
+   * Whether the control link is lost: Betaflight's RXLOSS warning blinks in the
+   * middle of the lower third. It blinks only while the scene renders.
+   */
+  get rxLoss() {
+    return this.rxLoss_;
+  }
+
+  set rxLoss(value) {
+    this.rxLoss_ = value;
     this.viewer.scene.requestRender();
   }
 }
