@@ -2,7 +2,8 @@
 
 An arcade drone for CesiumJS: it stays level, holds its altitude when the sticks are released, slides
 along the terrain when it touches it slowly, stops against slopes steeper than 45 degrees, and crashes
-when it runs into the terrain fast: its descent and its speed times the slope ahead of it. It is flown with the
+when it runs into the terrain fast: its velocity across the slope ahead of it, its descent on flat ground,
+its speed against a wall. It is flown with the
 keyboard or a gamepad, as the two sticks of a "Mode 2" radio.
 
 | Action | Keyboard | Gamepad |
@@ -15,7 +16,9 @@ keyboard or a gamepad, as the two sticks of a "Mode 2" radio.
 | Camera tilt down / up | R / F | right / left bumper |
 
 The keys are matched by their position, so the same keys work on AZERTY and QWERTZ keyboards. They are
-left alone with Ctrl, Alt or Cmd held, and in text fields.
+left alone with Ctrl, Alt or Cmd held, and in text fields. The gamepad must be in the browser's
+standard layout (`mapping` is `'standard'`, as for Xbox and PlayStation pads in Chrome); others are
+ignored, their sticks' axes not being known.
 
 ## Installation
 
@@ -40,16 +43,36 @@ const drone = new CesiumDrone(viewer, {
   clearance: 2,    // lowest height above the terrain, in meters
   crashSpeed: 8,   // speed into the terrain above which touching it is a crash, in m/s
   cameraTilt: 20,  // the camera's tilt up on the frame at take-off, in degrees: level when cruising nose down
+  failsafeDelay: 1.5, // seconds the drone keeps its last command without its control link, before its motors stop
 });
 drone.active = true; // takes the camera from where it is (its position and heading), and the mouse navigation off
 
 drone.crashed.addEventListener((position, impact) => {
-  // the drone ignores the controls until it respawns, hovering above where it crashed
+  // the drone ignores the controls until it respawns, hovering above where it crashed, or at a position
   setTimeout(() => drone.respawn(), 1000);
 });
 
 drone.speedNow;  // current speed, in m/s
 drone.heightNow; // height above the terrain, in m, or undefined where it is not loaded
+```
+
+### Jamming
+
+`jammingAt` tells how strongly jammers on the ground reach a position, from 0 at their range to 1
+near them, much less behind terrain that hides them: enough to drive a video effect, and to cut the
+control link. Without it, the drone keeps its last command, then its motors stop and it falls: with
+its motors stopped, touching the ground is a crash. Only the terrain loaded in the globe is known, so a
+jammer far from the view, on coarser tiles, may be hidden or not depending on where the camera looks.
+
+```javascript
+import {jammingAt} from '@geoblocks/cesium-drone';
+
+const jammers = [{longitude: 6.569, latitude: 46.766, range: 2000}];
+viewer.clock.onTick.addEventListener(() => {
+  const jamming = jammingAt(viewer.scene.globe, viewer.camera.positionWC, jammers);
+  analogVideo.interference = jamming;
+  drone.rxLoss = jamming >= 0.8;
+});
 ```
 
 Only the terrain is checked, not 3D Tiles. The demo adds the drone camera effects of

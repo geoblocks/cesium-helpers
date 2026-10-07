@@ -41,10 +41,13 @@
     <p class="wa-caption-m">
       W / S climb, A / D turn, the arrows fly forward and sideways, Shift boosts, R / F tilt the camera.
       A gamepad works too. Take off with W; land by touching the ground gently; fly fast into a slope and you crash.
+      Hidden jammers turn the picture to snow; close to one, the control link is lost too: turn back or hide behind a ridge.
     </p>
     <div class="wa-stack">
       <wa-switch id="fly" size="s">Fly</wa-switch>
       <wa-switch id="rain" size="s">Rain</wa-switch>
+      <wa-switch id="jammers" size="s" checked>Jammers</wa-switch>
+      <wa-switch id="show-jammers" size="s">Show jammers</wa-switch>
       <wa-select id="video" size="s" label="Video" value="analog">
         <wa-option value="analog">Analog</wa-option>
         <wa-option value="digital">Digital</wa-option>
@@ -53,7 +56,7 @@
   </wa-card>
   <script type="module">
     import {createViewer} from './setup.js';
-    import CesiumDrone from '../packages/cesium-drone/cesium-drone.js';
+    import CesiumDrone, {jammingAt} from '../packages/cesium-drone/cesium-drone.js';
     import {AnalogVideo, DigitalVideo, DroneDisplay, Jello, LensDistortion, MotionBlur, Precipitation, SpeedLines} from '../packages/cesium-post-process/cesium-post-process.js';
     import '@awesome.me/webawesome/dist/styles/webawesome.css';
     import '@awesome.me/webawesome/dist/components/card/card.js';
@@ -65,14 +68,24 @@
       // on the ground, in a field below Baulmes sloping down to the Orbe plain, looking toward the Alps:
       // the drone takes off from there
       const [field] = await Cesium.sampleTerrainMostDetailed(viewer.terrainProvider, [Cesium.Cartographic.fromDegrees(6.535, 46.78)]);
+      const takeOff = Cesium.Cartesian3.fromRadians(field.longitude, field.latitude, field.height + 2);
       viewer.camera.cancelFlight();
       viewer.camera.setView({
-        destination: Cesium.Cartesian3.fromRadians(field.longitude, field.latitude, field.height + 2),
+        destination: takeOff,
         orientation: {heading: Cesium.Math.toRadians(120), pitch: 0, roll: 0},
       });
 
       // the speeds of the UD-10, a Ukrainian 10-inch strike FPV: 67 km/h cruising, 149 km/h at most
       const drone = new CesiumDrone(viewer, {speed: 19, boostSpeed: 41});
+      // hidden jammers: on the plain toward the Alps, in the way; on the Jura ridge above Baulmes; near Orbe
+      const JAMMERS = [
+        {longitude: 6.569, latitude: 46.766, range: 2000},
+        {longitude: 6.497, latitude: 46.803, range: 2000},
+        {longitude: 6.532, latitude: 46.725, range: 2000},
+      ];
+      // the jamming above which the control link is lost, about 790 m from a jammer in the open
+      const RX_LOSS = 0.8;
+      const RX_LOSS_DISTANCE = 790;
       const precipitation = new Precipitation(viewer, {intensity: 0.5});
       const motionBlur = new MotionBlur(viewer, {exposure: 0.04});
       const speedLines = new SpeedLines(viewer);
@@ -85,6 +98,8 @@
       const fly = document.querySelector('#fly');
       const rain = document.querySelector('#rain');
       const video = document.querySelector('#video');
+      const jammers = document.querySelector('#jammers');
+      const showJammers = document.querySelector('#show-jammers');
       const lost = document.querySelector('#lost');
       let lostTimeout;
 
@@ -112,6 +127,8 @@
       fly.addEventListener('change', () => {
         resetSignal();
         drone.active = fly.checked;
+        drone.rxLoss = false;
+        droneDisplay.rxLoss = false;
         frustum.fov = fly.checked ? Cesium.Math.toRadians(115) : fov;
         setStack(fly.checked);
       });
@@ -129,6 +146,27 @@
         digitalVideo.active = false;
         videoEffect().active = fly.checked;
       });
+      // for debugging: each jammer, its range, and about where the control link is lost in the open
+      const markers = JAMMERS.flatMap(({longitude, latitude, range}) => {
+        const position = Cesium.Cartesian3.fromDegrees(longitude, latitude);
+        return [
+          viewer.entities.add({
+            show: false,
+            position,
+            point: {pixelSize: 12, color: Cesium.Color.RED, outlineColor: Cesium.Color.WHITE, outlineWidth: 2, heightReference: Cesium.HeightReference.CLAMP_TO_GROUND, disableDepthTestDistance: Number.POSITIVE_INFINITY},
+            ellipse: {semiMajorAxis: range, semiMinorAxis: range, material: Cesium.Color.RED.withAlpha(0.15)},
+          }),
+          viewer.entities.add({
+            show: false,
+            position,
+            ellipse: {semiMajorAxis: RX_LOSS_DISTANCE, semiMinorAxis: RX_LOSS_DISTANCE, material: Cesium.Color.RED.withAlpha(0.3)},
+          }),
+        ];
+      });
+      showJammers.addEventListener('change', () => {
+        markers.forEach(marker => marker.show = showJammers.checked);
+        viewer.scene.requestRender();
+      });
       // a control keeps the focus, and its keys would fight the drone's: the arrows toggle a switch
       document.querySelector('#controls').addEventListener('change', event => requestAnimationFrame(() => event.target.blur()));
 
@@ -136,13 +174,16 @@
         analogVideo.interference = 1;
         digitalVideo.breakup = 1;
         lost.hidden = false;
+        // a drone downed by the failsafe comes back at the take-off, out of the jammer's reach
+        const jammed = drone.rxLoss;
         lostTimeout = setTimeout(() => {
           resetSignal();
-          drone.respawn();
+          drone.respawn(jammed ? takeOff : undefined);
         }, 1000);
       });
 
-      // the faster, the more blur, streaks and shake; the lower, the weaker the signal
+      // the faster, the more blur, streaks and shake; the lower, or the nearer a jammer, the weaker
+      // the signal; very near a jammer, the control link is lost
       viewer.clock.onTick.addEventListener(() => {
         if (!drone.active || !lost.hidden) {
           return;
@@ -155,7 +196,11 @@
         speedLines.strength = 0.4 * Cesium.Math.clamp((speed - drone.speed) / (fullBoost - drone.speed), 0, 1);
         jello.amount = 0.05 + 0.15 * Cesium.Math.clamp(speed / fullBoost, 0, 1);
         const height = drone.heightNow ?? 30;
-        analogVideo.interference = 0.05 + 0.3 * Cesium.Math.clamp((30 - height) / 28, 0, 1);
+        const low = 0.05 + 0.3 * Cesium.Math.clamp((30 - height) / 28, 0, 1);
+        const jamming = jammers.checked ? jammingAt(viewer.scene.globe, viewer.camera.positionWC, JAMMERS) : 0;
+        analogVideo.interference = Math.max(low, jamming);
+        drone.rxLoss = jamming >= RX_LOSS;
+        droneDisplay.rxLoss = drone.rxLoss;
       });
     });
   </script>
