@@ -59,3 +59,65 @@ test('setting a map again destroys the texture made from the previous one', () =
   assert.equal(destroy.mock.callCount(), 1);
   assert.equal(weatherMap.texture_, undefined);
 });
+
+// one pixel raining at a red value, over the same rectangle as the map
+const rainingAt = (/** @type {number} */ red) => ({image: {width: 1, height: 1, data: new Uint8ClampedArray([red, 0, 0, 255])}, rectangle: map.rectangle});
+
+test('the intensity crossfades from the map to the next one, and the highest is over both', () => {
+  const weatherMap = new WeatherMap(0);
+  weatherMap.map = rainingAt(51);
+  weatherMap.nextMap = rainingAt(153);
+  assert.ok(Math.abs(weatherMap.intensityAt(radians(6), radians(47)) - 0.2) < 1e-9);
+  weatherMap.blend = 0.25;
+  assert.ok(Math.abs(weatherMap.intensityAt(radians(6), radians(47)) - 0.3) < 1e-9);
+  assert.ok(Math.abs(weatherMap.maxIntensity - 0.6) < 1e-9);
+  weatherMap.nextMap = undefined;
+  assert.ok(Math.abs(weatherMap.intensityAt(radians(6), radians(47)) - 0.2) < 1e-9);
+  assert.ok(Math.abs(weatherMap.maxIntensity - 0.2) < 1e-9);
+});
+
+// a 32 x 32 map, dry but for a pixel raining at a red value
+const rainingPixel = (/** @type {number} */ x, /** @type {number} */ y, /** @type {number} */ red) => {
+  const data = new Uint8ClampedArray(32 * 32 * 4);
+  data[4 * (y * 32 + x)] = red;
+  return {image: {width: 32, height: 32, data}, rectangle: map.rectangle};
+};
+const maxAt = (/** @type {{width: number, data: Uint8Array}} */ image, /** @type {number} */ x, /** @type {number} */ y) => image.data[4 * (y * image.width + x)];
+
+test('the max map holds the highest rain around blocks of 4 x 4 pixels, spread to their neighbors', () => {
+  const weatherMap = new WeatherMap(0);
+  weatherMap.map = rainingPixel(10, 10, 200);
+  const max = /** @type {any} */ (weatherMap.maxImage());
+  assert.equal(max.width, 8);
+  assert.equal(max.height, 8);
+  // the pixel's block, 2, 2, and its neighbors
+  for (const [x, y] of [[2, 2], [1, 1], [3, 3], [1, 3]]) {
+    assert.equal(maxAt(max, x, y), 200, `at ${x}, ${y}`);
+  }
+  for (const [x, y] of [[0, 0], [4, 2], [2, 4], [7, 7]]) {
+    assert.equal(maxAt(max, x, y), 0, `at ${x}, ${y}`);
+  }
+});
+
+test('the max map covers the next map, and is made again when either changes', () => {
+  const weatherMap = new WeatherMap(0);
+  weatherMap.map = rainingPixel(0, 0, 0);
+  weatherMap.nextMap = rainingPixel(30, 30, 100);
+  assert.equal(maxAt(/** @type {any} */ (weatherMap.maxImage()), 7, 7), 100);
+  const destroy = mock.fn();
+  weatherMap.maxTexture_ = {destroy};
+  weatherMap.nextMap = undefined;
+  assert.equal(destroy.mock.callCount(), 1);
+  assert.equal(maxAt(/** @type {any} */ (weatherMap.maxImage()), 7, 7), 0);
+  weatherMap.map = rainingPixel(30, 30, 50);
+  assert.equal(maxAt(/** @type {any} */ (weatherMap.maxImage()), 7, 7), 50);
+});
+
+test('the max map and the highest values are per channel', () => {
+  const data = new Uint8ClampedArray(32 * 32 * 4);
+  data.set([10, 20, 30, 40], 4 * (5 * 32 + 5));
+  const weatherMap = new WeatherMap(0);
+  weatherMap.map = {image: {width: 32, height: 32, data}, rectangle: map.rectangle};
+  assert.deepEqual(Array.from(/** @type {any} */ (weatherMap.maxImage()).data.slice(4 * (1 * 8 + 1), 4 * (1 * 8 + 1) + 4)), [10, 20, 30, 40]);
+  assert.deepEqual(weatherMap.maxValues.map((value) => Math.round(255 * value)), [10, 20, 30, 40]);
+});

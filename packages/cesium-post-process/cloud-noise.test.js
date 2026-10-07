@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import createCloudNoise from './cloud-noise.js';
+import createCloudNoise, {createMapNoise} from './cloud-noise.js';
 
 const SIZE = 32;
 const noise = createCloudNoise(SIZE);
@@ -53,4 +53,24 @@ test('the base shape and the details are different patterns', () => {
   };
   assert.ok(correlation(0, 1) < 0.9, `red and green: ${correlation(0, 1)}`);
   assert.ok(correlation(1, 2) < 0.9, `green and blue: ${correlation(1, 2)}`);
+});
+
+const MAP_SIZE = 256;
+const mapNoise = createMapNoise(MAP_SIZE);
+const mapAt = (/** @type {number} */ x, /** @type {number} */ y, /** @type {number} */ channel) => mapNoise[4 * (y * MAP_SIZE + x) + channel];
+
+test('the map noise has four bytes for each texel, and tiles: across each edge it changes as little as between neighbors inside', () => {
+  assert.equal(mapNoise.length, MAP_SIZE * MAP_SIZE * 4);
+  for (let channel = 0; channel < 3; channel++) {
+    for (const axis of [0, 1]) {
+      let seam = 0;
+      let inside = 0;
+      for (let a = 0; a < MAP_SIZE; a++) {
+        const texel = (/** @type {number} */ i) => (axis === 0 ? mapAt(i, a, channel) : mapAt(a, i, channel));
+        seam += Math.abs(texel(MAP_SIZE - 1) - texel(0));
+        inside += Math.abs(texel(MAP_SIZE / 2) - texel(MAP_SIZE / 2 + 1));
+      }
+      assert.ok(seam <= 1.5 * inside + MAP_SIZE, `channel ${channel}, axis ${axis}: ${seam} across, ${inside} inside`);
+    }
+  }
 });

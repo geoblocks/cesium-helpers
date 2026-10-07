@@ -4,6 +4,7 @@ import {acquireTerrainDepth, releaseTerrainDepth} from './depth-test.js';
 import Effect from './effect.js';
 import {heightUniforms} from './height.js';
 import EyeFromDepth from './shaders/EyeFromDepth.js';
+import Fog from './shaders/Fog.js';
 import Height from './shaders/Height.js';
 import ValleyFogShader from './shaders/ValleyFog.js';
 
@@ -30,7 +31,7 @@ export default class ValleyFog extends Effect {
    */
   createStage_(scene) {
     return new PostProcessStage({
-      fragmentShader: EyeFromDepth + Height + ValleyFogShader,
+      fragmentShader: EyeFromDepth + Height + Fog + ValleyFogShader,
       uniforms: {
         ...heightUniforms(scene),
         top: () => this.top_,

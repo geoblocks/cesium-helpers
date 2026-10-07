@@ -15,15 +15,17 @@
 // shafts' pass, the drops from the map's intensity at the camera, read on the CPU. The haze's length
 // below the cloud base is this pass's, from each pixel's depth, sharp at the ridges. Seen from
 // above, where Clouds draws the clouds, they hide the rain under them: no shafts nor haze.
-// Needs EyeFromDepth, Hash, Height, PrecipitationWind and RainHaze.
+// Needs EyeFromDepth, Hash, Height, PrecipitationWind, Fog, Phase and RainHaze.
 const int LAYERS = 4;
 uniform sampler2D colorTexture;
 uniform sampler2D depthTexture;
-// the shafts' opacity and the share of the ray in the rain, from PrecipitationShafts.glsl at a
-// fraction of the resolution
+// the shafts' opacity, the ray's extinction, the share of it in the rain and the share of the rain
+// in the sun, from PrecipitationShafts.glsl at a fraction of the resolution
 uniform sampler2D shaftTexture;
 // 1 when Clouds draws the clouds, 0 otherwise
 uniform float clouds;
+// 1 when their shadow map lights the haze, 0 otherwise
+uniform float shadowed;
 // the map's intensity at the camera, 0 to 1
 uniform float localIntensity;
 // from the CPU, as they change with the snow: the length of a drop's trail, its motion over the
@@ -46,8 +48,6 @@ const float PERIOD = 1000.0;
 const float NEAREST = 2.0;
 // share of the cells with a drop, at full intensity
 const float DENSITY = 0.6;
-// the sky is a ray this long
-const float SKY_DISTANCE = 50000.0;
 // a drop is a capsule from a point in its cell, its trail within a cell: the cells are taller than
 // wide in the rain, square in the snow
 // how far a flake flutters across its cell, in cells, and a streak wavers in the gusts
@@ -63,9 +63,10 @@ const float SNOW_SHAFT_SHADE = 1.1;
 // the shafts' resolution, precipitation.js's SHAFT_SCALE
 const float SHAFT_SCALE = 0.125;
 
-// the shafts' opacity and the share of the ray in the rain, blurred by PrecipitationShaftBlur.glsl
-// and upsampled bilinearly from their texture, which is read at its nearest texel
-vec2 shafts() {
+// the shafts' opacity, the ray's extinction, the share of it in the rain and the share of the rain
+// in the sun, blurred by PrecipitationShaftBlur.glsl and upsampled bilinearly from their texture,
+// which is read at its nearest texel
+vec4 shafts() {
   // the size Cesium gives the texture
   vec2 size = ceil(czm_viewport.zw * SHAFT_SCALE);
   vec2 p = v_textureCoordinates * size - 0.5;
@@ -73,8 +74,8 @@ vec2 shafts() {
   vec2 f = p - i;
   vec2 center = (i + 0.5) / size;
   vec2 texel = 1.0 / size;
-  vec2 bottom = mix(texture(shaftTexture, center).rg, texture(shaftTexture, center + vec2(texel.x, 0.0)).rg, f.x);
-  vec2 top = mix(texture(shaftTexture, center + vec2(0.0, texel.y)).rg, texture(shaftTexture, center + texel).rg, f.x);
+  vec4 bottom = mix(texture(shaftTexture, center), texture(shaftTexture, center + vec2(texel.x, 0.0)), f.x);
+  vec4 top = mix(texture(shaftTexture, center + vec2(0.0, texel.y)), texture(shaftTexture, center + texel), f.x);
   return mix(bottom, top, f.y);
 }
 
@@ -131,9 +132,20 @@ void main() {
   // the haze over the part of the ray below the cloud base, as rainy as the shafts' pass found it,
   // from the rain's to the snow's color; from above, hidden by the clouds where Clouds draws them
   vec2 below = belowHeight(view * sceneDistance, cloudBase);
-  vec2 shaft = shafts() * (1.0 - clouds * (1.0 - raining));
-  float haze = rainHaze((below.y - below.x) * sceneDistance * shaft.y, rainVisibility(intensity, snow));
-  vec3 hazeColor = rainHazeColor(daylight(), snow);
+  vec4 sampled = shafts();
+  vec3 shaft = sampled.xyz * (1.0 - clouds * (1.0 - raining));
+  // the rain's, in its bands, and the clear air's and the mist's over the share of the ray in the
+  // rain, thinning out with the height, summed in optical depth
+  float rainLength = (below.y - below.x) * sceneDistance;
+  float h0 = heightAt(view * sceneDistance * below.x);
+  float h1 = heightAt(view * sceneDistance * below.y);
+  float layers = layerDepth(CLEAR_AIR, h0, h1, rainLength) + layerDepth(MIST, h0, h1, rainLength);
+  float haze = rainHaze(rainLength * shaft.y * (1.0 + RAIN_BANDS) * rainExtinction(intensity, snow) + shaft.z * layers);
+  // a rain cell seen from a dry spot is still under its own clouds
+  float overcast = max(localIntensity, min(shaft.y * (1.0 + RAIN_BANDS), 1.0));
+  // the sun through the gaps of the clouds, from their shadow map, or as much as the overcast lets
+  float sunlit = shadowed > 0.0 ? sampled.w : 1.0 - overcast;
+  vec3 hazeColor = rainHazeColor(view, daylight(), snow, overcast, sunlit);
   vec3 color = mix(sceneColor.rgb, hazeColor, haze);
 
   color = mix(color, min(mix(RAIN_SHAFT_SHADE, SNOW_SHAFT_SHADE, snow) * hazeColor, vec3(1.0)), shaft.x);

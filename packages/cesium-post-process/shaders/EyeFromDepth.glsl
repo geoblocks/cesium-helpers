@@ -17,3 +17,9 @@ vec4 eyeAt(sampler2D depthTexture, vec2 uv) {
 #endif
   return vec4(ray.xyz * (viewDepth / -ray.z), 1.0);
 }
+
+// the distance to the pixel at uv, in meters, and the sky as far as a given distance
+float eyeDistance(sampler2D depthTexture, vec2 uv, float skyDistance) {
+  vec4 eye = eyeAt(depthTexture, uv);
+  return eye.w == 0.0 ? skyDistance : length(eye.xyz);
+}

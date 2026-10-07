@@ -3,10 +3,17 @@
 // Perlin-Worley noise: billows of inverted Worley noise, broken up by gradient noise, as in
 // Schneider's "The Real-Time Volumetric Cloudscapes of Horizon Zero Dawn" (2015); green and blue
 // are inverted Worley noise at twice and four times its frequency, the details that erode the
-// edges. Each channel is stretched over the bytes' range.
+// edges. And a square of texels that tiles over the clouds' map, for CloudsDensity.glsl to read
+// once rather than compute noise at each sample: red and green jitter the map's lookup, blue varies
+// its coverage. Each channel is stretched over the bytes' range.
 
 // cells of the base shape across the cube
 const BASE_CELLS = 4;
+// the map noise's square spans this many cells of the map, its jitter varying over this many of
+// them, its coverage over this many: whole periods across the square, for it to tile
+const MAP_TILE_CELLS = 64;
+const JITTER_CELLS = 2;
+const COVERAGE_CELLS = 8;
 
 /**
  * A hash of a lattice point, 0 to 1.
@@ -169,7 +176,15 @@ export default function createCloudNoise(size = 64) {
       }
     }
   }
-  const bytes = new Uint8Array(size ** 3 * 4);
+  return toBytes(channels);
+}
+
+/**
+ * Channels of values as RGBA bytes, each stretched over the bytes' range, alpha opaque.
+ * @param {Float32Array[]} channels
+ */
+function toBytes(channels) {
+  const bytes = new Uint8Array(channels[0].length * 4);
   channels.forEach((values, channel) => {
     let min = Infinity;
     let max = -Infinity;
@@ -185,4 +200,30 @@ export default function createCloudNoise(size = 64) {
     bytes[j] = 255;
   }
   return bytes;
+}
+
+/**
+ * The noise over the clouds' map as RGBA bytes, x fastest: a square that tiles, MAP_TILE_CELLS
+ * cells of the map across, with gradient noise over JITTER_CELLS in red and green and over
+ * COVERAGE_CELLS in blue.
+ * @param {number} [size] texels along each side
+ */
+export function createMapNoise(size = 256) {
+  const noises = [
+    [perlin(MAP_TILE_CELLS / JITTER_CELLS, 70), JITTER_CELLS],
+    [perlin(MAP_TILE_CELLS / JITTER_CELLS, 80), JITTER_CELLS],
+    [perlin(MAP_TILE_CELLS / COVERAGE_CELLS, 90), COVERAGE_CELLS],
+  ];
+  const channels = noises.map(() => new Float32Array(size * size));
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      // the texel's center, in the map's cells
+      const cx = ((x + 0.5) / size) * MAP_TILE_CELLS;
+      const cy = ((y + 0.5) / size) * MAP_TILE_CELLS;
+      noises.forEach(([noise, cells], channel) => {
+        channels[channel][y * size + x] = /** @type {Function} */ (noise)(cx / /** @type {number} */ (cells), cy / /** @type {number} */ (cells), 0);
+      });
+    }
+  }
+  return toBytes(channels);
 }
