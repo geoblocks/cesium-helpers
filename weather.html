@@ -7,21 +7,21 @@
   <script src="https://cdn.jsdelivr.net/npm/cesium@1.146.0/Build/Cesium/Cesium.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/cesium@1.146.0/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
   <style>html,body{height:100%;margin:0}body{flex-direction:column;display:flex;overflow:hidden}main{flex:1;min-block-size:0;position:relative}#cesiumContainer{block-size:100%}#controls{--spacing:var(--wa-space-s);max-inline-size:30ch;max-block-size:calc(100% - 2 * var(--wa-space-xl));position:absolute;inset-block-start:var(--wa-space-xl);inset-inline-end:var(--wa-space-xl);overflow:auto}@media (width<=480px){#controls{max-inline-size:22ch;max-block-size:calc(100% - 2 * var(--wa-space-s));inset-block-start:var(--wa-space-s);inset-inline-end:var(--wa-space-s)}#controls ul{display:none}}#timeline{align-items:center;gap:var(--wa-space-s);padding:var(--wa-space-2xl) var(--wa-space-m) var(--wa-space-s);background:var(--wa-color-surface-default);border-block-start:var(--wa-border-width-s) solid var(--wa-color-surface-border);display:flex}#track{flex:1;position:relative;container-type:inline-size}#track wa-slider{inline-size:100%}#hour{padding:var(--wa-space-3xs) var(--wa-space-xs);border-radius:var(--wa-border-radius-s);background:var(--wa-color-neutral-fill-loud);color:var(--wa-color-neutral-on-loud);font-size:var(--wa-font-size-xs);box-sizing:border-box;text-align:center;pointer-events:none;inline-size:max-content;max-inline-size:100%;position:absolute;inset-block-end:calc(100% + var(--wa-space-2xs));transform:translate(-50%)}#hour:after{content:"";border:5px solid #0000;border-block-start-color:var(--wa-color-neutral-fill-loud);position:absolute;inset-block-start:100%;inset-inline-start:var(--arrow,50%);transform:translate(-50%)}#hour.error{background:var(--wa-color-danger-fill-loud)}#hour.error:after{border-block-start-color:var(--wa-color-danger-fill-loud)}.midnight{border-inline-start:var(--wa-border-width-s) solid var(--wa-color-neutral-border-normal);block-size:.6em;position:absolute;inset-block-start:0}.day{white-space:nowrap;position:absolute;transform:translate(-50%)}@container (width<=420px){.weekday{display:none}}</style>
-  <script type="module" crossorigin src="./assets/weather-Bp6g7FSY.js"></script>
+  <script type="module" crossorigin src="./assets/weather-DymBmv9N.js"></script>
   <link rel="modulepreload" crossorigin href="./assets/rolldown-runtime-CbXtAM7H.js">
   <link rel="modulepreload" crossorigin href="./assets/lit-BFn1CURT.js">
   <link rel="modulepreload" crossorigin href="./assets/directive-BSZPiF1A.js">
   <link rel="modulepreload" crossorigin href="./assets/card-BcpQSzF3.js">
   <link rel="modulepreload" crossorigin href="./assets/setup-DMh09s7J.js">
-  <link rel="modulepreload" crossorigin href="./assets/cesium-shim-xDTaFLvd.js">
-  <link rel="modulepreload" crossorigin href="./assets/cesium-audio-DQHH-gu2.js">
+  <link rel="modulepreload" crossorigin href="./assets/cesium-shim-D3CTnCDK.js">
+  <link rel="modulepreload" crossorigin href="./assets/cesium-audio-BZz445fd.js">
   <link rel="modulepreload" crossorigin href="./assets/directive-helpers-B0KETb9i.js">
   <link rel="modulepreload" crossorigin href="./assets/switch-PsQ7BZQb.js">
   <link rel="modulepreload" crossorigin href="./assets/button-CI_sKcZA.js">
   <link rel="modulepreload" crossorigin href="./assets/icon-BcbZVKyW.js">
-  <link rel="modulepreload" crossorigin href="./assets/EyeFromDepth-OMdZ3JZV.js">
+  <link rel="modulepreload" crossorigin href="./assets/EyeFromDepth-CHxqF9Ih.js">
   <link rel="modulepreload" crossorigin href="./assets/frame-clock-Jp45dJBg.js">
-  <link rel="modulepreload" crossorigin href="./assets/precipitation-BBR80A7N.js">
+  <link rel="modulepreload" crossorigin href="./assets/precipitation-CoWgmgKW.js">
   <link rel="modulepreload" crossorigin href="./assets/style-map-ly-_uhSr.js">
   <link rel="modulepreload" crossorigin href="./assets/slider-Cjeel3x6.js">
   <link rel="stylesheet" crossorigin href="./assets/flyover-studio-DfFS4Dmy.css">
@@ -35,7 +35,7 @@
         <h2 class="wa-heading-s">Weather from the radar</h2>
         <p class="wa-caption-m">Rain, clouds and lightning where MeteoSwiss' radars saw them, hour by hour over the last 7 days.</p>
         <ul class="wa-caption-s">
-          <li>Zoom out to see the clouds from above, fly in to enter them.</li>
+          <li>Fly in to see the clouds up close and enter them.</li>
           <li>Press play, or <kbd>←</kbd> <kbd>→</kbd>, to step through the hours.</li>
           <li>With sound, the thunder comes from the strike, a second for every 343 m. Headphones recommended.</li>
         </ul>
