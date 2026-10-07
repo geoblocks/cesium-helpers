@@ -32,6 +32,7 @@ export default defineConfig({
         'cesium-binoculars': resolve(__dirname, 'demos/cesium-binoculars.html'),
         'cesium-compass': resolve(__dirname, 'demos/cesium-compass.html'),
         'cesium-compass-bar': resolve(__dirname, 'demos/cesium-compass-bar.html'),
+        'cesium-drone': resolve(__dirname, 'demos/cesium-drone.html'),
         'cesium-first-person-mode': resolve(__dirname, 'demos/cesium-first-person-mode.html'),
         'cesium-flyto': resolve(__dirname, 'demos/cesium-flyto.html'),
         'cesium-path-flyover': resolve(__dirname, 'demos/cesium-path-flyover.html'),

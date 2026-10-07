@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en" class="wa-theme-default wa-palette-default wa-light">
+
+<head>
+  <meta charset="UTF-8">
+  <script src="https://cdn.jsdelivr.net/npm/cesium@1.146.0/Build/Cesium/Cesium.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/cesium@1.146.0/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  <style>
+    html, body, #cesiumContainer {
+      height: 100%;
+      margin: 0;
+    }
+    #controls {
+      position: absolute;
+      inset-block-start: var(--wa-space-xl);
+      /* the drone display shows the altitude on the right */
+      inset-inline-start: var(--wa-space-xl);
+      --spacing: var(--wa-space-s);
+      max-inline-size: 32ch;
+    }
+    #lost {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: white;
+      font: bold 3rem monospace;
+      text-shadow: 0 0 4px black;
+      pointer-events: none;
+    }
+    #lost[hidden] {
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="cesiumContainer"></div>
+  <div id="lost" hidden>SIGNAL LOST</div>
+  <wa-card id="controls">
+    <p class="wa-caption-m">
+      W / S climb, A / D turn, the arrows fly forward and sideways, Shift boosts, R / F tilt the camera.
+      A gamepad works too. Take off with W; land by touching the ground gently; fly fast into a slope and you crash.
+    </p>
+    <div class="wa-stack">
+      <wa-switch id="fly" size="s">Fly</wa-switch>
+      <wa-switch id="rain" size="s">Rain</wa-switch>
+      <wa-select id="video" size="s" label="Video" value="analog">
+        <wa-option value="analog">Analog</wa-option>
+        <wa-option value="digital">Digital</wa-option>
+      </wa-select>
+    </div>
+  </wa-card>
+  <script type="module">
+    import {createViewer} from './setup.js';
+    import CesiumDrone from '../packages/cesium-drone/cesium-drone.js';
+    import {AnalogVideo, DigitalVideo, DroneDisplay, Jello, LensDistortion, MotionBlur, Precipitation, SpeedLines} from '../packages/cesium-post-process/cesium-post-process.js';
+    import '@awesome.me/webawesome/dist/styles/webawesome.css';
+    import '@awesome.me/webawesome/dist/components/card/card.js';
+    import '@awesome.me/webawesome/dist/components/switch/switch.js';
+    import '@awesome.me/webawesome/dist/components/select/select.js';
+    import '@awesome.me/webawesome/dist/components/option/option.js';
+
+    createViewer('cesiumContainer').then(async viewer => {
+      // on the ground, in a field below Baulmes sloping down to the Orbe plain, looking toward the Alps:
+      // the drone takes off from there
+      const [field] = await Cesium.sampleTerrainMostDetailed(viewer.terrainProvider, [Cesium.Cartographic.fromDegrees(6.535, 46.78)]);
+      viewer.camera.cancelFlight();
+      viewer.camera.setView({
+        destination: Cesium.Cartesian3.fromRadians(field.longitude, field.latitude, field.height + 2),
+        orientation: {heading: Cesium.Math.toRadians(120), pitch: 0, roll: 0},
+      });
+
+      // the speeds of the UD-10, a Ukrainian 10-inch strike FPV: 67 km/h cruising, 149 km/h at most
+      const drone = new CesiumDrone(viewer, {speed: 19, boostSpeed: 41});
+      const precipitation = new Precipitation(viewer, {intensity: 0.5});
+      const motionBlur = new MotionBlur(viewer, {exposure: 0.04});
+      const speedLines = new SpeedLines(viewer);
+      const lensDistortion = new LensDistortion(viewer, {distortion: 0.8});
+      const jello = new Jello(viewer);
+      const droneDisplay = new DroneDisplay(viewer);
+      const analogVideo = new AnalogVideo(viewer);
+      const digitalVideo = new DigitalVideo(viewer);
+
+      const fly = document.querySelector('#fly');
+      const rain = document.querySelector('#rain');
+      const video = document.querySelector('#video');
+      const lost = document.querySelector('#lost');
+      let lostTimeout;
+
+      // the drone camera, in the order of the post-process README: after the rain
+      const videoEffect = () => video.value === 'analog' ? analogVideo : digitalVideo;
+      const setStack = active => {
+        for (const effect of [motionBlur, speedLines, lensDistortion, jello, droneDisplay, analogVideo, digitalVideo]) {
+          effect.active = false;
+        }
+        if (active) {
+          for (const effect of [motionBlur, speedLines, lensDistortion, jello, droneDisplay, videoEffect()]) {
+            effect.active = true;
+          }
+        }
+      };
+      const resetSignal = () => {
+        clearTimeout(lostTimeout);
+        lost.hidden = true;
+        digitalVideo.breakup = 0.5;
+      };
+
+      // a wide FPV lens while flying, about 115 degrees across, bent at the edges by the distortion
+      const frustum = viewer.camera.frustum;
+      const fov = frustum.fov;
+      fly.addEventListener('change', () => {
+        resetSignal();
+        drone.active = fly.checked;
+        frustum.fov = fly.checked ? Cesium.Math.toRadians(115) : fov;
+        setStack(fly.checked);
+      });
+      rain.addEventListener('change', () => {
+        precipitation.active = rain.checked;
+        // the stages run in the order they are added: re-add the camera after the rain, keeping the
+        // display's altitude and battery from the take-off
+        const {startTime_, startHeight_} = droneDisplay;
+        setStack(fly.checked);
+        Object.assign(droneDisplay, {startTime_, startHeight_});
+      });
+      video.addEventListener('change', () => {
+        // the video is the last stage: swap it alone
+        analogVideo.active = false;
+        digitalVideo.active = false;
+        videoEffect().active = fly.checked;
+      });
+      // a control keeps the focus, and its keys would fight the drone's: the arrows toggle a switch
+      document.querySelector('#controls').addEventListener('change', event => requestAnimationFrame(() => event.target.blur()));
+
+      drone.crashed.addEventListener(() => {
+        analogVideo.interference = 1;
+        digitalVideo.breakup = 1;
+        lost.hidden = false;
+        lostTimeout = setTimeout(() => {
+          resetSignal();
+          drone.respawn();
+        }, 1000);
+      });
+
+      // the faster, the more blur, streaks and shake; the lower, the weaker the signal
+      viewer.clock.onTick.addEventListener(() => {
+        if (!drone.active || !lost.hidden) {
+          return;
+        }
+        const fullBoost = drone.boostSpeed;
+        const speed = drone.speedNow;
+        const fast = Cesium.Math.clamp((speed - 10) / (fullBoost - 10), 0, 1);
+        motionBlur.strength = fast;
+        // a hint of streaks, only when boosting
+        speedLines.strength = 0.4 * Cesium.Math.clamp((speed - drone.speed) / (fullBoost - drone.speed), 0, 1);
+        jello.amount = 0.05 + 0.15 * Cesium.Math.clamp(speed / fullBoost, 0, 1);
+        const height = drone.heightNow ?? 30;
+        analogVideo.interference = 0.05 + 0.3 * Cesium.Math.clamp((30 - height) / 28, 0, 1);
+      });
+    });
+  </script>
+</body>
+
+</html>
