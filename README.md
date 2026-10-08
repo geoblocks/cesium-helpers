@@ -13,6 +13,7 @@ A collection of helpers and web component for working with [CesiumJS](https://ce
 * [cesium-path-flyover](packages/cesium-path-flyover): a camera animation that follows a GPX or GeoJSON track
 * [cesium-walk](packages/cesium-walk): a camera mode that allows the user to walk around the scene with the keyboard
 * [cesium-obstacles](packages/cesium-obstacles): collision with the obstacles in view, for camera modes
+* [cesium-input](packages/cesium-input): the keyboard, the mouse buttons and the gamepad read into named actions, for camera modes
 * [cesium-audio](packages/cesium-audio): a spatialized sound located on the globe, using the Web Audio API
 
 ## Sponsorship
