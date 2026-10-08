@@ -42,9 +42,12 @@
       W / S climb, A / D turn, the arrows fly forward and sideways, Shift boosts, R / F tilt the camera.
       A gamepad works too. Take off with W; land by touching the ground gently; fly fast into a slope and you crash.
       Hidden jammers turn the picture to snow; close to one, the control link is lost too: turn back or hide behind a ridge.
+      With collision on, the drone crashes into the orange block ahead at any speed, and into the slab on the left
+      when climbing into it, but flies under it; the translucent block on the right is not an obstacle.
     </p>
     <div class="wa-stack">
       <wa-switch id="fly" size="s">Fly</wa-switch>
+      <wa-switch id="collision" size="s" checked>Collision</wa-switch>
       <wa-switch id="rain" size="s">Rain</wa-switch>
       <wa-switch id="jammers" size="s" checked>Jammers</wa-switch>
       <wa-switch id="show-jammers" size="s">Show jammers</wa-switch>
@@ -73,14 +76,39 @@
       // the drone takes off from there
       const [field] = await Cesium.sampleTerrainMostDetailed(viewer.terrainProvider, [Cesium.Cartographic.fromDegrees(6.535, 46.78)]);
       const takeOff = Cesium.Cartesian3.fromRadians(field.longitude, field.latitude, field.height + 2);
+      const heading = Cesium.Math.toRadians(120);
       viewer.camera.cancelFlight();
       viewer.camera.setView({
         destination: takeOff,
-        orientation: {heading: Cesium.Math.toRadians(120), pitch: 0, roll: 0},
+        orientation: {heading, pitch: 0, roll: 0},
+      });
+
+      // obstacles to try the collision on, square to the take-off's heading: where, in meters ahead and to the
+      // right, how wide, deep and high, how high their bottom is above the ground, and how opaque
+      const OBSTACLES = [
+        {ahead: 60, right: 0, width: 16, depth: 10, height: 12, bottom: -1, alpha: 1},
+        {ahead: 40, right: -30, width: 14, depth: 14, height: 1, bottom: 8, alpha: 1},
+        {ahead: 40, right: 30, width: 14, depth: 10, height: 12, bottom: -1, alpha: 0.5},
+      ];
+      const frame = Cesium.Transforms.eastNorthUpToFixedFrame(takeOff);
+      const grounds = await Cesium.sampleTerrainMostDetailed(viewer.terrainProvider, OBSTACLES.map(({ahead, right}) => {
+        const east = ahead * Math.sin(heading) + right * Math.cos(heading);
+        const north = ahead * Math.cos(heading) - right * Math.sin(heading);
+        return Cesium.Cartographic.fromCartesian(Cesium.Matrix4.multiplyByPoint(frame, new Cesium.Cartesian3(east, north, 0), new Cesium.Cartesian3()));
+      }));
+      OBSTACLES.forEach(({width, depth, height, bottom, alpha}, i) => {
+        const position = Cesium.Cartesian3.fromRadians(grounds[i].longitude, grounds[i].latitude, grounds[i].height + bottom + height / 2);
+        viewer.entities.add({
+          position,
+          orientation: Cesium.Transforms.headingPitchRollQuaternion(position, new Cesium.HeadingPitchRoll(heading, 0, 0)),
+          box: {dimensions: new Cesium.Cartesian3(width, depth, height), material: Cesium.Color.ORANGE.withAlpha(alpha)},
+        });
       });
 
       // the speeds of the UD-10, a Ukrainian 10-inch strike FPV: 67 km/h cruising, 149 km/h at most
-      const drone = new CesiumDrone(viewer, {speed: 19, boostSpeed: 41});
+      const drone = new CesiumDrone(viewer, {speed: 19, boostSpeed: 41, collision: true});
+      const collision = document.querySelector('#collision');
+      collision.addEventListener('change', () => drone.collision = collision.checked);
       // hidden jammers: on the plain toward the Alps, in the way; on the Jura ridge above Baulmes; near Orbe
       const JAMMERS = [
         {longitude: 6.569, latitude: 46.766, range: 2000},

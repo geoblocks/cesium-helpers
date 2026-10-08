@@ -48,6 +48,7 @@ const drone = new CesiumDrone(viewer, {
   cameraTilt: 20,  // the camera's tilt up on the frame at take-off, in degrees: level when cruising nose down
   failsafeDelay: 1.5, // seconds the drone keeps its last command without its control link, before its motors stop
   layout: 'game',  // the gamepad's layout: 'game', or 'mode2' as a drone's radio
+  collision: false, // whether the drone crashes into the obstacles in view, 3D Tiles and primitives
 });
 drone.active = true; // takes the camera from where it is (its position and heading), and the mouse navigation off
 
@@ -79,5 +80,13 @@ viewer.clock.onTick.addEventListener(() => {
 });
 ```
 
-Only the terrain is checked, not 3D Tiles. The demo adds the drone camera effects of
-[cesium-post-process](../cesium-post-process): a wide lens, jello, a display and the video signal.
+### Obstacles
+
+With `collision: true`, the drone also crashes into the obstacles in view, opaque 3D Tiles and
+primitives, at any speed, read from the depth of the last frame by
+[cesium-obstacles](../cesium-obstacles); the terrain still slides and stops it as above. Only what the
+camera sees is an obstacle: flying sideways or backward into a wall goes through it, and so does coming
+down onto a roof while the camera looks up.
+
+The demo adds the drone camera effects of [cesium-post-process](../cesium-post-process): a wide lens,
+jello, a display and the video signal.

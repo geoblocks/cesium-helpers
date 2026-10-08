@@ -1,5 +1,6 @@
 import {Cartesian3, Cartographic, Event, Math as CesiumMath, Matrix4} from '@cesium/core';
 import {Transforms} from '@cesium/engine';
+import {ObstacleProbe, blockedStep} from '@geoblocks/cesium-obstacles';
 
 export {jammingAt} from './jamming.js';
 
@@ -18,6 +19,9 @@ const GRAVITY = 9.81;
 const DRAG = 0.3;
 // the distance ahead of the drone over which the slope of the terrain is measured, in meters
 const SLOPE_BASE = 5;
+// in meters: nearer the terrain's height, an obstacle in view is the terrain, which keepAboveTerrain_ handles;
+// the rendered terrain and its height differ by tens of centimeters
+const ON_TERRAIN = 1;
 
 // the keys, by event.code, and the axis and direction each one pushes
 /** @type {Record<string, ['climb' | 'turn' | 'forward' | 'right' | 'tilt', number]>} */
@@ -50,6 +54,9 @@ const previousScratch = new Cartesian3();
 const aheadScratch = new Cartesian3();
 const aheadCartographicScratch = new Cartographic();
 const cartographicScratch = new Cartographic();
+const towardScratch = new Cartesian3();
+const allowedScratch = new Cartesian3();
+const obstacleCartographicScratch = new Cartographic();
 
 /**
  * @param {number} value
@@ -66,7 +73,7 @@ function deadZone(value) {
 export default class CesiumDrone {
   /**
    * @param {import('@cesium/engine').CesiumWidget} viewer
-   * @param {{speed?: number, boostSpeed?: number, climbSpeed?: number, turnRate?: number, clearance?: number, crashSpeed?: number, cameraTilt?: number, failsafeDelay?: number, layout?: 'game' | 'mode2'}} [options]
+   * @param {{speed?: number, boostSpeed?: number, climbSpeed?: number, turnRate?: number, clearance?: number, crashSpeed?: number, cameraTilt?: number, failsafeDelay?: number, layout?: 'game' | 'mode2', collision?: boolean}} [options]
    */
   constructor(viewer, options = {}) {
     this.viewer = viewer;
@@ -93,6 +100,11 @@ export default class CesiumDrone {
      * @type {'game' | 'mode2'}
      */
     this.layout = options.layout ?? 'game';
+    /**
+     * Whether the drone crashes into the obstacles in view, opaque 3D Tiles or primitives, at any speed;
+     * the terrain is checked either way.
+     */
+    this.collision = options.collision ?? false;
 
     /**
      * Whether the control link is lost, set by the application (from jamming, for example): the
@@ -128,6 +140,8 @@ export default class CesiumDrone {
     // the sticks before the control link was lost, and for how long it has been lost, in seconds
     this.lastSticks_ = CENTERED;
     this.lostFor_ = 0;
+
+    this.obstacleProbe_ = new ObstacleProbe(viewer.scene);
 
     this.handleKeyFunction_ = this.handleKey_.bind(this);
     this.handleBlurFunction_ = () => this.keys_.clear();
@@ -320,7 +334,9 @@ export default class CesiumDrone {
     const enu = Transforms.eastNorthUpToFixedFrame(this.position_, undefined, enuScratch);
     const step = Matrix4.multiplyByPointAsVector(enu, Cartesian3.multiplyByScalar(velocity, dt, stepScratch), stepScratch);
     Cartesian3.clone(this.position_, previousScratch);
-    Cartesian3.add(this.position_, step, this.position_);
+    if (!this.crashIntoObstacle_(step, dt)) {
+      Cartesian3.add(this.position_, step, this.position_);
+    }
 
     this.keepAboveTerrain_(previousScratch, enu, dt, failsafe);
 
@@ -330,6 +346,35 @@ export default class CesiumDrone {
       orientation: {heading: this.heading_, pitch: this.pitch_ + this.tilt_, roll: this.roll_},
     });
     scene.requestRender();
+  }
+
+  /**
+   * Crash into the obstacle in view ahead if this tick's step reaches it, at any speed, unlike the terrain.
+   * @param {Cartesian3} step this tick's step, in the fixed frame
+   * @param {number} dt seconds
+   * @return {boolean} whether the drone crashed
+   */
+  crashIntoObstacle_(step, dt) {
+    const length = Cartesian3.magnitude(step);
+    if (!this.collision || this.crashed_ || length === 0) {
+      return false;
+    }
+    const toward = Cartesian3.divideByScalar(step, length, towardScratch);
+    const obstacle = this.obstacleProbe_.ahead(toward, 'flight');
+    // a step shorter than asked for reaches the obstacle
+    if (!obstacle.point || !obstacle.normal || blockedStep(toward, length, this.position_, obstacle, allowedScratch).length >= length) {
+      return false;
+    }
+    const point = Cartographic.fromCartesian(obstacle.point, undefined, obstacleCartographicScratch);
+    const ground = this.viewer.scene.globe.getHeight(point);
+    if (ground !== undefined && point.height - ground < ON_TERRAIN) {
+      return false;
+    }
+    this.crashed_ = true;
+    Cartesian3.clone(Cartesian3.ZERO, this.velocity_);
+    // its speed into the obstacle
+    this.crashed.raiseEvent(Cartesian3.clone(this.position_), -Cartesian3.dot(step, obstacle.normal) / dt);
+    return true;
   }
 
   /**
