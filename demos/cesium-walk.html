@@ -23,8 +23,11 @@
 <body>
   <div id="cesiumContainer"></div>
   <wa-card id="controls">
-    <p class="wa-caption-m">Turn the switch on, then use the W, A, S and D keys to walk. The camera stays 2 m above the terrain.</p>
+    <p class="wa-caption-m">Turn the switch on, then use the W, A, S and D keys to walk. The camera stays 2 m above the terrain.
+      With collision on, the orange walls stop the walker, ahead, or slide it along, on the left; the translucent one on
+      the right does not.</p>
     <wa-switch id="activate" size="s">Walk</wa-switch>
+    <wa-switch id="collision" size="s">Collision</wa-switch>
   </wa-card>
   <script type="module">
     import {createViewer} from './setup.js';
@@ -33,10 +36,51 @@
     import '@awesome.me/webawesome/dist/components/card/card.js';
     import '@awesome.me/webawesome/dist/components/switch/switch.js';
 
-    createViewer('cesiumContainer').then(viewer => {
+    // the start, on the Höhematte in Interlaken, looking north
+    const START = Cesium.Cartographic.fromDegrees(7.857, 46.6866);
+    // walls to test the collision, 4 m above the ground: where, in meters east and north of the start, how wide,
+    // which way, in degrees, and how opaque
+    const WALLS = [
+      {east: 0, north: 20, width: 6, heading: 0, alpha: 1},
+      {east: -6, north: 12, width: 6, heading: 45, alpha: 1},
+      {east: 6, north: 12, width: 6, heading: 0, alpha: 0.5},
+    ];
+
+    createViewer('cesiumContainer').then(async viewer => {
+      const frame = Cesium.Transforms.eastNorthUpToFixedFrame(Cesium.Cartographic.toCartesian(START));
+      const [start, ...ground] = await Cesium.sampleTerrainMostDetailed(viewer.terrainProvider, [
+        START,
+        ...WALLS.map(({east, north}) => Cesium.Cartographic.fromCartesian(
+          Cesium.Matrix4.multiplyByPoint(frame, new Cesium.Cartesian3(east, north, 0), new Cesium.Cartesian3())
+        )),
+      ]);
+      viewer.camera.cancelFlight();
+      viewer.camera.setView({
+        destination: Cesium.Cartesian3.fromRadians(start.longitude, start.latitude, start.height + 2),
+        orientation: {heading: 0, pitch: 0, roll: 0},
+      });
+      WALLS.forEach(({width, heading, alpha}, i) => {
+        // from a meter under the ground, for slopes
+        const position = Cesium.Cartesian3.fromRadians(ground[i].longitude, ground[i].latitude, ground[i].height + 1.5);
+        viewer.entities.add({
+          position,
+          orientation: Cesium.Transforms.headingPitchRollQuaternion(position, new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(heading), 0, 0)),
+          box: {dimensions: new Cesium.Cartesian3(width, 0.3, 5), material: Cesium.Color.ORANGE.withAlpha(alpha)},
+        });
+      });
+
       const mode = new CesiumWalk(viewer);
+      // a focused switch turns itself off on ArrowLeft: the switches give the keys back to the walk
       const toggle = document.querySelector('#activate');
-      toggle.addEventListener('change', () => mode.active = toggle.checked);
+      toggle.addEventListener('change', () => {
+        mode.active = toggle.checked;
+        toggle.blur();
+      });
+      const collision = document.querySelector('#collision');
+      collision.addEventListener('change', () => {
+        mode.collision = collision.checked;
+        collision.blur();
+      });
     });
   </script>
 </body>

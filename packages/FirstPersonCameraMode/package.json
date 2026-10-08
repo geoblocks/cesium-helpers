@@ -11,8 +11,15 @@
   "main": "FirstPersonCameraMode.js",
   "module": "FirstPersonCameraMode.js",
   "sideEffects": false,
+  "files": [
+    "FirstPersonCameraMode.js",
+    "zoom.js"
+  ],
   "publishConfig": {
     "access": "public"
+  },
+  "dependencies": {
+    "@geoblocks/cesium-input": "^0.0.0"
   },
   "peerDependencies": {
     "@cesium/core": ">=0.1.0",

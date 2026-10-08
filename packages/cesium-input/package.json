@@ -1,0 +1,20 @@
+{
+  "name": "@geoblocks/cesium-input",
+  "version": "0.0.0",
+  "license": "BSD-3-Clause",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/geoblocks/cesium-helpers/",
+    "directory": "packages/cesium-input"
+  },
+  "main": "cesium-input.js",
+  "module": "cesium-input.js",
+  "sideEffects": false,
+  "files": [
+    "cesium-input.js"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}
