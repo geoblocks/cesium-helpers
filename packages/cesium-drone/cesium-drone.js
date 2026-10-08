@@ -151,6 +151,15 @@ export default class CesiumDrone {
 
     this.obstacleProbe_ = new ObstacleProbe(viewer.scene);
 
+    /**
+     * The obstacle ahead of the drone in a direction, a point of its plane and its normal toward the drone, if
+     * any; asked for each step while collision is on. By default the obstacles in view, read in the depth of
+     * the last frame, which waits for the GPU; for a world known on the CPU, a ray cast in every direction,
+     * reaching as far as a step goes.
+     * @type {(toward: Cartesian3, key: string) => import('@geoblocks/cesium-obstacles').Obstacle | undefined}
+     */
+    this.obstacleAhead = (toward, key) => this.obstacleProbe_.ahead(toward, key);
+
     this.handleTickFunction_ = this.handleTick_.bind(this);
   }
 
@@ -310,9 +319,9 @@ export default class CesiumDrone {
       return false;
     }
     const toward = Cartesian3.divideByScalar(step, length, towardScratch);
-    const obstacle = this.obstacleProbe_.ahead(toward, 'flight');
+    const obstacle = this.obstacleAhead(toward, 'flight');
     // a step shorter than asked for reaches the obstacle
-    if (!obstacle.point || !obstacle.normal || blockedStep(toward, length, this.position_, obstacle, allowedScratch).length >= length) {
+    if (!obstacle?.point || !obstacle.normal || blockedStep(toward, length, this.position_, obstacle, allowedScratch).length >= length) {
       return false;
     }
     const point = Cartographic.fromCartesian(obstacle.point, undefined, obstacleCartographicScratch);

@@ -101,5 +101,17 @@ primitives, at any speed, read from the depth of the last frame by
 camera sees is an obstacle: flying sideways or backward into a wall goes through it, and so does coming
 down onto a roof while the camera looks up.
 
+For a world known on the CPU, set `drone.obstacleAhead` to a function returning the obstacle ahead in a
+direction, `{point, normal}` with the normal toward the drone, or `undefined`: a ray cast finds it in every
+direction, without waiting for the GPU. Reach as far as a step goes at the drone's top speed. For 3D Tiles,
+`tilesetObstacle` of [cesium-obstacles](../cesium-obstacles):
+
+```javascript
+import {tilesetObstacle} from '@geoblocks/cesium-obstacles';
+
+// a step at 41 m/s is under 5 m, even on a slow frame
+drone.obstacleAhead = toward => tilesetObstacle(viewer.scene, buildings, viewer.camera.positionWC, toward, 5);
+```
+
 The demo adds the drone camera effects of [cesium-post-process](../cesium-post-process): a wide lens,
 jello, a display and the video signal.
