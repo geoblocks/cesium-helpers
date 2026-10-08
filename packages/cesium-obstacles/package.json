@@ -1,0 +1,24 @@
+{
+  "name": "@geoblocks/cesium-obstacles",
+  "version": "0.0.0",
+  "license": "BSD-3-Clause",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/geoblocks/cesium-helpers/",
+    "directory": "packages/cesium-obstacles"
+  },
+  "main": "cesium-obstacles.js",
+  "module": "cesium-obstacles.js",
+  "sideEffects": false,
+  "files": [
+    "cesium-obstacles.js"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "@cesium/core": ">=0.1.0",
+    "@cesium/engine": ">=10"
+  }
+}
