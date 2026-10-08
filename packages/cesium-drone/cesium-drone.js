@@ -1,5 +1,6 @@
 import {Cartesian3, Cartographic, Event, Math as CesiumMath, Matrix4} from '@cesium/core';
 import {Transforms} from '@cesium/engine';
+import Controls from '@geoblocks/cesium-input';
 import {ObstacleProbe, blockedStep} from '@geoblocks/cesium-obstacles';
 
 export {jammingAt} from './jamming.js';
@@ -23,30 +24,45 @@ const SLOPE_BASE = 5;
 // the rendered terrain and its height differ by tens of centimeters
 const ON_TERRAIN = 1;
 
-// the keys, by event.code, and the axis and direction each one pushes
-/** @type {Record<string, ['climb' | 'turn' | 'forward' | 'right' | 'tilt', number]>} */
+// the keys, by event.code, as the two sticks of a drone's radio ("Mode 2"): W and S climb, A and D turn, the
+// arrows fly forward and sideways, R and F tilt the camera, Shift boosts
 const KEYS = {
-  KeyW: ['climb', 1],
-  KeyS: ['climb', -1],
-  KeyA: ['turn', -1],
-  KeyD: ['turn', 1],
-  ArrowUp: ['forward', 1],
-  ArrowDown: ['forward', -1],
-  ArrowLeft: ['right', -1],
-  ArrowRight: ['right', 1],
-  KeyR: ['tilt', -1],
-  KeyF: ['tilt', 1],
+  move: {up: ['ArrowUp'], down: ['ArrowDown'], left: ['ArrowLeft'], right: ['ArrowRight']},
+  climb: {negative: ['KeyS'], positive: ['KeyW']},
+  turn: {negative: ['KeyA'], positive: ['KeyD']},
+  tilt: {negative: ['KeyR'], positive: ['KeyF']},
+  boost: ['ShiftLeft', 'ShiftRight'],
 };
 
-// the elements whose keys are typing, not flying
-const TEXT_FIELDS = 'input:not([type=checkbox], [type=radio], [type=button], [type=range]), textarea, select, [contenteditable]:not([contenteditable=false])';
+// the default bindings, the keys and the gamepad's layouts: 'game', the left stick moving, the right one
+// turning and tilting the camera, the triggers climbing and descending, R1 boosting, as in most games; or
+// 'mode2', the sticks of a drone's radio, the left one climbing and turning, the right one moving, R2
+// boosting, the bumpers tilting the camera
+/** @satisfies {Record<'game' | 'mode2', Record<string, import('@geoblocks/cesium-input').Binding>>} */
+export const DRONE_BINDINGS = {
+  game: {
+    move: {type: 'vector', keys: KEYS.move, stick: 'left'},
+    climb: {type: 'axis', keys: KEYS.climb, buttons: {negative: [6], positive: [7]}},
+    turn: {type: 'axis', keys: KEYS.turn, stick: 'right', along: 'x'},
+    tilt: {type: 'axis', keys: KEYS.tilt, stick: 'right', along: 'y'},
+    boost: {type: 'button', keys: KEYS.boost, buttons: [5]},
+  },
+  mode2: {
+    move: {type: 'vector', keys: KEYS.move, stick: 'right'},
+    climb: {type: 'axis', keys: KEYS.climb, stick: 'left', along: 'y'},
+    turn: {type: 'axis', keys: KEYS.turn, stick: 'left', along: 'x'},
+    tilt: {type: 'axis', keys: KEYS.tilt, buttons: {negative: [5], positive: [4]}},
+    boost: {type: 'button', keys: KEYS.boost, buttons: [7]},
+  },
+};
 
 /**
- * @typedef {{climb: number, turn: number, forward: number, right: number, tilt: number, boost: boolean}} Sticks
+ * The drone's intent: move forward and sideways, no longer than 1, and climb, turn and tilt the camera, from -1 to 1.
+ * @typedef {{move: {x: number, y: number}, climb: number, turn: number, tilt: number, boost: boolean}} Sticks
  */
 
 /** @type {Sticks} */
-const CENTERED = {climb: 0, turn: 0, forward: 0, right: 0, tilt: 0, boost: false};
+const CENTERED = {move: {x: 0, y: 0}, climb: 0, turn: 0, tilt: 0, boost: false};
 
 const enuScratch = new Matrix4();
 const stepScratch = new Cartesian3();
@@ -57,14 +73,6 @@ const cartographicScratch = new Cartographic();
 const towardScratch = new Cartesian3();
 const allowedScratch = new Cartesian3();
 const obstacleCartographicScratch = new Cartographic();
-
-/**
- * @param {number} value
- */
-function deadZone(value) {
-  const magnitude = Math.abs(value);
-  return magnitude < DEAD_ZONE ? 0 : (Math.sign(value) * (magnitude - DEAD_ZONE)) / (1 - DEAD_ZONE);
-}
 
 /**
  * An arcade drone: it stays level, holds its altitude when the sticks are released, and is flown
@@ -93,13 +101,15 @@ export default class CesiumDrone {
     this.cameraTilt = options.cameraTilt ?? 20;
     /** the time the drone keeps its last command after losing its control link, in seconds, before its motors stop */
     this.failsafeDelay = options.failsafeDelay ?? 1.5;
+    this.layout_ = options.layout ?? 'game';
     /**
-     * The gamepad's layout: 'game', the left stick moving, the right one turning and tilting the
-     * camera, the triggers climbing and descending, as in most games; or 'mode2', the sticks of a
-     * drone's radio, the left one climbing and turning, the right one moving.
-     * @type {'game' | 'mode2'}
+     * Where the drone's intent comes from, read on each tick unless the control link is lost: {move: {x, y},
+     * climb, turn, tilt, boost}. The keyboard and the first gamepad by default, with DRONE_BINDINGS for the
+     * layout; any object with a read() method otherwise: touch controls, an AI, a replay. The drone turns
+     * its active on and off with its own: replace it while the drone is not active.
+     * @type {{read(): Sticks, active?: boolean}}
      */
-    this.layout = options.layout ?? 'game';
+    this.input = new Controls(DRONE_BINDINGS[this.layout_], {deadZone: DEAD_ZONE});
     /**
      * Whether the drone crashes into the obstacles in view, opaque 3D Tiles or primitives, at any speed;
      * the terrain is checked either way.
@@ -135,21 +145,32 @@ export default class CesiumDrone {
     this.tilt_ = 0;
     this.pitch_ = 0;
     this.roll_ = 0;
-    /** @type {Set<string>} */
-    this.keys_ = new Set();
     // the sticks before the control link was lost, and for how long it has been lost, in seconds
     this.lastSticks_ = CENTERED;
     this.lostFor_ = 0;
 
     this.obstacleProbe_ = new ObstacleProbe(viewer.scene);
 
-    this.handleKeyFunction_ = this.handleKey_.bind(this);
-    this.handleBlurFunction_ = () => this.keys_.clear();
     this.handleTickFunction_ = this.handleTick_.bind(this);
   }
 
   get active() {
     return this.active_;
+  }
+
+  /**
+   * The gamepad's layout, 'game' or 'mode2', as in DRONE_BINDINGS, when the input is the default one.
+   * @return {'game' | 'mode2'}
+   */
+  get layout() {
+    return this.layout_;
+  }
+
+  set layout(layout) {
+    this.layout_ = layout;
+    if (this.input instanceof Controls) {
+      this.input.bindings = DRONE_BINDINGS[layout];
+    }
   }
 
   set active(active) {
@@ -169,16 +190,11 @@ export default class CesiumDrone {
       this.lastSticks_ = CENTERED;
       this.lostFor_ = 0;
       this.lastTick_ = performance.now();
-      document.addEventListener('keydown', this.handleKeyFunction_);
-      document.addEventListener('keyup', this.handleKeyFunction_);
-      window.addEventListener('blur', this.handleBlurFunction_);
+      this.input.active = true;
       this.viewer.clock.onTick.addEventListener(this.handleTickFunction_);
     } else {
-      document.removeEventListener('keydown', this.handleKeyFunction_);
-      document.removeEventListener('keyup', this.handleKeyFunction_);
-      window.removeEventListener('blur', this.handleBlurFunction_);
+      this.input.active = false;
       this.viewer.clock.onTick.removeEventListener(this.handleTickFunction_);
-      this.keys_.clear();
     }
     this.enableNavigation_(!active);
   }
@@ -212,72 +228,6 @@ export default class CesiumDrone {
     this.lostFor_ = 0;
   }
 
-  /**
-   * @param {KeyboardEvent} event
-   */
-  handleKey_(event) {
-    if (!(event.code in KEYS) && event.key !== 'Shift') {
-      return;
-    }
-    const code = event.key === 'Shift' ? 'Shift' : event.code;
-    if (event.type === 'keyup') {
-      // always, or a key released with a modifier held would stay pressed
-      this.keys_.delete(code);
-      return;
-    }
-    // leave the shortcuts (Ctrl+R, Cmd+F...) and the typing in text fields alone
-    const target = event.composedPath()[0];
-    if (event.ctrlKey || event.metaKey || event.altKey || (target instanceof HTMLElement && target.matches(TEXT_FIELDS))) {
-      return;
-    }
-    // the arrows would scroll the page
-    event.preventDefault();
-    this.keys_.add(code);
-  }
-
-  /**
-   * The keyboard and the first gamepad in the browser's standard layout, added up, each axis
-   * from -1 to 1: in another layout, the sticks' axes are not known.
-   * @return {Sticks}
-   */
-  readSticks_() {
-    /** @type {Sticks} */
-    const sticks = {climb: 0, turn: 0, forward: 0, right: 0, tilt: 0, boost: this.keys_.has('Shift')};
-    for (const code of this.keys_) {
-      const key = KEYS[code];
-      if (key) {
-        sticks[key[0]] += key[1];
-      }
-    }
-    const pad = navigator.getGamepads?.().find(gamepad => gamepad?.mapping === 'standard');
-    if (pad) {
-      // the sticks' Y axes are positive down; buttons 4 and 5 are the bumpers, 6 and 7 the triggers
-      const axis = (/** @type {number} */ i) => deadZone(pad.axes[i] ?? 0);
-      const button = (/** @type {number} */ i) => pad.buttons[i]?.value ?? 0;
-      if (this.layout === 'mode2') {
-        sticks.turn += axis(0);
-        sticks.climb -= axis(1);
-        sticks.right += axis(2);
-        sticks.forward -= axis(3);
-        sticks.boost ||= button(7) > 0.5;
-        sticks.tilt += button(4) - button(5);
-      } else {
-        sticks.right += axis(0);
-        sticks.forward -= axis(1);
-        sticks.turn += axis(2);
-        sticks.tilt -= axis(3);
-        sticks.climb += button(7) - button(6);
-        sticks.boost ||= button(5) > 0.5;
-      }
-    }
-    sticks.climb = CesiumMath.clamp(sticks.climb, -1, 1);
-    sticks.turn = CesiumMath.clamp(sticks.turn, -1, 1);
-    sticks.forward = CesiumMath.clamp(sticks.forward, -1, 1);
-    sticks.right = CesiumMath.clamp(sticks.right, -1, 1);
-    sticks.tilt = CesiumMath.clamp(sticks.tilt, -1, 1);
-    return sticks;
-  }
-
   handleTick_() {
     const now = performance.now();
     // a hidden tab stops the ticks: do not jump over the time it was hidden
@@ -291,7 +241,7 @@ export default class CesiumDrone {
     const failsafe = this.lostFor_ > this.failsafeDelay;
     let sticks = CENTERED;
     if (!this.crashed_ && !failsafe) {
-      sticks = this.rxLoss ? this.lastSticks_ : (this.lastSticks_ = this.readSticks_());
+      sticks = this.rxLoss ? this.lastSticks_ : (this.lastSticks_ = this.input.read());
     }
 
     this.heading_ = CesiumMath.zeroToTwoPi(this.heading_ + sticks.turn * CesiumMath.toRadians(this.turnRate) * dt);
@@ -301,8 +251,8 @@ export default class CesiumDrone {
     const sin = Math.sin(this.heading_);
     const cos = Math.cos(this.heading_);
     const speed = sticks.boost ? this.boostSpeed : this.speed;
-    const targetForward = sticks.forward * speed;
-    const targetRight = sticks.right * speed;
+    const targetForward = sticks.move.y * speed;
+    const targetRight = sticks.move.x * speed;
     const velocity = this.velocity_;
     if (failsafe) {
       // the motors stopped: the drone falls, coasting

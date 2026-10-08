@@ -23,6 +23,19 @@ left alone with Ctrl, Alt or Cmd held, and in text fields. The gamepad must be i
 standard layout (`mapping` is `'standard'`, as for Xbox and PlayStation pads in Chrome); others are
 ignored, their sticks' axes not being known.
 
+These are the default bindings, `DRONE_BINDINGS.game` and `DRONE_BINDINGS.mode2`, read with
+[cesium-input](../cesium-input); `drone.layout` switches between them. The drone reads its intent from
+`drone.input` on each tick, `{move: {x, y}, climb, turn, tilt, boost}`, so the controls can be remapped,
+or come from anywhere else, touch controls, an AI or a replay, while the drone is not active:
+
+```javascript
+import Controls from '@geoblocks/cesium-input';
+import CesiumDrone, {DRONE_BINDINGS} from '@geoblocks/cesium-drone';
+
+// the camera tilted with T and G instead of R and F
+drone.input = new Controls({...DRONE_BINDINGS.game, tilt: {type: 'axis', keys: {negative: ['KeyT'], positive: ['KeyG']}, stick: 'right', along: 'y'}});
+```
+
 ## Installation
 
 ```bash
