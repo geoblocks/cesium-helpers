@@ -1,9 +1,10 @@
 // Writes the FONT table of the drone display's shader from the pixel drawings below: each glyph is
 // drawn at the MAX7456's 12 x 18 pixels, '#' for white, and becomes 18 rows of 24 bits: the
 // glyph in the low 12, the leftmost pixel highest, and its black outline, the pixels around it
-// within the cell, in the high 12, so that the shader reads one entry per pixel. The glyphs
-// follow the sizes of Betaflight's default font but are drawn here. Run it after changing a
-// drawing, then build the shaders: node scripts/osd-font.js && npm run build-shaders
+// within the cell, in the high 12, so that the shader reads one entry per pixel. The digits keep
+// the sizes of Betaflight's default font; the units and icons imitate ArduPilot's HD OSD, all
+// drawn here. Run it after changing a drawing, then build the shaders:
+// node scripts/osd-font.js && npm run build-shaders
 import {readFile, writeFile} from 'node:fs/promises';
 
 const SHADER = 'packages/cesium-post-process/shaders/DroneDisplay.glsl';
@@ -50,18 +51,57 @@ const DIGITS = [
   '.##.\n#..#\n#..#\n#..#\n.###\n...#\n...#\n...#\n.##.',
 ];
 
-// the letters of the warnings, as the digits
+// the letters of the flight modes and the warning, as the digits; T and W are 5 pixels wide
 const LETTERS = {
+  F: '####\n#...\n#...\n#...\n###.\n#...\n#...\n#...\n#...',
+  B: '###.\n#..#\n#..#\n#..#\n###.\n#..#\n#..#\n#..#\n###.',
+  W: '#...#\n#...#\n#...#\n#...#\n#.#.#\n#.#.#\n#.#.#\n#.#.#\n.#.#.',
+  A: '.##.\n#..#\n#..#\n#..#\n####\n#..#\n#..#\n#..#\n#..#',
   R: '###.\n#..#\n#..#\n#..#\n###.\n#.#.\n#..#\n#..#\n#..#',
-  X: '#..#\n#..#\n#..#\n.##.\n.##.\n.##.\n#..#\n#..#\n#..#',
+  T: '#####\n..#..\n..#..\n..#..\n..#..\n..#..\n..#..\n..#..\n..#..',
   L: '#...\n#...\n#...\n#...\n#...\n#...\n#...\n#...\n####',
-  O: '.##.\n#..#\n#..#\n#..#\n#..#\n#..#\n#..#\n#..#\n.##.',
+  I: '###\n.#.\n.#.\n.#.\n.#.\n.#.\n.#.\n.#.\n###',
+  E: '####\n#...\n#...\n#...\n###.\n#...\n#...\n#...\n####',
   S: '.###\n#...\n#...\n#...\n.##.\n...#\n...#\n...#\n###.',
 };
 
-// in the order of the shader's glyph constants: the digits, DOT, SPACE, MINUS, VOLT, METER,
-// ALTITUDE, LINK_QUALITY, MARKER_RIGHT, MARKER_LEFT, CROSS_LEFT, CROSS_MIDDLE, CROSS_RIGHT,
-// RETICLE_V, RETICLE_HEART, LETTER_R, LETTER_X, LETTER_L, LETTER_O, LETTER_S
+// the small letters of the labels and the units, 3 x 5 pixels, m 5 wide
+const SMALL = {
+  A: '.#.\n#.#\n###\n#.#\n#.#',
+  i: '#\n.\n#\n#\n#',
+  r: '...\n#.#\n##.\n#..\n#..',
+  S: '###\n#..\n###\n..#\n###',
+  p: '...\n##.\n#.#\n##.\n#..',
+  d: '..#\n.##\n#.#\n#.#\n.##',
+  k: '#..\n#.#\n##.\n#.#\n#.#',
+  m: '.....\n####.\n#.#.#\n#.#.#\n#.#.#',
+  h: '#..\n#..\n##.\n#.#\n#.#',
+  s: '.##\n#..\n.#.\n..#\n##.',
+};
+
+/**
+ * Small letters in a row from x, y, a pixel apart.
+ * @param {string} text
+ * @param {number} x
+ * @param {number} y
+ * @return {boolean[][]}
+ */
+function small(text, x, y) {
+  const cells = [];
+  for (const letter of text) {
+    const drawing = SMALL[/** @type {keyof typeof SMALL} */ (letter)];
+    cells.push(place(drawing, x, y));
+    x += drawing.split('\n')[0].length + 1;
+  }
+  return merge(...cells);
+}
+
+const UP = '...#...\n..###..\n.#####.\n#######';
+const DOWN = '#######\n.#####.\n..###..\n...#...';
+
+// in the order of the shader's glyph constants: the digits, DOT, SPACE, MINUS, VOLT, DEGREE,
+// PERCENT, ALTITUDE, METERS_PER_SECOND, KILOMETERS_PER_HOUR, AIR_SPEED, UP, UP_TWO, DOWN,
+// DOWN_TWO, then the letters F, B, W, A, R, T, L, I, E, S
 /** @type {[string, boolean[][]][]} */
 const GLYPHS = [
   ...DIGITS.map((drawing, n) => /** @type {[string, boolean[][]]} */ ([String(n), place(drawing, 4, 4)])),
@@ -69,20 +109,20 @@ const GLYPHS = [
   ['space', EMPTY],
   ['-', place('####', 4, 8)],
   ['v, volts', place('#...#\n#...#\n#...#\n.#.#.\n.#.#.\n..#..', 3, 7)],
-  ['m, meters', place('.#.#.\n#.#.#\n#.#.#\n#.#.#\n#.#.#\n#.#.#', 3, 7)],
-  ['ALT, the altitude', place('.#...#...###\n#.#..#....#.\n###..#....#.\n#.#..#....#.\n#.#..###..#.', 0, 6)],
+  ['°, degrees', place('.##.\n#..#\n#..#\n.##.', 3, 3)],
+  ['%', place('##....#\n##...#.\n....#..\n...#...\n..#....\n.#...##\n#....##', 2, 5)],
   [
-    'LQ over a wedge, the link quality',
-    merge(place('#...###\n#...#.#\n#...#.#\n#...###\n###...#', 1, 2), place('......#\n....#.#\n..#.#.#\n#.#.#.#', 3, 11)),
+    'a mountain over m, the altitude; the shader adds a green dot inside',
+    merge(place('....#......\n...#.#.....\n..#...#.#..\n.#.....#.#.\n#.........#', 0, 1), small('m', 3, 8)),
   ],
-  ['>, the left level marker', place('#....\n.#...\n..#..\n...#.\n....#\n...#.\n..#..\n.#...\n#....', 4, 4)],
-  ['<, the right level marker', place('....#\n...#.\n..#..\n.#...\n#....\n.#...\n..#..\n...#.\n....#', 3, 4)],
-  ['the cross, left', place('####', 7, 8)],
-  ['the cross, a ring in the middle', merge(place('.##.\n#..#\n#..#\n#..#\n#..#\n.##.', 4, 6), place('##', 0, 8), place('##', 10, 8))],
-  ['the cross, right', place('####', 1, 8)],
-  ['a V with wings, a reticle', place('#.#......#.#\n...#....#...\n....#..#....\n.....##.....', 0, 5)],
-  ['a heart, a reticle', place('.##..##.\n#..##..#\n#......#\n.#....#.\n..#..#..\n...##...', 2, 6)],
-  ...Object.entries(LETTERS).map(([letter, drawing]) => /** @type {[string, boolean[][]]} */ ([letter, place(drawing, 4, 4)])),
+  ['m over s, meters per second', merge(small('m', 3, 1), small('s', 4, 9))],
+  ['km over h, kilometers per hour', merge(small('km', 1, 1), small('h', 5, 8))],
+  ['Air over Spd, the air speed', merge(small('Air', 1, 2), small('Spd', 0, 9))],
+  ['an arrow up', place(UP, 2, 7)],
+  ['two arrows up', merge(place(UP, 2, 3), place(UP, 2, 10))],
+  ['an arrow down', place(DOWN, 2, 7)],
+  ['two arrows down', merge(place(DOWN, 2, 3), place(DOWN, 2, 10))],
+  ...Object.entries(LETTERS).map(([letter, drawing]) => /** @type {[string, boolean[][]]} */ ([letter, place(drawing, drawing.indexOf('\n') === 5 ? 3 : 4, 4)])),
 ];
 
 /**
