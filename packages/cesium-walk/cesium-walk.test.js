@@ -44,3 +44,15 @@ test("turning the head bob off while walking lets the camera settle", () => {
   tick();
   assert.equal(moves.length, 0);
 });
+
+test("the walker stands on the ground height it is given, not on the terrain", () => {
+  const {viewer, moves} = fakeViewer(0);
+  const walk = new CesiumWalk(viewer, 1.6, 2);
+  walk.groundHeight = () => 5;
+  walk.input = {read: () => ({move: {x: 0, y: 0}, sprint: false, jump: false})};
+  walk.lastTick_ = performance.now() - 100;
+  walk.handleTick_();
+  // from 2 m up to 5 m of ground plus 2 m of eyes
+  assert.equal(moves.length, 1);
+  assert.ok(Math.abs(moves[0].amount - 5) < 1e-9);
+});

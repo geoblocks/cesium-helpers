@@ -59,3 +59,7 @@ first person. Set `walkMode.collision = true` for the walker to stop at the obst
 height (buildings, trees, any opaque 3D tiles or primitives) and to slide along them; walking backward or
 sideways, the obstacles out of view do not stop it. Translucent primitives, of an alpha below 0.995, are
 not obstacles. The obstacles come from [cesium-obstacles](../cesium-obstacles).
+
+The walker stands on the terrain by default. To walk on something else, a model's floors, stairs and
+tunnels, set `walkMode.groundHeight` to a function returning the ground height in meters above the
+ellipsoid at a `Cartographic`, or `undefined` while unknown.

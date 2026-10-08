@@ -132,6 +132,13 @@ export default class CesiumWalk {
 
     this.obstacleProbe_ = new ObstacleProbe(viewer.scene);
 
+    /**
+     * The height of the ground under a position, in meters above the ellipsoid, or undefined when unknown
+     * yet. The terrain by default; a model's floors otherwise, for a walker on several levels.
+     * @type {(position: import('@cesium/core').Cartographic) => number | undefined}
+     */
+    this.groundHeight = position => viewer.scene.globe.getHeight(position);
+
     // whether the walker sprinted on the last tick
     this.sprinting_ = false;
 
@@ -276,11 +283,9 @@ export default class CesiumWalk {
 
   clampCameraToTerrain_() {
     const camera = this.viewer.camera;
-    const terrainHeight = this.viewer.scene.globe.getHeight(
-      camera.positionCartographic
-    );
+    const terrainHeight = this.groundHeight(camera.positionCartographic);
     if (terrainHeight === undefined) {
-      // terrain not loaded yet at this position
+      // ground not loaded yet at this position
       return;
     }
     const cameraHeight = camera.positionCartographic.height;
