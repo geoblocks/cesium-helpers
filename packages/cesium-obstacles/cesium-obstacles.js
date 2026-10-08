@@ -1,4 +1,4 @@
-import {Cartesian2, Cartesian3, Math as CesiumMath} from "@cesium/core";
+import {Cartesian2, Cartesian3, Math as CesiumMath, Ray} from "@cesium/core";
 
 // the mover keeps REACH meters from the obstacles in view, and slides along them. Reading the depth stalls
 // the frame until the GPU is done, so an obstacle is looked for at most every SAMPLE_INTERVAL milliseconds,
@@ -16,6 +16,11 @@ const probeScratch = new Cartesian3();
 const probeWindowScratch = new Cartesian2();
 const nearWindowScratch = new Cartesian2();
 const towardScratch = new Cartesian3();
+const besideScratch = new Cartesian3();
+const upScratch = new Cartesian3();
+const rayScratch = new Ray();
+// in meters: how far beside the ray ahead the second ray is cast, for the wall's direction
+const BESIDE = 0.1;
 const awayScratch = new Cartesian3();
 
 /**
@@ -119,4 +124,49 @@ export class ObstacleProbe {
     }
     return look;
   }
+}
+
+/**
+ * The obstacle ahead of a mover in a 3D tileset, by rays cast on its loaded tiles on the CPU: in any
+ * direction, without reading the depth, which waits for the GPU. For a walker's obstacleAhead. The walls are
+ * taken as upright, as buildings' are; each ray takes a few milliseconds, as Cesium reads the tiles' geometry
+ * back from the GPU.
+ * FIXME: Cesium3DTileset.pick and Scene.frameState are private, https://github.com/CesiumGS/cesium/issues/13901
+ * @param {import('@cesium/engine').Scene} scene
+ * @param {import('@cesium/engine').Cesium3DTileset} tileset
+ * @param {Cartesian3} eye Where the mover is.
+ * @param {Cartesian3} toward The unit direction of the steps, level.
+ * @param {number} [reach=1] How far ahead, in meters.
+ * @return {Obstacle | undefined}
+ */
+export function tilesetObstacle(scene, tileset, eye, toward, reach = 1) {
+  // @ts-expect-error the scene's frame state is private
+  const frameState = scene.frameState;
+  const pick = (/** @type {Cartesian3} */ origin) => {
+    Cartesian3.clone(origin, rayScratch.origin);
+    Cartesian3.clone(toward, rayScratch.direction);
+    // @ts-expect-error the tileset's pick is private
+    const hit = tileset.pick(rayScratch, frameState);
+    return hit && Cartesian3.distance(hit, origin) <= reach ? hit : undefined;
+  };
+  const point = pick(eye);
+  if (!point) {
+    return undefined;
+  }
+  const up = scene.globe.ellipsoid.geodeticSurfaceNormal(eye, upScratch);
+  const side = Cartesian3.normalize(Cartesian3.cross(toward, up, besideScratch), besideScratch);
+  const beside = pick(Cartesian3.add(eye, Cartesian3.multiplyByScalar(side, BESIDE, besideScratch), besideScratch));
+  let normal;
+  if (beside) {
+    // upright, across the wall
+    normal = Cartesian3.cross(up, Cartesian3.subtract(beside, point, beside), new Cartesian3());
+  }
+  if (!normal || Cartesian3.magnitude(normal) < CesiumMath.EPSILON6) {
+    normal = Cartesian3.negate(toward, new Cartesian3());
+  }
+  Cartesian3.normalize(normal, normal);
+  if (Cartesian3.dot(normal, Cartesian3.subtract(eye, point, towardScratch)) < 0) {
+    Cartesian3.negate(normal, normal);
+  }
+  return {point: Cartesian3.clone(point), normal};
 }

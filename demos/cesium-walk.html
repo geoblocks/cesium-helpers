@@ -25,17 +25,20 @@
   <wa-card id="controls">
     <p class="wa-caption-m">Turn the switch on, then use the W, A, S and D keys to walk. The camera stays 2 m above the terrain.
       With collision on, the orange walls stop the walker, ahead, or slide it along, on the left; the translucent one on
-      the right does not.</p>
+      the right does not. The buildings stop it in any direction, backward and sideways too.</p>
     <wa-switch id="activate" size="s">Walk</wa-switch>
     <wa-switch id="collision" size="s">Collision</wa-switch>
   </wa-card>
   <script type="module">
     import {createViewer} from './setup.js';
     import CesiumWalk from '../packages/cesium-walk/cesium-walk.js';
+    import {ObstacleProbe, tilesetObstacle} from '../packages/cesium-obstacles/cesium-obstacles.js';
     import '@awesome.me/webawesome/dist/styles/webawesome.css';
     import '@awesome.me/webawesome/dist/components/card/card.js';
     import '@awesome.me/webawesome/dist/components/switch/switch.js';
 
+    // swisstopo's buildings, as map.geo.admin.ch loads them
+    const BUILDINGS = 'https://3d.geo.admin.ch/ch.swisstopo.swissbuildings3d.3d/v1/tileset.json';
     // the start, on the Höhematte in Interlaken, looking north
     const START = Cesium.Cartographic.fromDegrees(7.857, 46.6866);
     // walls to test the collision, 4 m above the ground: where, in meters east and north of the start, how wide,
@@ -69,7 +72,15 @@
         });
       });
 
+      const buildings = await Cesium.Cesium3DTileset.fromUrl(BUILDINGS, {maximumScreenSpaceError: 24});
+      viewer.scene.primitives.add(buildings);
+
       const mode = new CesiumWalk(viewer);
+      // the buildings stop the walker in any direction, by rays cast on their tiles; the walls, entities,
+      // only in view, in the depth
+      const probe = new ObstacleProbe(viewer.scene);
+      mode.obstacleAhead = (toward, key) =>
+        tilesetObstacle(viewer.scene, buildings, viewer.camera.positionWC, toward) ?? probe.ahead(toward, key);
       // a focused switch turns itself off on ArrowLeft: the switches give the keys back to the walk
       const toggle = document.querySelector('#activate');
       toggle.addEventListener('change', () => {
