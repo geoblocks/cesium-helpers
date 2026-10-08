@@ -1,4 +1,3 @@
-import {Cartesian3} from '@cesium/core';
 import {PostProcessStage} from '@cesium/engine';
 import Effect from './effect.js';
 import {acquireFrames, releaseFrames} from './frame-clock.js';
@@ -9,11 +8,9 @@ import Hash from './shaders/Hash.js';
 const FRAME_RATE = 25;
 // the strength of the signal fades in and out at this rate, in changes per second
 const FADE_RATE = 0.4;
-// interference bands: how many, their drift in pictures per second, and how often each may come
-// and go, in seconds
-const LINES = 3;
-const LINE_DRIFT = 0.07;
-const LINE_PERIOD = 2.5;
+// the sync is lost for a frame or two now and then, up to this many times per second when the
+// signal is weak
+const TEAR_RATE = 1.5;
 
 const fract = (/** @type {number} */ x) => x - Math.floor(x);
 
@@ -37,33 +34,32 @@ export function hash(x, y) {
 
 /**
  * How the signal fares at a time, all the picture over: how weak it is, 0 to 1
- * (it fades in and out); 1 in the rare frames where it breaks up into static;
- * where each interference band is, as a fraction of the picture height from
- * the bottom, negative while it is away.
+ * (it wavers around the interference, and is 1 only without a signal); and,
+ * in the frames where the receiver loses the sync, where the picture tears, as
+ * a fraction of its height from the top, or -1.
  * @param {number} seconds
  * @param {number} interference 0 to 1
- * @param {Cartesian3} lineAt result
- * @return {{weak: number, breakup: number}}
+ * @return {{weak: number, tear: number}}
  */
-export function signalAt(seconds, interference, lineAt) {
+export function signalAt(seconds, interference) {
   const fade = seconds * FADE_RATE;
   const t = fract(fade);
-  const weak = interference * (hash(Math.floor(fade), 5) + (hash(Math.floor(fade) + 1, 5) - hash(Math.floor(fade), 5)) * t * t * (3 - 2 * t));
-  const frame = Math.floor(seconds * FRAME_RATE) % 1000;
-  const breakup = hash(frame, 11) < 0.015 * interference ? 1 : 0;
-  const at = Array.from({length: LINES}, (_, i) => {
-    const seed = i * 7;
-    const on = hash(Math.floor(seconds / LINE_PERIOD + seed), seed) < interference;
-    return on ? 1 - fract(seconds * LINE_DRIFT * (1 + 0.3 * i) + hash(seed, 1)) : -1;
-  });
-  Cartesian3.fromElements(at[0], at[1], at[2], lineAt);
-  return {weak, breakup};
+  const wander = hash(Math.floor(fade), 5) + (hash(Math.floor(fade) + 1, 5) - hash(Math.floor(fade), 5)) * t * t * (3 - 2 * t);
+  const weak = interference >= 1 ? 1 : interference * (0.75 + 0.25 * wander);
+  // a tear lasts two frames: decided once for each pair
+  const pair = Math.floor((seconds * FRAME_RATE) / 2) % 1000;
+  const chance = (2 * TEAR_RATE / FRAME_RATE) * Math.min(Math.max((interference - 0.3) / 0.5, 0), 1);
+  const tear = interference < 1 && hash(pair, 11) < chance ? 0.2 + 0.6 * hash(pair, 13) : -1;
+  return {weak, tear};
 }
 
 /**
- * An analog FPV video feed: washed-out colors, color bleeding sideways, grain,
- * interference bands and sparkles. The picture moves, so while active the
- * scene renders at 25 frames per second, also in requestRenderMode.
+ * An analog FPV video feed: a soft, washed-out PAL picture with its color
+ * bleeding sideways, which, as the signal weakens, loses its color, washes
+ * out, fills with colored streaks along the video lines and tears when the
+ * sync is lost, down to the dark snow of a receiver without a signal. The
+ * picture moves, so while active the scene renders at 25 frames per second,
+ * also in requestRenderMode.
  */
 export default class AnalogVideo extends Effect {
   /**
@@ -76,12 +72,11 @@ export default class AnalogVideo extends Effect {
     this.interference_ = options.interference ?? 0.15;
     // the uniforms updated once per frame
     this.weak_ = 0;
-    this.breakup_ = 0;
-    this.lineAt_ = new Cartesian3();
+    this.tear_ = -1;
     this.onPreRender_ = () => {
-      const signal = signalAt(performance.now() / 1000, this.interference_, this.lineAt_);
+      const signal = signalAt(performance.now() / 1000, this.interference_);
       this.weak_ = signal.weak;
-      this.breakup_ = signal.breakup;
+      this.tear_ = signal.tear;
     };
   }
 
@@ -92,10 +87,8 @@ export default class AnalogVideo extends Effect {
       uniforms: {
         time: () => performance.now() / 1000,
         noise: () => this.noise_,
-        interference: () => this.interference_,
         weak: () => this.weak_,
-        breakup: () => this.breakup_,
-        lineAt: () => this.lineAt_,
+        tear: () => this.tear_,
       },
     });
   }
@@ -131,8 +124,9 @@ export default class AnalogVideo extends Effect {
   }
 
   /**
-   * How weak the signal gets as it fades in and out, 0 to 1: interference
-   * bands, sparkles, the color lost, and breakups into static.
+   * How weak the signal is, 0 to 1: a few streaks when it is low, the color
+   * lost from about 0.4, then a washed-out picture under more and more streaks,
+   * torn when the sync is lost; 1 for no signal at all, the receiver's snow.
    */
   get interference() {
     return this.interference_;
