@@ -1,7 +1,7 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
 import {Cartesian2, Cartesian3, Cartographic, Ellipsoid, Math as CesiumMath} from "@cesium/core";
-import {ObstacleProbe, blockedStep} from "./cesium-obstacles.js";
+import {ObstacleProbe, blockedStep, tilesetObstacle} from "./cesium-obstacles.js";
 
 // an obstacle 10 m east of the origin, facing west, toward the walker
 const obstacle = {point: new Cartesian3(10, 0, 0), normal: new Cartesian3(-1, 0, 0)};
@@ -83,4 +83,44 @@ test("a roof seen from above faces up", () => {
   });
   const obstacle = new ObstacleProbe(scene).ahead(down, "down");
   assertDirection(/** @type {Cartesian3} */ (obstacle.normal), new Cartesian3(1, 0, 0));
+});
+
+// a walker on the equator at longitude 0, 2 m up, stepping north; a tileset of one wall, through a point and
+// facing along a normal, picked as Cesium3DTileset.pick does: the ray's first hit
+const walker = new Cartesian3(Ellipsoid.WGS84.maximumRadius + 2, 0, 0);
+const north = new Cartesian3(0, 0, 1);
+const wallTileset = (/** @type {Cartesian3} */ point, /** @type {Cartesian3} */ normal, width = Infinity) => ({
+  pick: (/** @type {{origin: Cartesian3, direction: Cartesian3}} */ ray) => {
+    const facing = Cartesian3.dot(ray.direction, normal);
+    if (Math.abs(facing) < CesiumMath.EPSILON9) {
+      return undefined;
+    }
+    const t = Cartesian3.dot(Cartesian3.subtract(point, ray.origin, new Cartesian3()), normal) / facing;
+    const hit = Cartesian3.add(ray.origin, Cartesian3.multiplyByScalar(ray.direction, t, new Cartesian3()), new Cartesian3());
+    return t >= 0 && Cartesian3.distance(hit, point) <= width / 2 ? hit : undefined;
+  },
+});
+const fakeScene = /** @type {any} */ ({frameState: {}, globe: {ellipsoid: Ellipsoid.WGS84}});
+
+test("a wall of the tileset within the reach is the obstacle, upright and facing the walker", () => {
+  // 0.8 m ahead, turned 45 degrees
+  const normal = Cartesian3.normalize(new Cartesian3(0, -1, -1), new Cartesian3());
+  const tileset = /** @type {any} */ (wallTileset(Cartesian3.add(walker, new Cartesian3(0, 0, 0.8), new Cartesian3()), normal));
+  const found = tilesetObstacle(fakeScene, tileset, walker, north);
+  assert.ok(found?.point && found.normal);
+  assert.ok(Math.abs(Cartesian3.distance(found.point, walker) - 0.8) < 1e-6);
+  assertDirection(found.normal, normal);
+});
+
+test("a wall of the tileset beyond the reach is no obstacle", () => {
+  const tileset = /** @type {any} */ (wallTileset(Cartesian3.add(walker, new Cartesian3(0, 0, 5), new Cartesian3()), new Cartesian3(0, 0, -1)));
+  assert.equal(tilesetObstacle(fakeScene, tileset, walker, north), undefined);
+});
+
+test("without a hit beside it, the wall of the tileset faces the steps", () => {
+  // 0.8 m ahead, 5 cm wide: the ray beside it misses
+  const tileset = /** @type {any} */ (wallTileset(Cartesian3.add(walker, new Cartesian3(0, 0, 0.8), new Cartesian3()), new Cartesian3(0, 0, -1), 0.05));
+  const found = tilesetObstacle(fakeScene, tileset, walker, north);
+  assert.ok(found?.normal);
+  assertDirection(found.normal, new Cartesian3(0, 0, -1));
 });
