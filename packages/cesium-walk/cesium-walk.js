@@ -163,6 +163,14 @@ export default class CesiumWalk {
     this.obstacleProbe_ = new ObstacleProbe(viewer.scene);
 
     /**
+     * The obstacle ahead of the walker in a direction, a point of its plane and its normal toward the walker,
+     * if any; asked for each step while collision is on. By default the obstacles in view, read in the depth
+     * of the last frame, which waits for the GPU; for a world known on the CPU, a ray cast in every direction.
+     * @type {(toward: Cartesian3, key: string) => import('@geoblocks/cesium-obstacles').Obstacle | undefined}
+     */
+    this.obstacleAhead = (toward, key) => this.obstacleProbe_.ahead(toward, key);
+
+    /**
      * The height of the ground under a position, in meters above the ellipsoid, or undefined when unknown
      * yet. The terrain by default; a model's floors otherwise, for a walker on several levels.
      * @type {(position: import('@cesium/core').Cartographic) => number | undefined}
@@ -323,7 +331,7 @@ export default class CesiumWalk {
   step_(direction, step, kind) {
     const camera = this.viewer.camera;
     const toward = Cartesian3.multiplyByScalar(direction, Math.sign(step), stepScratch);
-    const obstacle = this.collision ? this.obstacleProbe_.ahead(toward, `${kind}${Math.sign(step)}`) : undefined;
+    const obstacle = this.collision ? this.obstacleAhead(toward, `${kind}${Math.sign(step)}`) : undefined;
     const allowed = blockedStep(toward, Math.abs(step), camera.positionWC, obstacle, allowedScratch);
     if (allowed.length > 0) {
       camera.move(allowed.direction, allowed.length);

@@ -157,3 +157,19 @@ test("with an acceleration, the walker reaches its speed gradually and stops gra
   // 1, 2, 3, 4 m/s then 4 m/s, for 0.1 s each; then 3, 2, 1 m/s and stopped
   assert.deepEqual(forwardSteps(moves).map(step => +step.toFixed(9)), [0.1, 0.2, 0.3, 0.4, 0.4, 0.3, 0.2, 0.1]);
 });
+
+test("with collision, the walker stops at the obstacles it is given", () => {
+  const {walk, moves, state, tick} = testWalker();
+  walk.collision = true;
+  /** @type {Cartesian3[]} */
+  const asked = [];
+  // a wall 0.3 m ahead, along the fake camera's direction, facing back
+  walk.obstacleAhead = toward => {
+    asked.push(Cartesian3.clone(toward));
+    return {point: new Cartesian3(6378137, 0, 0.3), normal: new Cartesian3(0, 0, -1)};
+  };
+  state.intent.move = {x: 0, y: 1};
+  tick();
+  assert.ok(asked.length > 0);
+  assert.deepEqual(forwardSteps(moves), []);
+});
