@@ -53,7 +53,16 @@ walkMode.active = true;
 ```
 
 `walkMode.sprintSpeed` (default three times the speed) and `walkMode.jumpSpeed` (default 4 m/s)
-can be changed at any time.
+can be changed at any time, as can these, all off or as on Earth by default:
+
+- `walkMode.gravity`, in m/s² (default 9.81): the Moon's 1.62, or a game's snappier jumps.
+- `walkMode.acceleration`, in m/s² (default `Infinity`, at once): how fast the walker reaches its
+  speed, stops and turns.
+- `walkMode.stepHeight`, in meters (default `Infinity`, always followed): the deepest drop of the
+  ground stepped down; off a deeper one, a ledge or a roof, the walker falls.
+
+In the air, jumping or falling, the walker keeps its height when the ground changes under it, and lands
+on the ground it meets.
 `walkMode.sprinting` tells whether the walker is sprinting. Set `walkMode.headBob = true` for the camera to bob at each step and dip on landing, as in GTA 5's
 first person. Set `walkMode.collision = true` for the walker to stop at the obstacles in view at eye
 height (buildings, trees, any opaque 3D tiles or primitives) and to slide along them; walking backward or

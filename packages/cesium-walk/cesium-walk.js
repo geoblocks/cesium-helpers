@@ -2,7 +2,6 @@ import {Cartesian3, Math as CesiumMath} from "@cesium/core";
 import Controls from "@geoblocks/cesium-input";
 import {ObstacleProbe, blockedStep} from "@geoblocks/cesium-obstacles";
 
-const GRAVITY = 9.81;
 // in seconds: a frame after a backgrounded tab must not walk or fall far
 const MAX_DELTA = 0.1;
 // the head bob: a dip of DIP meters at each step of STEP_LENGTH meters, twice as deep when sprinting,
@@ -35,16 +34,19 @@ const normalScratch = new Cartesian3();
 const forwardScratch = new Cartesian3();
 const stepScratch = new Cartesian3();
 const allowedScratch = new Cartesian3();
+const targetScratch = new Cartesian3();
+const changeScratch = new Cartesian3();
 
 /**
- * One step of a jump under gravity.
+ * One step of a jump or a fall under gravity.
  * @param {number} offset Height above the walk height, in meters.
  * @param {number} velocity Upward speed, in meters per second.
  * @param {number} dt Seconds.
+ * @param {number} gravity In meters per second squared.
  * @return {[number, number]} The next offset and velocity, [0, 0] once landed.
  */
-function jumpStep(offset, velocity, dt) {
-  const next = velocity - GRAVITY * dt;
+function jumpStep(offset, velocity, dt, gravity) {
+  const next = velocity - gravity * dt;
   const height = offset + ((velocity + next) / 2) * dt;
   return height <= 0 && next <= 0 ? [0, 0] : [height, next];
 }
@@ -90,6 +92,26 @@ export default class CesiumWalk {
     this.jumpSpeed = 4;
 
     /**
+     * The gravity of jumps and falls, in meters per second squared.
+     * @type {number}
+     */
+    this.gravity = 9.81;
+
+    /**
+     * How fast the walker reaches its speed, stops and turns, in meters per second squared; at once by
+     * default.
+     * @type {number}
+     */
+    this.acceleration = Infinity;
+
+    /**
+     * The deepest drop of the ground the walker steps down, in meters: deeper, off a ledge or a roof, it
+     * falls. By default it follows the ground whatever the drop.
+     * @type {number}
+     */
+    this.stepHeight = Infinity;
+
+    /**
      * @type {number}
      */
     this.height = height;
@@ -113,7 +135,15 @@ export default class CesiumWalk {
      */
     this.input = new Controls(WALK_BINDINGS);
 
-    // the jump: height above the walk height and upward speed; whether the jump input was down last tick
+    // the walker's velocity, level, on the globe
+    this.velocity_ = new Cartesian3();
+
+    // the ground under the walker on the last tick, which it keeps its height above while in the air
+    /** @type {number | undefined} */
+    this.ground_ = undefined;
+
+    // the jump or the fall: height above the walk height and upward speed; whether the jump input was down
+    // last tick
     this.jumpOffset_ = 0;
     this.jumpVelocity_ = 0;
     this.jumpHeld_ = false;
@@ -186,6 +216,8 @@ export default class CesiumWalk {
       this.viewer.clock.onTick.removeEventListener(this.handleTickFunction_);
       this.jumpOffset_ = 0;
       this.jumpVelocity_ = 0;
+      this.ground_ = undefined;
+      Cartesian3.clone(Cartesian3.ZERO, this.velocity_);
       this.bob_ = 0;
       this.landing_ = 0;
       Object.assign(controller, this.controllerSettings_);
@@ -217,34 +249,51 @@ export default class CesiumWalk {
     const moving = forward !== 0 || right !== 0;
     // forward, no more sideways than diagonally, as in GTA 5
     this.sprinting_ = sprint && forward > 0 && forward >= Math.abs(right);
-    if (!moving && !airborne && this.bob_ === 0 && this.landing_ === 0) {
+    const stopped = Cartesian3.equals(this.velocity_, Cartesian3.ZERO);
+    if (!moving && stopped && !airborne && this.bob_ === 0 && this.landing_ === 0) {
       // standing: only the terrain refining under the walker moves it
       this.clampCameraToTerrain_();
       return;
     }
 
     const camera = this.viewer.camera;
-    const distance = (this.sprinting_ ? this.sprintSpeed : this.speed) * deltaTime;
-    if (forward !== 0) {
-      // walk along the view direction projected onto the ground plane,
-      // so that looking down does not push the camera into the terrain
-      const normal = this.surfaceNormal_();
-      const along = Cartesian3.multiplyByScalar(
-        normal,
-        Cartesian3.dot(camera.direction, normal),
-        forwardScratch
-      );
-      Cartesian3.subtract(camera.direction, along, along);
-      if (Cartesian3.magnitude(along) > CesiumMath.EPSILON6) {
-        Cartesian3.normalize(along, along);
-        this.step_(along, forward * distance, "forward");
-      }
+    const speed = this.sprinting_ ? this.sprintSpeed : this.speed;
+    // walk along the view direction projected onto the ground plane,
+    // so that looking down does not push the camera into the terrain
+    const normal = this.surfaceNormal_();
+    const along = Cartesian3.multiplyByScalar(
+      normal,
+      Cartesian3.dot(camera.direction, normal),
+      forwardScratch
+    );
+    Cartesian3.subtract(camera.direction, along, along);
+    const level = Cartesian3.magnitude(along) > CesiumMath.EPSILON6;
+    if (level) {
+      Cartesian3.normalize(along, along);
     }
-    if (right !== 0) {
-      this.step_(camera.right, right * distance, "right");
+    // the velocity, toward the intended one as fast as the acceleration allows
+    const target = Cartesian3.multiplyByScalar(camera.right, right * speed, targetScratch);
+    if (level) {
+      Cartesian3.add(target, Cartesian3.multiplyByScalar(along, forward * speed, changeScratch), target);
+    }
+    const change = Cartesian3.subtract(target, this.velocity_, changeScratch);
+    const needed = Cartesian3.magnitude(change);
+    const allowed = this.acceleration * deltaTime;
+    if (needed <= allowed) {
+      Cartesian3.clone(target, this.velocity_);
+    } else {
+      Cartesian3.add(this.velocity_, Cartesian3.multiplyByScalar(change, allowed / needed, change), this.velocity_);
+    }
+    const forwardSpeed = level ? Cartesian3.dot(this.velocity_, along) : 0;
+    const rightSpeed = Cartesian3.dot(this.velocity_, camera.right);
+    if (forwardSpeed !== 0) {
+      this.step_(along, forwardSpeed * deltaTime, "forward");
+    }
+    if (rightSpeed !== 0) {
+      this.step_(camera.right, rightSpeed * deltaTime, "right");
     }
     if (airborne) {
-      [this.jumpOffset_, this.jumpVelocity_] = jumpStep(this.jumpOffset_, this.jumpVelocity_, deltaTime);
+      [this.jumpOffset_, this.jumpVelocity_] = jumpStep(this.jumpOffset_, this.jumpVelocity_, deltaTime, this.gravity);
       if (this.headBob && this.jumpOffset_ === 0) {
         this.landing_ = 1;
       }
@@ -261,7 +310,7 @@ export default class CesiumWalk {
     if (this.landing_ < 1e-3) {
       this.landing_ = 0;
     }
-    this.stepPhase_ += (Math.hypot(forward, right) * distance / STEP_LENGTH) * Math.PI;
+    this.stepPhase_ += (Cartesian3.magnitude(this.velocity_) * deltaTime / STEP_LENGTH) * Math.PI;
     this.clampCameraToTerrain_();
   }
 
@@ -288,6 +337,24 @@ export default class CesiumWalk {
       // ground not loaded yet at this position
       return;
     }
+    if (this.ground_ !== undefined) {
+      // in the air, or off a drop deeper than a step, the walker keeps its height and falls the rest
+      const drop = this.ground_ - terrainHeight;
+      if (this.jumpOffset_ > 0 || this.jumpVelocity_ !== 0 || drop > this.stepHeight) {
+        this.jumpOffset_ += drop;
+        if (this.jumpOffset_ <= 0) {
+          // on the ground again: landed, or lifted by the ground while still going up
+          this.jumpOffset_ = 0;
+          if (this.jumpVelocity_ <= 0) {
+            this.jumpVelocity_ = 0;
+            if (this.headBob) {
+              this.landing_ = 1;
+            }
+          }
+        }
+      }
+    }
+    this.ground_ = terrainHeight;
     const cameraHeight = camera.positionCartographic.height;
 
     // move along the surface normal, not the camera up vector, which is
