@@ -139,7 +139,14 @@ export default class FirstPersonCameraMode {
   set active(active) {
     if (active) {
       if (!this.active) {
-        this.scene_.canvas.requestPointerLock();
+        // the mouse's raw counts, without the system's acceleration, where the browser has them
+        const canvas = this.scene_.canvas;
+        // a plain lock only where the option is not supported: without a user activation it would fail too
+        canvas.requestPointerLock({unadjustedMovement: true})?.catch(error => {
+          if (error.name === 'NotSupportedError') {
+            canvas.requestPointerLock()?.catch(() => {});
+          }
+        });
       }
     } else if (this.active) {
       document.exitPointerLock();
