@@ -15,8 +15,8 @@
     "access": "public"
   },
   "dependencies": {
-    "@geoblocks/cesium-input": "^0.0.0",
-    "@geoblocks/cesium-obstacles": "^0.0.0"
+    "@geoblocks/cesium-input": "^0.1.0",
+    "@geoblocks/cesium-obstacles": "^0.1.0"
   },
   "peerDependencies": {
     "@cesium/core": ">=0.1.0",
