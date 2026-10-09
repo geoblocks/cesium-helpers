@@ -11,8 +11,15 @@
   "main": "cesium-walk.js",
   "module": "cesium-walk.js",
   "sideEffects": false,
+  "exports": {
+    ".": "./cesium-walk.js",
+    "./walk-mesh.js": "./walk-mesh.js",
+    "./mesh-builder.js": "./mesh-builder.js"
+  },
   "files": [
-    "cesium-walk.js"
+    "cesium-walk.js",
+    "walk-mesh.js",
+    "mesh-builder.js"
   ],
   "publishConfig": {
     "access": "public"
