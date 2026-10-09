@@ -1,19 +1,25 @@
-import {Cartesian4} from '@cesium/core';
+import {Cartesian3, Cartesian4} from '@cesium/core';
 import {PostProcessStage, PostProcessStageComposite} from '@cesium/engine';
-import {hasCloudCover} from './cloud-cover.js';
+// @ts-expect-error the engine exports its textures, framebuffers and render states, but does not type them
+import {Framebuffer, RenderState, Texture} from '@cesium/engine';
+import {cloudShadow, hasCloudCover} from './cloud-cover.js';
 import {acquireTerrainDepth, releaseTerrainDepth} from './depth-test.js';
 import Effect from './effect.js';
 import {acquireFrames, releaseFrames} from './frame-clock.js';
 import {heightUniforms} from './height.js';
+import CloudsShadow from './shaders/CloudsShadow.js';
 import EyeFromDepth from './shaders/EyeFromDepth.js';
+import Fog from './shaders/Fog.js';
 import Hash from './shaders/Hash.js';
 import Height from './shaders/Height.js';
 import Noise from './shaders/Noise.js';
+import Phase from './shaders/Phase.js';
 import PrecipitationShader from './shaders/Precipitation.js';
 import PrecipitationShaftBlur from './shaders/PrecipitationShaftBlur.js';
 import PrecipitationShafts from './shaders/PrecipitationShafts.js';
 import PrecipitationWind from './shaders/PrecipitationWind.js';
 import RainHaze from './shaders/RainHaze.js';
+import SkyTable from './shaders/SkyTable.js';
 import WeatherMapShader from './shaders/WeatherMap.js';
 import WeatherMap from './weather-map.js';
 
@@ -53,6 +59,8 @@ const MAX_STEP = 0.1;
 // the shafts are kilometers wide and soft: an eighth of the resolution, a 64th of the pixels, is
 // enough for their raymarch and their blur (Precipitation.glsl's SHAFT_SCALE)
 const SHAFT_SCALE = 0.125;
+// the sky table's texels toward the horizon, besides the one overhead, RainHaze.glsl's SKY_TABLE
+const SKY_TABLE = 64;
 // the sunlight under the clouds, as a share of its intensity
 const OVERCAST = 0.5;
 // the camera goes from under the clouds to above them over this height around the cloud base, in
@@ -168,7 +176,47 @@ export default class Precipitation extends Effect {
       // above the clouds, the sun shines
       const below = 1 - smoothstep(this.cloudBase_ - CLOUD_BASE_FADE, this.cloudBase_ + CLOUD_BASE_FADE, height);
       shadeOvercast(this.viewer.scene, this.localIntensity_ * below);
+      this.drawSkyTable_(this.viewer.scene);
     };
+    // the clear sky the haze scatters, drawn at each frame (SkyTable.glsl)
+    /** @type {any} */
+    this.skyTable_ = undefined;
+    /** @type {any} */
+    this.skyTableFramebuffer_ = undefined;
+    /** @type {any} */
+    this.skyTableCommand_ = undefined;
+  }
+
+  /**
+   * Draws the sky table into its own texture before the stages run.
+   * @param {import('@cesium/engine').Scene} scene
+   */
+  drawSkyTable_(scene) {
+    // @ts-expect-error the scene's context is not typed
+    const context = scene.context;
+    if (!context) {
+      return;
+    }
+    if (!this.skyTable_) {
+      this.skyTable_ = new Texture({context, width: SKY_TABLE + 1, height: 1});
+      this.skyTableFramebuffer_ = new Framebuffer({context, colorTextures: [this.skyTable_], destroyAttachments: false});
+      this.skyTableCommand_ = context.createViewportQuadCommand(Height + Fog + Phase + RainHaze + SkyTable, {
+        framebuffer: this.skyTableFramebuffer_,
+        renderState: RenderState.fromCache({viewport: {x: 0, y: 0, width: SKY_TABLE + 1, height: 1}}),
+        uniformMap: {
+          skyLightIntensity: () => scene.skyAtmosphere?.atmosphereLightIntensity ?? 50,
+          cloudBase: () => this.cloudBase_,
+        },
+      });
+    }
+    this.skyTableCommand_.execute(context);
+  }
+
+  destroySkyTable_() {
+    this.skyTableCommand_?.shaderProgram?.destroy();
+    this.skyTableCommand_ = undefined;
+    this.skyTableFramebuffer_ = this.skyTableFramebuffer_?.destroy();
+    this.skyTable_ = this.skyTable_?.destroy();
   }
 
   /**
@@ -236,11 +284,22 @@ export default class Precipitation extends Effect {
       snow: () => this.snow_,
     };
     const shafts = new PostProcessStage({
-      fragmentShader: EyeFromDepth + Noise + Height + PrecipitationWind + WeatherMapShader + PrecipitationShafts,
+      fragmentShader: EyeFromDepth + Noise + Height + PrecipitationWind + WeatherMapShader + Fog + Phase + RainHaze + CloudsShadow + PrecipitationShafts,
       uniforms: {
         ...shared,
+        // the shadow map of the clouds in the scene, whose gaps light the haze
+        shadowed: () => (cloudShadow(scene) ? 1 : 0),
+        // @ts-expect-error the scene's context is not typed
+        shadowMap: () => cloudShadow(scene)?.texture() ?? scene.context.defaultTexture,
+        shadowCenter: () => cloudShadow(scene)?.center ?? Cartesian3.ZERO,
+        shadowExtent: () => cloudShadow(scene)?.extent() ?? 1,
+        shadowBase: () => cloudShadow(scene)?.base() ?? 0,
+        shadowTop: () => cloudShadow(scene)?.top() ?? 0,
         // @ts-expect-error the scene's context is not typed
         map: () => this.weatherMap_.texture(scene.context),
+        // @ts-expect-error the scene's context is not typed
+        nextMap: () => this.weatherMap_.nextTexture(scene.context),
+        mapBlend: () => this.weatherMap_.blend,
         mapBounds: () => this.weatherMap_.bounds,
       },
       textureScale: SHAFT_SCALE,
@@ -256,12 +315,15 @@ export default class Precipitation extends Effect {
         shafts,
         blurredShafts,
         new PostProcessStage({
-          fragmentShader: EyeFromDepth + Hash + Height + PrecipitationWind + RainHaze + PrecipitationShader,
+          fragmentShader: EyeFromDepth + Hash + Height + PrecipitationWind + Fog + Phase + RainHaze + PrecipitationShader,
           uniforms: {
             ...shared,
             shaftTexture: blurredShafts.name,
             localIntensity: () => this.localIntensity_,
             clouds: () => (hasCloudCover(scene) ? 1 : 0),
+            shadowed: () => (cloudShadow(scene) ? 1 : 0),
+            // @ts-expect-error the scene's context is not typed
+            skyTable: () => this.skyTable_ ?? scene.context.defaultTexture,
             trail: () => this.trail_(),
             layerShape: () => this.layerShape_,
             layerLook: () => this.layerLook_,
@@ -303,6 +365,7 @@ export default class Precipitation extends Effect {
     releaseOvercast(scene);
     releaseTerrainDepth(scene);
     scene.preRender.removeEventListener(this.onPreRender_);
+    this.destroySkyTable_();
     this.weatherMap_.destroy();
   }
 
@@ -330,9 +393,35 @@ export default class Precipitation extends Effect {
   }
 
   /**
+   * The map the precipitation crossfades to by the map blend, over the same
+   * rectangle, as the radar's next hour, or undefined for none.
+   */
+  get nextMap() {
+    return this.weatherMap_.nextMap;
+  }
+
+  set nextMap(value) {
+    this.weatherMap_.nextMap = value;
+    this.viewer.scene.requestRender();
+  }
+
+  /**
+   * From the map, 0, to the next map, 1.
+   */
+  get mapBlend() {
+    return this.weatherMap_.blend;
+  }
+
+  set mapBlend(value) {
+    this.weatherMap_.blend = value;
+    this.viewer.scene.requestRender();
+  }
+
+  /**
    * How hard it rains or snows, 0 to 1: the share of the drops or flakes
-   * shown, their opacity, and the haze, from 40 km of visibility to 4 km in the
-   * rain, from 20 km to 500 m in the snow.
+   * shown, their opacity, and the haze, from 39 km of visibility to 4.4 km in
+   * the rain, taken as 0 to 10 mm/h under a square root, from 20 km to 500 m in
+   * the snow.
    */
   get intensity() {
     return this.intensity_;

@@ -25,6 +25,8 @@ const fakeViewer = (height = 1000) => {
         addEventListener: (/** @type {Function} */ listener) => listeners.push(listener),
         removeEventListener: (/** @type {Function} */ listener) => listeners.splice(listeners.indexOf(listener), 1),
       },
+      // for Clouds in the same scene
+      postRender: {addEventListener: () => {}, removeEventListener: () => {}},
       camera: {positionCartographic: Cartographic.fromDegrees(6, 47, height)},
       light: {intensity: 2},
       shadowMap: {enabled: true},
@@ -160,6 +162,40 @@ test('the drops pass knows while Clouds draws the clouds in the scene, to leave 
     clouds.active = false;
     assert.equal(drops.uniforms.clouds(), 0);
     other.active = false;
+    precipitation.active = false;
+  });
+});
+
+test('the precipitation crossfades to the next map, at the camera and in the shafts', () => {
+  withTimers(() => {
+    const viewer = fakeViewer();
+    const precipitation = new Precipitation(/** @type {any} */ (viewer), {map});
+    precipitation.active = true;
+    precipitation.nextMap = {image: {width: 1, height: 1, data: new Uint8ClampedArray([0, 0, 0, 255])}, rectangle: map.rectangle};
+    precipitation.mapBlend = 0.5;
+    viewer.listeners[0]();
+    assert.ok(Math.abs(precipitation.localIntensity - 64 / 255) < 1e-9);
+    assert.equal(/** @type {any} */ (precipitation.stage_).get(0).uniforms.mapBlend(), 0.5);
+    precipitation.active = false;
+  });
+});
+
+test('the shafts read the shadow map of the clouds in the same scene, and none without them', () => {
+  withTimers(() => {
+    const viewer = fakeViewer();
+    const precipitation = new Precipitation(/** @type {any} */ (viewer));
+    precipitation.active = true;
+    const [shafts, drops] = [/** @type {any} */ (precipitation.stage_).get(0), /** @type {any} */ (precipitation.stage_).get(2)];
+    assert.equal(shafts.uniforms.shadowed(), 0);
+    assert.equal(drops.uniforms.shadowed(), 0);
+    const clouds = new Clouds(/** @type {any} */ (viewer));
+    clouds.active = true;
+    assert.equal(shafts.uniforms.shadowed(), 1);
+    assert.equal(drops.uniforms.shadowed(), 1);
+    assert.equal(shafts.uniforms.shadowCenter(), clouds.shadowCenter_);
+    assert.equal(shafts.uniforms.shadowTop(), clouds.slabTop_());
+    clouds.active = false;
+    assert.equal(shafts.uniforms.shadowed(), 0);
     precipitation.active = false;
   });
 });

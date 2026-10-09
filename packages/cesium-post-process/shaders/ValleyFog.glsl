@@ -1,5 +1,6 @@
 // Fog filling the valleys below an altitude: the fog along the ray from the camera to the pixel
-// is the part of the ray below the top, the density thinning over a soft band under the top.
+// is the part of the ray below the top, the density thinning over a soft band under the top. Needs
+// EyeFromDepth, Height and Fog.
 uniform sampler2D colorTexture;
 uniform sampler2D depthTexture;
 // meters above the ellipsoid
@@ -10,11 +11,6 @@ uniform float density;
 uniform float softness;
 uniform vec4 color;
 in vec2 v_textureCoordinates;
-
-// the sky is a ray this long, in meters
-const float SKY_DISTANCE = 50000.0;
-// tint of the fog at night, scaled by fog.minimumBrightness
-const vec3 NIGHT = vec3(0.45, 0.55, 0.85);
 
 // the integral of clamp(x, 0, 1)
 float ramp(float x) {
@@ -38,7 +34,6 @@ void main() {
   float amount = 1.0 - exp(-density * length(end) * fogFraction(cameraHeight, heightAt(end)));
   // lit by the sun, as Cesium's fog: the fog color during the day, turning around sunset to a
   // moonlit blue as bright as the scene's fog.minimumBrightness, rather than a flat gray
-  float day = smoothstep(-0.1, 0.3, dot(up, czm_sunDirectionEC));
-  vec3 fogColor = mix(NIGHT * czm_fogMinimumBrightness, color.rgb, day);
+  vec3 fogColor = byDaylight(color.rgb, daylight());
   out_FragColor = vec4(mix(sceneColor.rgb, fogColor, amount * color.a), sceneColor.a);
 }
