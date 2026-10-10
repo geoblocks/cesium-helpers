@@ -1,6 +1,7 @@
 // A Super 8 home movie: faded warm colors, halation around the highlights, heavy grain, the frame
 // drifting in the gate, flicker, light leaks, a strong vignette and the rounded corners of the
 // camera gate.
+precision highp sampler2D;
 uniform sampler2D colorTexture;
 // the scene blurred, for the halation
 uniform sampler2D blurTexture;

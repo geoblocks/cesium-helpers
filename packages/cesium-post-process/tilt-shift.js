@@ -83,7 +83,8 @@ export default class TiltShift extends Effect {
   }
 
   /**
-   * Width of the sharp band, in factors of two of the focal distance.
+   * Width of the sharp band, in factors of two of the focal distance; with an orthographic camera,
+   * in shares of the view's height.
    */
   get range() {
     return this.range_;

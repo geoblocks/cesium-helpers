@@ -1,5 +1,6 @@
 // Speed lines: the picture zooms toward the focus, more toward the edges of the screen, and thin
 // streaks radiate from it, a new pattern many times a second, as in comics.
+precision highp sampler2D;
 uniform sampler2D colorTexture;
 // in eye coordinates; w is 0 for the middle of the screen
 uniform vec4 focus;

@@ -7,9 +7,10 @@ A collection of helpers and web component for working with [CesiumJS](https://ce
 * [cesium-view-cube](packages/cesium-view-cube): a view cube widget
 * [cesium-first-person-mode](packages/FirstPersonCameraMode): a first person navigation mode that uses the Pointer Lock API
 * [cesium-flyto](packages/cesium-flyto): a camera mode that flies toward the double-clicked position, with motion blur and depth of field
+* [cesium-iso](packages/cesium-iso): an isometric view, as in a game: an orthographic camera at a fixed pitch, turned a quarter at a time
 * [cesium-sphere-camera](packages/cesium-sphere-camera): a camera mode that allows the user to rotate the camera around a position
 * [cesium-binoculars](packages/cesium-binoculars): a camera mode that allows the user to use binoculars with the mouse wheel
-* [cesium-post-process](packages/cesium-post-process): screen-space effects (Technicolor and Super 8 film looks, infrared, color isolation, tilt-shift, motion blur, speed lines, a spotlight, valley fog, a snow line, rain turning to snow, and a drone camera: wide lens, jello, display, analog and digital video)
+* [cesium-post-process](packages/cesium-post-process): screen-space effects (Technicolor and Super 8 film looks, infrared, color isolation, tilt-shift, a toy's look, motion blur, speed lines, a spotlight, valley fog, a snow line, rain turning to snow, and a drone camera: wide lens, jello, display, analog and digital video)
 * [cesium-path-flyover](packages/cesium-path-flyover): a camera animation that follows a GPX or GeoJSON track
 * [cesium-walk](packages/cesium-walk): a camera mode that allows the user to walk around the scene with the keyboard
 * [cesium-obstacles](packages/cesium-obstacles): collision with the obstacles in view, for camera modes

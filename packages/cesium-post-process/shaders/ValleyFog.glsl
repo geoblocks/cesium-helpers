@@ -1,6 +1,7 @@
 // Fog filling the valleys below an altitude: the fog along the ray from the camera to the pixel
 // is the part of the ray below the top, the density thinning over a soft band under the top. Needs
 // EyeFromDepth, Height and Fog.
+precision highp sampler2D;
 uniform sampler2D colorTexture;
 uniform sampler2D depthTexture;
 // meters above the ellipsoid

@@ -2,6 +2,7 @@
 // printed with its complementary dye, the three dyes over each other. Each color gains its purity,
 // what it has over the other two, and loses some of theirs: grays stay, primaries deepen. After
 // prod80's ReShade Technicolor (MIT), https://github.com/prod80/prod80-ReShade-Repository
+precision highp sampler2D;
 uniform sampler2D colorTexture;
 // 0 to 1
 uniform float strength;

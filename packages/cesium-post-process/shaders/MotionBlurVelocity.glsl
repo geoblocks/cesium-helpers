@@ -1,6 +1,7 @@
 // The velocity buffer of the motion blur, at a fraction of the resolution: each pixel's half
 // blur, as a fraction of the viewport, and its distance from the camera. Computed once per
 // pixel here rather than once per sample in the gather. Needs EyeFromDepth.
+precision highp sampler2D;
 uniform sampler2D depthTexture;
 // current eye coordinates to the previous frame's clip coordinates, computed in double
 // precision on the CPU

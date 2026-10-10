@@ -6,6 +6,7 @@
 // warm toward the sun and blue away from it, turning under thick clouds to the gray of an
 // overcast sky, brighter overhead, and the sun's forward glow through thin clouds. A moonlit blue
 // at night, as ValleyFog's. Needs Height, Fog and Phase.
+precision highp sampler2D;
 
 // the light intensity of the sky's atmosphere, which is not the scene's atmosphere's: 50 rather than
 // 10 by default

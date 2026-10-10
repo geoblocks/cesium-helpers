@@ -18,7 +18,7 @@ Each effect is inactive after construction. Every option is also a property, app
 
 ```javascript
 import {Color, Rectangle} from '@cesium/engine';
-import {AnalogVideo, Clouds, ColorIsolation, DigitalVideo, DroneDisplay, Infrared, Jello, LensDistortion, Lightning, MotionBlur, Precipitation, SnowLine, SpeedLines, Spotlight, Super8, Technicolor, TiltShift, ValleyFog} from '@geoblocks/cesium-post-process';
+import {AnalogVideo, Clouds, ColorIsolation, DigitalVideo, DroneDisplay, Infrared, Jello, LensDistortion, Lightning, MotionBlur, Precipitation, SnowLine, SpeedLines, Spotlight, Super8, Technicolor, TiltShift, Toy, ValleyFog} from '@geoblocks/cesium-post-process';
 
 const snowLine = new SnowLine(viewer, {
   altitude: 2000,  // meters above the ellipsoid where the snow is half covering
@@ -87,9 +87,18 @@ lightning.active = true;
 // the foot of each new strike on the ground, to play its thunder for example
 lightning.strikeEvent.addEventListener((ground) => console.log(ground));
 
+const toy = new Toy(viewer, {
+  light: 0.22,            // how much brighter a convex edge gets, the depth bending outward
+  shade: 0.18,            // how much darker a concave one
+  saturation: 1.04,       // the colors' saturation, 1 to keep it
+  warm: [1.03, 1, 0.95],  // a factor each of red, green and blue
+  sky: [Color.fromCssColorString('#fbf1e4'), Color.fromCssColorString('#e9d3bc')], // a gradient for the sky, top to bottom; omit to keep it
+});
+toy.active = true;
+
 const tiltShift = new TiltShift(viewer, {
   focus,
-  range: 0.3,      // width of the sharp band, in factors of two of the focal distance
+  range: 0.3,      // width of the sharp band, in factors of two of the focal distance (an orthographic camera: shares of the view's height)
   blur: 4,         // blur away from the focus, the sigma of Cesium's blur stage
   saturation: 0.3, // color and contrast boost of miniature photographs, 0 to 1
 });
@@ -178,7 +187,7 @@ super8.destroy();
 
 ### Order of the effects
 
-Cesium runs the stages in the order they are added and cannot insert one elsewhere. Activate the effects in this order: `SnowLine`, `ValleyFog`, `Spotlight`, `Clouds`, `Precipitation`, `Lightning`, `TiltShift`, `MotionBlur`, `SpeedLines`, `ColorIsolation`, `Infrared`, `Technicolor`, `Super8`, `LensDistortion`, `Jello`, `DroneDisplay`, `AnalogVideo` or `DigitalVideo`. The snow is then under the fog, the clouds behind the rain and the lightning in front of them, the rain or the falling snow in the scene, the lens effects apply to the whole scene, and the film looks apply to everything, their black bars included. The drone camera comes last, in the order of a real one: its lens bends the picture, its sensor reads it with the jello of its shake, its display is drawn over the picture and stays straight, and the video signal, analog or digital, disturbs both. To activate an effect later, deactivate and activate again the active effects that come after it.
+Cesium runs the stages in the order they are added and cannot insert one elsewhere. Activate the effects in this order: `SnowLine`, `ValleyFog`, `Spotlight`, `Clouds`, `Precipitation`, `Lightning`, `Toy`, `TiltShift`, `MotionBlur`, `SpeedLines`, `ColorIsolation`, `Infrared`, `Technicolor`, `Super8`, `LensDistortion`, `Jello`, `DroneDisplay`, `AnalogVideo` or `DigitalVideo`. The snow is then under the fog, the clouds behind the rain and the lightning in front of them, the rain or the falling snow in the scene, the lens effects apply to the whole scene, and the film looks apply to everything, their black bars included. The drone camera comes last, in the order of a real one: its lens bends the picture, its sensor reads it with the jello of its shake, its display is drawn over the picture and stays straight, and the video signal, analog or digital, disturbs both. To activate an effect later, deactivate and activate again the active effects that come after it.
 
 ### Notes
 
@@ -204,6 +213,6 @@ Its `snow`, from 0 to 1, turns the rain to snow in one population, so that nothi
 
 `SnowLine` and `ValleyFog` compute each pixel's height relative to the camera, in double precision on the CPU for the camera, so they stay accurate far from the origin. The snow's slope comes from the normal rebuilt from the neighboring pixels. The fog is lit by the sun like Cesium's own fog: its color during the day, a moonlit blue at night, as bright as `scene.fog.minimumBrightness`. Both work in 3D only.
 
-`SnowLine`, `ValleyFog`, `Precipitation`, `Clouds`, `Lightning`, `TiltShift`, `Spotlight` and `MotionBlur` read the depth buffer. The post-process stages only get the terrain's depth when it is depth tested, so `globe.depthTestAgainstTerrain` is on while any of them is active and restored when the last one is deactivated: billboards and labels that show through the terrain can be hidden by it meanwhile.
+`SnowLine`, `ValleyFog`, `Precipitation`, `Clouds`, `Lightning`, `Toy`, `TiltShift`, `Spotlight` and `MotionBlur` read the depth buffer. The post-process stages only get the terrain's depth when it is depth tested, so `globe.depthTestAgainstTerrain` is on while any of them is active and restored when the last one is deactivated: billboards and labels that show through the terrain can be hidden by it meanwhile.
 
 Each effect is a full-screen pass, about 1 to 5 ms per frame at full HD on an integrated GPU, on top of a scene that may already be near its budget: Chrome then stalls for hundreds of milliseconds at a time rather than slowing down evenly. If activating an effect brings that on, the cheapest lever is `scene.msaaSamples = 1` while it is active, restored when it is deactivated, as `@geoblocks/cesium-flyto` does for its flights: 4x multisampling costs more than the effect itself, and a moving picture hides the aliasing.

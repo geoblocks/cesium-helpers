@@ -3,6 +3,7 @@
 // quarter of its height, so that a point finds how much cloud lies between it and the sun. One
 // read rather than a march toward the sun, as Unreal's (it loses only the "volumetric self shadow
 // color") and three-clouds' in WebGL2.
+precision highp sampler2D;
 uniform sampler2D shadowMap;
 // the ground point the map is centered on, in world coordinates, and the base and the top of the
 // slab it covers, in meters above the ellipsoid, from clouds.js

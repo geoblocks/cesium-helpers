@@ -8,6 +8,7 @@
 // below it. Without a signal, the receiver shows its own noise: a dark field of colored
 // streaks, the picture and its display gone. After ntsc-rs's chroma lowpass and delay, luma
 // smear and ringing, and the recordings of FPV drones flying low and crashing.
+precision highp sampler2D;
 uniform sampler2D colorTexture;
 // seconds
 uniform float time;

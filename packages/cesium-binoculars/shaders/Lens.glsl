@@ -5,6 +5,7 @@
 // a depth of field focused on the middle of the view that gets shallower as the magnification
 // grows. Optionally, a rangefinder reticle, a mil scale that grows with the magnification. Picking
 // ignores the fisheye, so near the rim the picked point is a little off what is shown.
+precision highp sampler2D;
 uniform sampler2D colorTexture;
 uniform sampler2D blurTexture;
 uniform sampler2D depthTexture;

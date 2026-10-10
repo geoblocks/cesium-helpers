@@ -35,6 +35,7 @@
     "super8.js",
     "technicolor.js",
     "tilt-shift.js",
+    "toy.js",
     "valley-fog.js",
     "shaders/*.js"
   ],

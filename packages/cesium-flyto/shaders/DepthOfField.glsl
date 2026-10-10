@@ -1,6 +1,7 @@
 // Depth of field: sharp around the focal distance, the blurred image further off. Distances
 // compare as ratios, like a lens: sharp within FOCUS_RANGE factors of two of the focal distance,
 // fully blurred at twice that.
+precision highp sampler2D;
 uniform sampler2D colorTexture;
 uniform sampler2D blurTexture;
 uniform sampler2D depthTexture;

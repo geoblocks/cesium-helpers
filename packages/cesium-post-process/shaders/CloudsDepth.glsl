@@ -3,6 +3,7 @@
 // so a cloud over the sky does not stop at a ridge in its block. "There is absolutely no physical or
 // theoretical basis for this. It just looks better than halos" (Cantlay, GPU Gems 3, ch. 23).
 // Needs EyeFromDepth.
+precision highp sampler2D;
 uniform sampler2D depthTexture;
 in vec2 v_textureCoordinates;
 

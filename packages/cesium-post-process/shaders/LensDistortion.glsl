@@ -1,6 +1,7 @@
 // The barrel distortion and dark corners of a wide-angle lens, like those of FPV cameras: straight
 // lines bend outward away from the middle. The corners stay in place and the middle is
 // magnified, so the picture keeps filling the screen.
+precision highp sampler2D;
 uniform sampler2D colorTexture;
 // 0 to 1
 uniform float distortion;

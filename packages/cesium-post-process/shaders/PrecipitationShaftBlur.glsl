@@ -3,6 +3,7 @@
 // their own resolution: they fade out around the ridges in front of them rather than stopping at
 // their outline. A 3 x 3 binomial kernel here costs a 64th of the reads the same blur would take
 // at the full resolution.
+precision highp sampler2D;
 uniform sampler2D shaftTexture;
 in vec2 v_textureCoordinates;
 

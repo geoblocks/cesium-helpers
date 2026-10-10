@@ -1,5 +1,6 @@
 // Color isolation: one hue keeps its color, the rest of the scene turns gray. After prod80's
 // ReShade Color Isolation (MIT), https://github.com/prod80/prod80-ReShade-Repository
+precision highp sampler2D;
 uniform sampler2D colorTexture;
 // the hue kept and the half width of the selection, 0 to 1 for the whole circle
 uniform float hue;

@@ -5,6 +5,7 @@
 // depth you need at all" (Pesce 2016): a ridge in front of a cloud keeps a sharp outline rather
 // than a halo of the march's resolution. The clouds' shadows darken the scene under them, from the
 // shadow map. Needs EyeFromDepth, Height, CloudsSlab and CloudsShadow.
+precision highp sampler2D;
 uniform sampler2D colorTexture;
 uniform sampler2D depthTexture;
 // the light the clouds scatter toward the camera, and the share of the scene seen through them

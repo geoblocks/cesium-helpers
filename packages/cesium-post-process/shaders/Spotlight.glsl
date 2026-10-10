@@ -3,6 +3,7 @@
 // in its beam, from SpotlightBeam.glsl; the rest of the scene darkens and loses its color. The
 // cone and the falloff follow three.js's SpotLight. Needs EyeFromDepth, Normal, Filmic and
 // SpotlightCone.
+precision highp sampler2D;
 uniform sampler2D colorTexture;
 // the beam's haze and the log2 of the scene distance, at a fraction of the resolution
 uniform sampler2D beamTexture;

@@ -1,6 +1,7 @@
 // The beam's haze, blurred over the neighboring texels at its own resolution, each weighted by how
 // close its scene distance is to the texel's: the dither of the samples along the rays smooths
 // out, but the haze in front of a ridge does not spill onto the ridge.
+precision highp sampler2D;
 uniform sampler2D beamTexture;
 in vec2 v_textureCoordinates;
 

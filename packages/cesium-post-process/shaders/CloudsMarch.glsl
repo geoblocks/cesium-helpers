@@ -10,6 +10,7 @@
 // a camera inside a cloud is in its fog. Precipitation, activated after them, draws the rain's haze
 // over them. Needs EyeFromDepth, Height, CloudsSlab, WeatherMap, CloudsDensity, Fog, Phase and
 // RainHaze.
+precision highp sampler2D;
 uniform sampler2D depthTexture;
 // the farthest distance of the scene in this texel's block of pixels, from CloudsDepth.glsl
 uniform sampler2D cloudDepth;

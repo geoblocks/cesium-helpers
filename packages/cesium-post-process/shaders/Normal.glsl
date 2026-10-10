@@ -1,5 +1,6 @@
 // normal at the pixel from its neighbors at this distance in pixels: on each axis the nearer
 // side, so that the edges of the scene do not bend it
+precision highp sampler2D;
 vec3 normalAt(sampler2D depthTexture, vec2 uv, vec3 center, float distance) {
   vec2 step = distance / czm_viewport.zw;
   vec3 right = eyeAt(depthTexture, uv + vec2(step.x, 0.0)).xyz - center;

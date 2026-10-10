@@ -3,6 +3,7 @@
 // kept at each quarter of the slab's height, unless the ray crosses no clouds. Needs CloudsSlab,
 // WeatherMap, Noise, CloudsDensity and CloudsShadow.
 // the highest coverage around each block of the clouds' map, from weather-map.js
+precision highp sampler2D;
 uniform sampler2D maxMap;
 in vec2 v_textureCoordinates;
 

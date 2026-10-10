@@ -57,7 +57,8 @@ const SHADOW_RESIZE = 0.25;
 const SHADOW_INTERVAL = 250;
 // the history is a copy of the resolve's output, drawn rather than copied: Cesium does not copy
 // from a framebuffer into a texture of half floats
-const COPY = `uniform sampler2D source;
+const COPY = `precision highp sampler2D;
+uniform sampler2D source;
 in vec2 v_textureCoordinates;
 void main() {
   out_FragColor = texture(source, v_textureCoordinates);

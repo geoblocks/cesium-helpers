@@ -3,6 +3,7 @@
 // reprojection into the previous frame, computed once per pixel into the velocity buffer of
 // MotionBlurVelocity.glsl. The blur gathers jittered samples along the pixel's motion, weighted
 // by depth so that near terrain and far ridges or sky do not smear into each other.
+precision highp sampler2D;
 uniform sampler2D colorTexture;
 // xy: half the blur, as a fraction of the viewport; z: the distance from the camera
 uniform sampler2D velocityTexture;

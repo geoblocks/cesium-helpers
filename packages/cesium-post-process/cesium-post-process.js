@@ -15,6 +15,7 @@ export {default as Spotlight} from './spotlight.js';
 export {default as Super8} from './super8.js';
 export {default as Technicolor} from './technicolor.js';
 export {default as TiltShift} from './tilt-shift.js';
+export {default as Toy} from './toy.js';
 export {default as ValleyFog} from './valley-fog.js';
 
 // the shader chunk the depth-based effects share, for effects of your own
