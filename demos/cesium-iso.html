@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en" class="wa-theme-default wa-palette-default wa-light">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://cdn.jsdelivr.net/npm/cesium@1.146.0/Build/Cesium/Cesium.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/cesium@1.146.0/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  <style>
+    html, body, #cesiumContainer {
+      height: 100%;
+      margin: 0;
+    }
+    /* every touch the view's: no page scrolling or zoom */
+    #cesiumContainer {
+      touch-action: none;
+    }
+    #controls {
+      position: absolute;
+      inset-block-start: var(--wa-space-xl);
+      inset-inline-end: var(--wa-space-xl);
+      --spacing: var(--wa-space-s);
+      max-inline-size: 32ch;
+    }
+    #controls .row {
+      display: flex;
+      gap: var(--wa-space-2xs);
+      margin-block: var(--wa-space-s);
+    }
+  </style>
+</head>
+
+<body>
+  <div id="cesiumContainer"></div>
+  <wa-card id="controls">
+    <p class="wa-caption-m">Drag to turn, right drag or one finger to slide, wheel or pinch to zoom, two fingers to twist. Q and E turn a quarter, WASD or the arrows slide, a double click glides to the spot.</p>
+    <wa-switch id="activate" size="s" checked>Isometric view</wa-switch>
+    <div class="row">
+      <wa-button id="left" size="s" appearance="outlined">↺ Q</wa-button>
+      <wa-button id="right" size="s" appearance="outlined">E ↻</wa-button>
+      <wa-button id="out" size="s" appearance="outlined">−</wa-button>
+      <wa-button id="in" size="s" appearance="outlined">+</wa-button>
+    </div>
+    <wa-switch id="toy" size="s" checked>Toy look</wa-switch>
+    <wa-switch id="tilt-shift" size="s" checked>Tilt-shift</wa-switch>
+  </wa-card>
+  <script type="module">
+    import {createViewer} from './setup.js';
+    import CesiumIso from '../packages/cesium-iso/cesium-iso.js';
+    import {LensDistortion, TiltShift, Toy} from '../packages/cesium-post-process/cesium-post-process.js';
+    import '@awesome.me/webawesome/dist/styles/webawesome.css';
+    import '@awesome.me/webawesome/dist/components/button/button.js';
+    import '@awesome.me/webawesome/dist/components/card/card.js';
+    import '@awesome.me/webawesome/dist/components/switch/switch.js';
+
+    // swisstopo's buildings, to see the view on something standing
+    const BUILDINGS = 'https://3d.geo.admin.ch/ch.swisstopo.swissbuildings3d.3d/v1/tileset.json';
+
+    createViewer('cesiumContainer').then(async viewer => {
+      viewer.scene.primitives.add(await Cesium.Cesium3DTileset.fromUrl(BUILDINGS, {maximumScreenSpaceError: 8}));
+      // looking down at Bern's old town, the Federal Palace's dome in the view's middle
+      viewer.camera.setView({
+        destination: Cesium.Cartesian3.fromDegrees(7.4442, 46.9466, 2500),
+        orientation: {heading: 0, pitch: -Cesium.Math.PI_OVER_TWO},
+      });
+      // the buildings come at one level of detail only, all of them in the view loaded: a view a few hundred meters
+      // across, not a city's, light enough for a phone
+      const iso = new CesiumIso(viewer, {size: 300, maxSize: 600});
+      iso.active = true;
+      // a game's look: the edges lit and shaded, the colors warmer, the sky a warm gradient; then the tilt-shift, sharp
+      // in a band about the middle, a fifth of the screen's height to each side, blurred toward the edges; then darker
+      // corners
+      const toy = new Toy(viewer, {sky: [Cesium.Color.fromCssColorString('#fbf1e4'), Cesium.Color.fromCssColorString('#e9d3bc')]});
+      const tiltShift = new TiltShift(viewer, {focus: () => iso.target, range: 0.2, blur: 2.5, saturation: 0});
+      const vignette = new LensDistortion(viewer, {distortion: 0, vignette: 0.15});
+      // the effects in their order, again from the first, as Cesium adds a stage after the others
+      const effects = () => {
+        const on = document.querySelector('#toy').checked;
+        const shown = [[toy, on], [tiltShift, document.querySelector('#tilt-shift').checked], [vignette, on]];
+        shown.forEach(([effect]) => effect.active = false);
+        shown.forEach(([effect, active]) => effect.active = active);
+      };
+      effects();
+
+      document.querySelector('#activate').addEventListener('change', e => iso.active = e.target.checked);
+      document.querySelector('#toy').addEventListener('change', effects);
+      document.querySelector('#tilt-shift').addEventListener('change', effects);
+      document.querySelector('#left').addEventListener('click', () => iso.turn(-1));
+      document.querySelector('#right').addEventListener('click', () => iso.turn(1));
+      document.querySelector('#in').addEventListener('click', () => iso.zoom(1 / 1.25));
+      document.querySelector('#out').addEventListener('click', () => iso.zoom(1.25));
+    });
+  </script>
+</body>
+
+</html>
