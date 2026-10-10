@@ -15,6 +15,7 @@
 // - The air speed, bottom middle, after its pale blue label.
 // - The FAILSAFE warning, blinking red in the lower part of the middle while the control link is
 //   lost.
+precision highp sampler2D;
 uniform sampler2D colorTexture;
 // 0 to 1
 uniform float opacity;

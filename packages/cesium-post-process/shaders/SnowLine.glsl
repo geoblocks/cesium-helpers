@@ -2,6 +2,7 @@
 // brightness of the scene so that the relief stays readable. The slope comes from a normal
 // rebuilt from the neighboring pixels and smoothed over the facets of the terrain. Noise anchored
 // to the ground breaks up the edge of the snow, which lasts lower on the slopes away from the sun.
+precision highp sampler2D;
 uniform sampler2D colorTexture;
 uniform sampler2D depthTexture;
 // meters above the ellipsoid: half covered at the altitude, over a band transition meters high

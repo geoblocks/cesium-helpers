@@ -4,6 +4,10 @@
 // is linear between the near and far planes Cesium fits to the scene each frame, not the
 // projection's, and its rays are parallel; Cesium gives it no inverse projection (zero).
 
+// A sampler's default precision is low: some phones' GPUs (Mali) then read the depth as a half float,
+// steps of centimeters a few hundred meters away.
+precision highp sampler2D;
+
 vec4 eyeAt(sampler2D depthTexture, vec2 uv) {
   float raw = texture(depthTexture, uv).r;
   if (czm_orthographicIn3D == 1.0) {

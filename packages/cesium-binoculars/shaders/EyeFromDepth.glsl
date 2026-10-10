@@ -1,6 +1,7 @@
 // Eye coordinates of the pixel at uv, from the depth texture; w is 0 for the sky. With a
 // logarithmic depth buffer, czm_readDepth's perspective depth is about 1 beyond a few meters,
 // so the distance is decoded from the logarithmic depth directly.
+precision highp sampler2D;
 vec4 eyeAt(sampler2D depthTexture, vec2 uv) {
   float raw = texture(depthTexture, uv).r;
   // the pixel's view ray, through the near plane

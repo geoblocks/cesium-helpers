@@ -4,6 +4,7 @@
 // as a codec that has thrown its detail away: a gradient between its corners, with fewer colors.
 // The displaced blocks and strips follow three.js's DigitalGlitch. Without the previous frames,
 // there are no freezes.
+precision highp sampler2D;
 uniform sampler2D colorTexture;
 // how broken the picture is, 0 to 1, and 1 during a black screen
 uniform float severity;

@@ -3,6 +3,7 @@
 // Without a map, a pixel over the whole globe: rain everywhere for Precipitation, none for Clouds.
 // A next map over the same rectangle crossfades from it by the blend, as the radar from one hour to
 // the next; without one, the map again.
+precision highp sampler2D;
 uniform sampler2D map;
 uniform sampler2D nextMap;
 uniform float mapBlend;

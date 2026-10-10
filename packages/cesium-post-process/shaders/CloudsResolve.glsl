@@ -5,6 +5,7 @@
 // from outside, rather than through their transmittance-weighted distance (Sakmary 2022), which the
 // march has no channel left for, and clamped to the current frame's 3 x 3 neighborhood so that they
 // do not trail behind what moved. Needs EyeFromDepth, Height and CloudsSlab.
+precision highp sampler2D;
 uniform sampler2D depthTexture;
 // the farthest distance of the scene in this texel's block of pixels, from CloudsDepth.glsl
 uniform sampler2D cloudDepth;

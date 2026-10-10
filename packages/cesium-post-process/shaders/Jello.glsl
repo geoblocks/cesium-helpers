@@ -4,6 +4,7 @@
 // `readout * (1 - r / H)` before the frame, the camera's pose is taken at the middle of the row's
 // exposure, and the shake is a few sinusoids in x, y and rotation. The phases come from the CPU,
 // in double precision; the picture is magnified by zoom so that its edges do not show.
+precision highp sampler2D;
 uniform sampler2D colorTexture;
 // the shake: frequencies in Hz, phases at the frame's time in radians, amplitudes in picture
 // heights (x, y) and radians (rotation)

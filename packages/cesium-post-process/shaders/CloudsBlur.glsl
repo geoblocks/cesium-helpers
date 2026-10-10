@@ -3,6 +3,7 @@
 // 3 x 3 binomial kernel here costs a 16th of the reads the same blur would take at the full
 // resolution. Only the neighbors at about the texel's depth count, so a cloud over the sky does not
 // bleed onto a ridge in front of it.
+precision highp sampler2D;
 uniform sampler2D cloudTexture;
 // the farthest distance of the scene in each texel's block of pixels, from CloudsDepth.glsl
 uniform sampler2D cloudDepth;

@@ -3,6 +3,7 @@
 // sharp within range factors of two of the focal distance, fully blurred at twice that. An
 // orthographic camera has no distance to compare: a band across the screen, as a miniature's fake,
 // sharp within range of the view's height above and below the focus, whatever stands there.
+precision highp sampler2D;
 uniform sampler2D colorTexture;
 uniform sampler2D blurTexture;
 uniform sampler2D depthTexture;

@@ -1,6 +1,7 @@
 // Black and white infrared film: foliage, which reflects the near infrared, turns bright, the sky
 // and water dark. The gray is the lightness raised or lowered by a weight per hue. After prod80's
 // ReShade Black & White (MIT), its Infrared preset, https://github.com/prod80/prod80-ReShade-Repository
+precision highp sampler2D;
 uniform sampler2D colorTexture;
 // 0 to 1
 uniform float strength;

@@ -2,6 +2,7 @@
 // as the rain under it is heavy, shaped by billows of noise that drift with the wind. Needs
 // CloudsSlab and WeatherMap.
 // the noise: the billows of the base shape in red, the details in green and blue
+precision highp sampler2D;
 uniform highp sampler3D cloudNoise;
 // the noise over the clouds' map, a square that repeats, from cloud-noise.js
 uniform sampler2D mapNoise;

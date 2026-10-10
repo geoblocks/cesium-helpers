@@ -11,6 +11,7 @@
 // the share of the rain along the ray that the sun lights through their gaps, from their shadow map:
 // the haze's light shafts (Wronski 2014's front-to-back march, on the clouds' shadow map as
 // Hillaire 2016, sec. 5.9).
+precision highp sampler2D;
 uniform sampler2D depthTexture;
 // 1 when the clouds' shadow map is there to read, 0 otherwise
 uniform float shadowed;

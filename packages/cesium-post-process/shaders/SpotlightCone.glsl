@@ -1,5 +1,6 @@
 // The searchlight's cone, for its beam and for its pool of light: the light hangs above the focus,
 // pointing down. Needs EyeFromDepth.
+precision highp sampler2D;
 uniform sampler2D depthTexture;
 // in eye coordinates; w is 0 for what is in the middle of the screen
 uniform vec4 focus;

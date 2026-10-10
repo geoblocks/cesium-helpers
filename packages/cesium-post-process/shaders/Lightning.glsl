@@ -12,6 +12,7 @@
 // less with its distance to the strike, and the sky toward the cloud above it. Seen from above the cloud
 // base, the channel is hidden in the cloud, and the flash lights the cloud over the strike from inside, as
 // a glow. Needs EyeFromDepth and Hash.
+precision highp sampler2D;
 const int STRIKES = 4;
 const int BRANCHES = 5;
 uniform sampler2D colorTexture;

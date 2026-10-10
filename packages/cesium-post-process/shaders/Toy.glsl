@@ -2,6 +2,7 @@
 // where it bends inward, found where the depth bends sharply between neighboring pixels (not the
 // gentle bends between the terrain's triangles), not across a jump (an edge in front of something
 // farther); the colors a little richer and warmer; the sky, if asked, a soft gradient.
+precision highp sampler2D;
 uniform sampler2D colorTexture;
 uniform sampler2D depthTexture;
 // how much brighter a convex edge gets, how much darker a concave one

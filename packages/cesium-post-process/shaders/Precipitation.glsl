@@ -16,6 +16,7 @@
 // below the cloud base is this pass's, from each pixel's depth, sharp at the ridges. Seen from
 // above, where Clouds draws the clouds, they hide the rain under them: no shafts nor haze.
 // Needs EyeFromDepth, Hash, Height, PrecipitationWind, Fog, Phase and RainHaze.
+precision highp sampler2D;
 const int LAYERS = 4;
 uniform sampler2D colorTexture;
 uniform sampler2D depthTexture;
