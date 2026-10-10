@@ -12,18 +12,21 @@ const skyBottomScratch = new Cartesian4();
 
 /**
  * A toy's look, as an isometric game's: the edges lit where the surface bends
- * outward and shaded where it bends inward, the colors a little richer and
+ * outward and shaded where it bends inward, rounded close up, the silhouettes
+ * outlined in a darker shade of their color, the colors a little richer and
  * warmer, the sky a soft gradient if asked.
  */
 export default class Toy extends Effect {
   /**
    * @param {import('@cesium/engine').CesiumWidget} viewer
-   * @param {{light?: number, shade?: number, saturation?: number, warm?: [number, number, number], sky?: [import('@cesium/core').Color, import('@cesium/core').Color]}} [options]
+   * @param {{light?: number, shade?: number, bevel?: number, outline?: number, saturation?: number, warm?: [number, number, number], sky?: [import('@cesium/core').Color, import('@cesium/core').Color]}} [options]
    */
   constructor(viewer, options = {}) {
     super(viewer);
     this.light_ = options.light ?? 0.22;
     this.shade_ = options.shade ?? 0.18;
+    this.bevel_ = options.bevel ?? 0;
+    this.outline_ = options.outline ?? 0.4;
     this.saturation_ = options.saturation ?? 1.04;
     this.warm_ = options.warm ?? [1.03, 1, 0.95];
     this.sky_ = options.sky;
@@ -40,6 +43,8 @@ export default class Toy extends Effect {
       uniforms: {
         light: () => this.light_,
         shade: () => this.shade_,
+        bevel: () => this.bevel_,
+        outline: () => this.outline_,
         saturation: () => this.saturation_,
         warm: () => Cartesian3.fromArray(this.warm_, 0, warmScratch),
         skyTop: () => this.sky_ ? color(this.sky_[0], skyTopScratch) : NO_SKY,
@@ -85,6 +90,34 @@ export default class Toy extends Effect {
 
   set shade(value) {
     this.shade_ = value;
+    this.viewer.scene.requestRender();
+  }
+
+  /**
+   * The edges' bevel, in meters: close up, their light and shade fade over that width, as a molded
+   * plastic edge's; a pixel at the least, 8 at the most; 0, the default, for a pixel. Next to a small
+   * step (a frame proud of a wall), which it cannot tell from a fold, it lights a patch of the face
+   * behind.
+   */
+  get bevel() {
+    return this.bevel_;
+  }
+
+  set bevel(value) {
+    this.bevel_ = value;
+    this.viewer.scene.requestRender();
+  }
+
+  /**
+   * How much darker the outline along the silhouettes gets, a pixel wide, a darker shade of their
+   * color; 0 for none.
+   */
+  get outline() {
+    return this.outline_;
+  }
+
+  set outline(value) {
+    this.outline_ = value;
     this.viewer.scene.requestRender();
   }
 
