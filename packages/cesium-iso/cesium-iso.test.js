@@ -83,6 +83,22 @@ test('the target is a copy; set, it moves the view at once', () => {
   near(Cartesian3.dot(toTarget, viewer.scene.camera.direction), 1, 1e-6);
 });
 
+test('a limit keeps the target where the view may stand, set or moved; none by default', () => {
+  const viewer = fakeViewer();
+  const inside = Cartesian3.fromDegrees(7.45, 46.95, 10);
+  const iso = new CesiumIso(viewer, {limit: () => Cartesian3.clone(inside)});
+  iso.active = true;
+  assert.ok(Cartesian3.equals(iso.target, inside));
+  iso.target = BERN;
+  assert.ok(Cartesian3.equals(iso.target, inside));
+  const toTarget = Cartesian3.normalize(Cartesian3.subtract(inside, viewer.scene.camera.position, new Cartesian3()), new Cartesian3());
+  near(Cartesian3.dot(toTarget, viewer.scene.camera.direction), 1, 1e-6);
+  const free = new CesiumIso(fakeViewer());
+  free.active = true;
+  free.target = BERN;
+  assert.ok(Cartesian3.equals(free.target, BERN));
+});
+
 test('inactive again, the camera gets its own frustum back and the inputs', () => {
   const viewer = fakeViewer();
   const iso = new CesiumIso(viewer);
