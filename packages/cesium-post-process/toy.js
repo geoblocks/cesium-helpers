@@ -2,6 +2,7 @@ import {Cartesian3, Cartesian4} from '@cesium/core';
 import {PostProcessStage} from '@cesium/engine';
 import {acquireTerrainDepth, releaseTerrainDepth} from './depth-test.js';
 import Effect from './effect.js';
+import DepthEdges from './shaders/DepthEdges.js';
 import EyeFromDepth from './shaders/EyeFromDepth.js';
 import ToyShader from './shaders/Toy.js';
 
@@ -37,20 +38,35 @@ export default class Toy extends Effect {
    * @param {import('@cesium/engine').Scene} _scene
    */
   createStage_(_scene) {
+    return new PostProcessStage({fragmentShader: EyeFromDepth + DepthEdges + this.shader_(), uniforms: this.uniforms_()});
+  }
+
+  /**
+   * The look's shader, after DepthEdges.
+   * @protected
+   * @return {string}
+   */
+  shader_() {
+    return ToyShader;
+  }
+
+  /**
+   * The shader's uniforms.
+   * @protected
+   * @return {Object<string, () => any>}
+   */
+  uniforms_() {
     const color = (/** @type {import('@cesium/core').Color} */ c, /** @type {Cartesian4} */ result) => Cartesian4.fromElements(c.red, c.green, c.blue, 1, result);
-    return new PostProcessStage({
-      fragmentShader: EyeFromDepth + ToyShader,
-      uniforms: {
-        light: () => this.light_,
-        shade: () => this.shade_,
-        bevel: () => this.bevel_,
-        outline: () => this.outline_,
-        saturation: () => this.saturation_,
-        warm: () => Cartesian3.fromArray(this.warm_, 0, warmScratch),
-        skyTop: () => this.sky_ ? color(this.sky_[0], skyTopScratch) : NO_SKY,
-        skyBottom: () => this.sky_ ? color(this.sky_[1], skyBottomScratch) : NO_SKY,
-      },
-    });
+    return {
+      light: () => this.light_,
+      shade: () => this.shade_,
+      bevel: () => this.bevel_,
+      outline: () => this.outline_,
+      saturation: () => this.saturation_,
+      warm: () => Cartesian3.fromArray(this.warm_, 0, warmScratch),
+      skyTop: () => this.sky_ ? color(this.sky_[0], skyTopScratch) : NO_SKY,
+      skyBottom: () => this.sky_ ? color(this.sky_[1], skyBottomScratch) : NO_SKY,
+    };
   }
 
   /**

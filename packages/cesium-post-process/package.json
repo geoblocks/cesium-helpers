@@ -37,6 +37,7 @@
     "tilt-shift.js",
     "toy.js",
     "valley-fog.js",
+    "white-model.js",
     "shaders/*.js"
   ],
   "publishConfig": {
