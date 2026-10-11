@@ -2,6 +2,8 @@
 // outward and shaded where it bends inward, rounded as molded plastic close up; an outline along
 // the jumps, on their near side, a darker shade of the color; the colors a little richer and
 // warmer; the sky, if asked, a soft gradient.
+// its samplers read in high precision, whatever comes before (a phone's GPU's default is low)
+precision highp sampler2D;
 uniform sampler2D colorTexture;
 // how much brighter a convex edge gets, how much darker a concave one
 uniform float light;
