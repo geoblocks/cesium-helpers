@@ -110,7 +110,7 @@ export class ObstacleProbe {
         normal = Cartesian3.cross(across, up, new Cartesian3());
       } else if (across) {
         // only beside: a wall, upright
-        normal = Cartesian3.cross(scene.globe.ellipsoid.geodeticSurfaceNormal(point, new Cartesian3()), across, new Cartesian3());
+        normal = Cartesian3.cross(scene.ellipsoid.geodeticSurfaceNormal(point, new Cartesian3()), across, new Cartesian3());
       }
       if (!normal || Cartesian3.magnitude(normal) < CesiumMath.EPSILON6) {
         normal = Cartesian3.negate(toward, new Cartesian3());
@@ -153,7 +153,7 @@ export function tilesetObstacle(scene, tileset, eye, toward, reach = 1) {
   if (!point) {
     return undefined;
   }
-  const up = scene.globe.ellipsoid.geodeticSurfaceNormal(eye, upScratch);
+  const up = scene.ellipsoid.geodeticSurfaceNormal(eye, upScratch);
   const side = Cartesian3.normalize(Cartesian3.cross(toward, up, besideScratch), besideScratch);
   const beside = pick(Cartesian3.add(eye, Cartesian3.multiplyByScalar(side, BESIDE, besideScratch), besideScratch));
   let normal;
