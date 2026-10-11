@@ -17,6 +17,7 @@ export {default as Technicolor} from './technicolor.js';
 export {default as TiltShift} from './tilt-shift.js';
 export {default as Toy} from './toy.js';
 export {default as ValleyFog} from './valley-fog.js';
+export {default as WhiteModel} from './white-model.js';
 
 // the shader chunk the depth-based effects share, for effects of your own
 export {default as EyeFromDepth} from './shaders/EyeFromDepth.js';
