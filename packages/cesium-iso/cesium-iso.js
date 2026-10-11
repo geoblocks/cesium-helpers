@@ -36,9 +36,10 @@ const orbitScratch = new Cartesian3();
 export default class CesiumIso {
   /**
    * @param {import('@cesium/engine').CesiumWidget} viewer
-   * @param {{pitch?: number, heading?: number, size?: number, minSize?: number, maxSize?: number}} [options] The
-   *   pitch, in degrees down from the horizon; a corner's heading, in degrees, the others a quarter turn apart; the
-   *   size, in meters across the screen's shorter side, and its bounds.
+   * @param {{pitch?: number, heading?: number, size?: number, minSize?: number, maxSize?: number,
+   *   limit?: (target: Cartesian3) => Cartesian3}} [options] The pitch, in degrees down from the horizon; a corner's
+   *   heading, in degrees, the others a quarter turn apart; the size, in meters across the screen's shorter side, and
+   *   its bounds; a limit, a target moved back where the view may stand: it stops sliding there.
    */
   constructor(viewer, options = {}) {
     this.viewer = viewer;
@@ -47,6 +48,7 @@ export default class CesiumIso {
     this.size_ = options.size ?? 400;
     this.minSize_ = options.minSize ?? 20;
     this.maxSize_ = options.maxSize ?? 8000;
+    this.limit_ = options.limit;
     this.active_ = false;
     /** @type {Cartesian3} */
     this.target_ = new Cartesian3();
@@ -222,6 +224,9 @@ export default class CesiumIso {
   place_() {
     if (!this.active_) {
       return;
+    }
+    if (this.limit_) {
+      this.target_ = Cartesian3.clone(this.limit_(this.target_), this.target_);
     }
     const {camera, ellipsoid} = this.viewer.scene;
     const [sh, ch, sp, cp] = [Math.sin(this.heading_), Math.cos(this.heading_), Math.sin(this.pitch_), Math.cos(this.pitch_)];

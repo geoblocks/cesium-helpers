@@ -46,3 +46,4 @@ iso.target = position; // at once
 | `size`    | `400`   | Meters across the screen's shorter side
 | `minSize` | `20`    | The closest zoom, in meters
 | `maxSize` | `8000`  | The farthest zoom, in meters
+| `limit`   |         | A function moving a target back where the view may stand: it stops sliding there
