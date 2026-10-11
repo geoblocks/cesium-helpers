@@ -36,9 +36,9 @@ const floorCartographicScratch = new Cartographic();
  */
 
 /**
- * The flat shaded model of the triangles, untextured, in glTF's y up, quantized (KHR_mesh_quantization):
- * the positions in 16 bits, scaled back to meters by the node; the normals in 8 bits; each vertex padded to
- * 4 bytes, 12 in all, as against 24 in floats. Exported for the tests.
+ * The flat shaded model of the triangles, untextured, in glTF's y up: the positions in floats, a corner the same
+ * in every model sharing it, no crack between them; the normals quantized (KHR_mesh_quantization) in 8 bits,
+ * padded to 4 bytes, 16 in all, as against 24 in floats. Exported for the tests.
  * @param {Float32Array} vertices
  * @param {Uint32Array} triangles
  * @param {number[]} color
@@ -49,23 +49,8 @@ const floorCartographicScratch = new Cartographic();
  */
 export function toGlb(vertices, triangles, color, emissive, uv, lightmap) {
   const count = triangles.length;
-  // the extent of the map, in glTF's axes
   const toGltf = (/** @type {number} */ v) => [vertices[v], vertices[v + 2], -vertices[v + 1]];
-  const low = [Infinity, Infinity, Infinity];
-  const high = [-Infinity, -Infinity, -Infinity];
-  for (let v = 0; v < vertices.length; v += 3) {
-    toGltf(v).forEach((value, axis) => {
-      low[axis] = Math.min(low[axis], value);
-      high[axis] = Math.max(high[axis], value);
-    });
-  }
-  // the node maps -32767..32767 back to the widest extent, the same on every axis, which leaves the
-  // normals as they are
-  const translation = low.map((value, axis) => (value + high[axis]) / 2);
-  // a single point: any step keeps it at the node's translation
-  const step = Math.max(...low.map((value, axis) => high[axis] - value)) / 65534 || 1;
-  const scale = [step, step, step];
-  const positions = new Int16Array(count * 4);
+  const positions = new Float32Array(count * 3);
   const normals = new Int8Array(count * 4);
   const texCoords = new Float32Array(uv ? count * 2 : 0);
   const lightmapCoords = new Float32Array(lightmap ? count * 2 : 0);
@@ -79,12 +64,11 @@ export function toGlb(vertices, triangles, color, emissive, uv, lightmap) {
       Cartesian3.normalize(normal, normal);
     }
     corners.forEach((corner, k) => {
-      const quantized = corner.map((value, axis) => Math.round((value - translation[axis]) / step));
-      positions.set(quantized, (i + k) * 4);
+      positions.set(corner, (i + k) * 3);
       normals.set([normal.x, normal.y, normal.z].map(n => Math.round(n * 127)), (i + k) * 4);
       for (let axis = 0; axis < 3; axis++) {
-        min[axis] = Math.min(min[axis], quantized[axis]);
-        max[axis] = Math.max(max[axis], quantized[axis]);
+        min[axis] = Math.min(min[axis], Math.fround(corner[axis]));
+        max[axis] = Math.max(max[axis], Math.fround(corner[axis]));
       }
       if (uv) {
         const v = triangles[i + k] * 3;
@@ -106,7 +90,7 @@ export function toGlb(vertices, triangles, color, emissive, uv, lightmap) {
     extensionsRequired: ['KHR_mesh_quantization'],
     scene: 0,
     scenes: [{nodes: [0]}],
-    nodes: [{mesh: 0, translation, scale}],
+    nodes: [{mesh: 0}],
     meshes: [{primitives: [{attributes: {POSITION: 0, NORMAL: 1, ...Object.fromEntries(floats.map(([name], k) => [name, 2 + k]))}, material: 0}]}],
     materials: [{
       pbrMetallicRoughness: {baseColorFactor: color, metallicFactor: 0, roughnessFactor: 1},
@@ -118,7 +102,7 @@ export function toGlb(vertices, triangles, color, emissive, uv, lightmap) {
     }],
     buffers: [{byteLength: positions.byteLength + normals.byteLength + floatsLength}],
     bufferViews: [
-      {buffer: 0, byteOffset: 0, byteLength: positions.byteLength, byteStride: 8, target: 34962},
+      {buffer: 0, byteOffset: 0, byteLength: positions.byteLength, target: 34962},
       {buffer: 0, byteOffset: positions.byteLength, byteLength: normals.byteLength, byteStride: 4, target: 34962},
       ...floats.map(([, array]) => {
         const view = {buffer: 0, byteOffset: floatOffset, byteLength: array.byteLength, target: 34962};
@@ -127,7 +111,7 @@ export function toGlb(vertices, triangles, color, emissive, uv, lightmap) {
       }),
     ],
     accessors: [
-      {bufferView: 0, componentType: 5122, count, type: 'VEC3', min, max},
+      {bufferView: 0, componentType: 5126, count, type: 'VEC3', min, max},
       {bufferView: 1, componentType: 5120, normalized: true, count, type: 'VEC3'},
       ...floats.map((_, k) => ({bufferView: 2 + k, componentType: 5126, count, type: 'VEC2'})),
     ],
@@ -144,7 +128,7 @@ export function toGlb(vertices, triangles, color, emissive, uv, lightmap) {
   new Uint8Array(glb, 20, jsonLength).fill(0x20).set(json);
   view.setUint32(20 + jsonLength, binLength, true);
   view.setUint32(24 + jsonLength, 0x004e4942, true);
-  new Int16Array(glb, 28 + jsonLength, count * 4).set(positions);
+  new Float32Array(glb, 28 + jsonLength, count * 3).set(positions);
   new Int8Array(glb, 28 + jsonLength + positions.byteLength, count * 4).set(normals);
   let offset = 28 + jsonLength + positions.byteLength + normals.byteLength;
   for (const [, array] of floats) {
