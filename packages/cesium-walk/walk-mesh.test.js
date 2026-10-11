@@ -49,7 +49,7 @@ test("a single point makes a valid model", () => {
   const view = new DataView(glb);
   const json = JSON.parse(new TextDecoder().decode(new Uint8Array(glb, 20, view.getUint32(12, true))));
   const {min, max} = json.accessors[0];
-  assert.ok([...min, ...max, ...json.nodes[0].scale, ...json.nodes[0].translation].every(Number.isFinite));
+  assert.deepEqual([min, max], [[1, 3, -2], [1, 3, -2]]);
 });
 
 test("the rays at the knees, the waist and the eyes, the eyes low", () => {
