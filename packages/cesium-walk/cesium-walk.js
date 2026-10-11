@@ -172,10 +172,10 @@ export default class CesiumWalk {
 
     /**
      * The height of the ground under a position, in meters above the ellipsoid, or undefined when unknown
-     * yet. The terrain by default; a model's floors otherwise, for a walker on several levels.
+     * yet. The terrain by default, none without a globe; a model's floors otherwise, for a walker on several levels.
      * @type {(position: import('@cesium/core').Cartographic) => number | undefined}
      */
-    this.groundHeight = position => viewer.scene.globe.getHeight(position);
+    this.groundHeight = position => viewer.scene.globe?.getHeight(position);
 
     // whether the walker sprinted on the last tick
     this.sprinting_ = false;
@@ -379,6 +379,6 @@ export default class CesiumWalk {
    */
   surfaceNormal_() {
     const scene = this.viewer.scene;
-    return scene.globe.ellipsoid.geodeticSurfaceNormal(scene.camera.position, normalScratch);
+    return scene.ellipsoid.geodeticSurfaceNormal(scene.camera.position, normalScratch);
   }
 }

@@ -19,7 +19,7 @@ const fakeViewer = (/** @type {number | undefined} */ ground = undefined) => {
   };
   const viewer = {
     camera,
-    scene: {camera, globe: {ellipsoid: Ellipsoid.WGS84, getHeight: () => ground}},
+    scene: {camera, ellipsoid: Ellipsoid.WGS84, globe: {getHeight: () => ground}},
   };
   return {viewer: /** @type {any} */ (viewer), moves};
 };
@@ -42,6 +42,16 @@ test("turning the head bob off while walking lets the camera settle", () => {
   }
   moves.length = 0;
   tick();
+  assert.equal(moves.length, 0);
+});
+
+test("without a globe, the walker waits for a ground height", () => {
+  const {viewer, moves} = fakeViewer();
+  delete viewer.scene.globe;
+  const walk = new CesiumWalk(viewer, 1.6, 2);
+  walk.input = {read: () => ({move: {x: 0, y: 0}, sprint: false, jump: false})};
+  walk.lastTick_ = performance.now() - 100;
+  walk.handleTick_();
   assert.equal(moves.length, 0);
 });
 

@@ -56,7 +56,7 @@ test("at an obstacle's edge, with the background beside it, the obstacle faces t
     camera: {positionWC: eye},
     canvas: {clientWidth: 1000, clientHeight: 600},
     pickPositionSupported: true,
-    globe: {ellipsoid: Ellipsoid.WGS84},
+    ellipsoid: Ellipsoid.WGS84,
     cartesianToCanvasCoordinates: (/** @type {Cartesian3} */ _, /** @type {Cartesian2} */ result) =>
       Cartesian2.fromElements(500, 300, result),
     pickPosition: (/** @type {Cartesian2} */ position) => Cartesian3.clone(position.x === 500 ? edge : background),
@@ -74,7 +74,7 @@ test("a roof seen from above faces up", () => {
     camera: {positionWC: eye},
     canvas: {clientWidth: 1000, clientHeight: 600},
     pickPositionSupported: true,
-    globe: {ellipsoid: Ellipsoid.WGS84},
+    ellipsoid: Ellipsoid.WGS84,
     cartesianToCanvasCoordinates: (/** @type {Cartesian3} */ _, /** @type {Cartesian2} */ result) =>
       Cartesian2.fromElements(500, 300, result),
     // beside on the screen is east on the roof, and up on the screen is north
@@ -100,7 +100,7 @@ const wallTileset = (/** @type {Cartesian3} */ point, /** @type {Cartesian3} */ 
     return t >= 0 && Cartesian3.distance(hit, point) <= width / 2 ? hit : undefined;
   },
 });
-const fakeScene = /** @type {any} */ ({frameState: {}, globe: {ellipsoid: Ellipsoid.WGS84}});
+const fakeScene = /** @type {any} */ ({frameState: {}, ellipsoid: Ellipsoid.WGS84});
 
 test("a wall of the tileset within the reach is the obstacle, upright and facing the walker", () => {
   // 0.8 m ahead, turned 45 degrees
