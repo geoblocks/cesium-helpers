@@ -42,12 +42,13 @@
       <wa-button id="in" size="s" appearance="outlined">+</wa-button>
     </div>
     <wa-switch id="toy" size="s" checked>Toy look</wa-switch>
+    <wa-switch id="white" size="s">White model</wa-switch>
     <wa-switch id="tilt-shift" size="s" checked>Tilt-shift</wa-switch>
   </wa-card>
   <script type="module">
     import {createViewer} from './setup.js';
     import CesiumIso from '../packages/cesium-iso/cesium-iso.js';
-    import {LensDistortion, TiltShift, Toy} from '../packages/cesium-post-process/cesium-post-process.js';
+    import {LensDistortion, TiltShift, Toy, WhiteModel} from '../packages/cesium-post-process/cesium-post-process.js';
     import '@awesome.me/webawesome/dist/styles/webawesome.css';
     import '@awesome.me/webawesome/dist/components/button/button.js';
     import '@awesome.me/webawesome/dist/components/card/card.js';
@@ -73,10 +74,13 @@
       const toy = new Toy(viewer, {sky: [Cesium.Color.fromCssColorString('#fbf1e4'), Cesium.Color.fromCssColorString('#e9d3bc')]});
       const tiltShift = new TiltShift(viewer, {focus: () => iso.target, range: 0.2, blur: 2.5, saturation: 0});
       const vignette = new LensDistortion(viewer, {distortion: 0, vignette: 0.15});
+      // or an architect's white model: the colors to plaster, darker where surfaces meet, a pale gray sky
+      const white = new WhiteModel(viewer, {sky: [Cesium.Color.fromCssColorString('#dcdedd'), Cesium.Color.fromCssColorString('#f3f3f1')]});
       // the effects in their order, again from the first, as Cesium adds a stage after the others
       const effects = () => {
-        const on = document.querySelector('#toy').checked;
-        const shown = [[toy, on], [tiltShift, document.querySelector('#tilt-shift').checked], [vignette, on]];
+        const model = document.querySelector('#white').checked;
+        const on = document.querySelector('#toy').checked && !model;
+        const shown = [[toy, on], [white, model], [tiltShift, document.querySelector('#tilt-shift').checked], [vignette, on]];
         shown.forEach(([effect]) => effect.active = false);
         shown.forEach(([effect, active]) => effect.active = active);
       };
@@ -84,6 +88,7 @@
 
       document.querySelector('#activate').addEventListener('change', e => iso.active = e.target.checked);
       document.querySelector('#toy').addEventListener('change', effects);
+      document.querySelector('#white').addEventListener('change', effects);
       document.querySelector('#tilt-shift').addEventListener('change', effects);
       document.querySelector('#left').addEventListener('click', () => iso.turn(-1));
       document.querySelector('#right').addEventListener('click', () => iso.turn(1));
