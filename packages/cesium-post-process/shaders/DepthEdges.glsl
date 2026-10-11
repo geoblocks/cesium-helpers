@@ -2,6 +2,8 @@
 // lies, how large a pixel is there, the depth's neighbors around it, how sharply it bends between
 // them (a crease, not across a jump: an edge in front of something farther, nor the gentle bends
 // between the terrain's triangles), the outline on the near side of a jump; the sky's gradient.
+// its samplers read in high precision, whatever comes before (a phone's GPU's default is low)
+precision highp sampler2D;
 uniform sampler2D depthTexture;
 
 // how much the depth bends, in pixels' sizes, to start and to end lighting an edge; how far it

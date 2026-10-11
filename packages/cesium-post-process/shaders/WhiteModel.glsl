@@ -3,6 +3,8 @@
 // kept, if asked; the darkest left black, a section's poché), so the light and the shapes alone
 // tell the surfaces apart; darker where surfaces meet, an ambient obscurance from the depth; the
 // creases lit and shaded, a fine outline along the jumps; the sky, if asked, a pale gradient.
+// its samplers read in high precision, whatever comes before (a phone's GPU's default is low)
+precision highp sampler2D;
 uniform sampler2D colorTexture;
 // how much brighter a convex edge gets, how much darker a concave one
 uniform float light;
