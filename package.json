@@ -21,7 +21,7 @@
     "@cesium/engine": "26.4.0",
     "gh-pages": "6.3.0",
     "jsfive": "0.4.2",
-    "lerna": "10.0.1",
+    "lerna": "10.1.0",
     "mediabunny": "1.61.3",
     "ol": "10.11.0",
     "typescript": "7.0.2",
