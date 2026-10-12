@@ -176,6 +176,26 @@ export default class CesiumIso {
   }
 
   /**
+   * The view's heading, in degrees, clockwise from the north, where the camera looks.
+   */
+  get heading() {
+    return CesiumMath.toDegrees(this.heading_);
+  }
+
+  /**
+   * A turn, eased, to a heading, in degrees, the shorter way round: the view toward a side a place is seen from.
+   * @param {number} heading
+   */
+  turnTo(heading) {
+    this.drift_ = this.drifted_ = undefined;
+    this.anchor_();
+    const to = CesiumMath.toRadians(heading);
+    const delta = Math.atan2(Math.sin(to - this.heading_), Math.cos(to - this.heading_));
+    this.turning_ = {from: this.heading_, to: this.heading_ + delta, start: performance.now()};
+    this.animate_();
+  }
+
+  /**
    * A quarter turn, eased, to the next corner: the camera clockwise about the middle, seen from above (-1, as Q), or
    * the other way (1, as E); 0 to the nearest.
    * @param {number} sign
