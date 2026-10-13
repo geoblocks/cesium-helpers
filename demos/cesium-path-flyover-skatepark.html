@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en" class="wa-theme-default wa-palette-default wa-light">
+
+<head>
+  <meta charset="UTF-8">
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Cesium.js"></script>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  <style>
+    html, body, #cesiumContainer {
+      height: 100%;
+      margin: 0;
+    }
+    #controls {
+      position: absolute;
+      inset-block-start: var(--wa-space-xl);
+      inset-inline-end: var(--wa-space-xl);
+      inline-size: 38ch;
+    }
+    #controls h2 {
+      margin: 0;
+      font-size: var(--wa-font-size-m);
+    }
+    #time {
+      margin-inline-start: auto;
+      font-variant-numeric: tabular-nums;
+    }
+    /* what the drawings mean, while they show */
+    #legend {
+      --spacing: var(--wa-space-xs);
+    }
+    #legend[hidden] {
+      display: none;
+    }
+    #legend ul {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: var(--wa-space-2xs);
+    }
+    #legend li {
+      display: grid;
+      grid-template-columns: 1.5em 1fr;
+      gap: var(--wa-space-xs);
+      align-items: start;
+    }
+    .swatch {
+      margin-block-start: 0.35em;
+      block-size: 0.6em;
+      border-radius: 2px;
+    }
+    .swatch.line {
+      block-size: 3px;
+      background: var(--color);
+    }
+    .swatch.area {
+      background: color-mix(in srgb, var(--color) 30%, transparent);
+      border-top: 3px solid var(--color);
+    }
+    .swatch.fan {
+      background: linear-gradient(to right, #2a9d3e, #d9c62a, #d94a2a, #333333 75%, #7b3fbf 75%);
+    }
+  </style>
+</head>
+
+<body>
+  <div id="cesiumContainer"></div>
+  <wa-card id="controls">
+    <h2 slot="header">Path flyover on a skatepark</h2>
+    <div class="wa-stack wa-gap-s">
+      <div class="wa-cluster wa-gap-xs">
+        <wa-button id="play" size="s" appearance="filled" loading disabled>
+          <wa-icon name="play" variant="solid" label="Play"></wa-icon>
+        </wa-button>
+        <wa-button id="stop" size="s" appearance="filled" disabled>
+          <wa-icon name="stop" variant="solid" label="Stop"></wa-icon>
+        </wa-button>
+        <span id="time" class="wa-caption-m wa-color-text-quiet">0:00 / 0:00</span>
+      </div>
+      <wa-tooltip for="play" id="playTip">Play</wa-tooltip>
+      <wa-tooltip for="stop">Stop and rewind</wa-tooltip>
+      <wa-slider id="progress" size="s" min="0" max="1" step="0.001" value="0" disabled>
+        <span slot="label" class="wa-visually-hidden">Progress</span>
+      </wa-slider>
+      <wa-switch id="freeView" size="s" checked>Free view: the run moves its marker, not the camera</wa-switch>
+      <div class="wa-stack wa-gap-s">
+        <wa-slider id="style" size="s" label="Style" min="0" max="1" step="0.1" value="0.5" with-markers with-tooltip>
+          <span slot="reference">pilot</span>
+          <span slot="reference">spectator</span>
+        </wa-slider>
+        <wa-slider id="motion" size="s" label="Motion" min="0" max="1" step="0.1" value="0.5" with-markers with-tooltip>
+          <span slot="reference">rigid</span>
+          <span slot="reference">floating</span>
+        </wa-slider>
+        <wa-slider id="range" size="s" label="Range" min="200" max="1200" step="50" value="650" with-tooltip>
+          <span slot="reference">200 m</span>
+          <span slot="reference">1200 m</span>
+        </wa-slider>
+      </div>
+    </div>
+    <wa-details id="legend" slot="footer" summary="Legend" appearance="plain">
+    <ul class="wa-caption-s wa-color-text-quiet">
+      <li><span class="swatch line" style="--color: dodgerblue"></span>The planned camera path, and its camera while the run is stopped</li>
+      <li><span class="swatch area" style="--color: dodgerblue"></span>The lift the terrain planner added: the curtain's bottom is the path without it</li>
+      <li><span class="swatch line" style="--color: darkorange"></span>The lift the terrain required, before the smoothing spread it along the path</li>
+      <li><span class="swatch fan"></span>The headings the planner considered at this instant, coloured by the lift each needed: green none, red up to the cap, dark at the cap where an occlusion was the better choice, purple above it for the camera's own clearance, which the cap never limits</li>
+    </ul>
+    </wa-details>
+  </wa-card>
+  <script type="module">
+    import CesiumPathFlyover from '../packages/cesium-path-flyover/cesium-path-flyover.js';
+    import {cameraOffsetEnu} from '../packages/cesium-path-flyover/planner.js';
+    import '@awesome.me/webawesome/dist/styles/webawesome.css';
+    import '@awesome.me/webawesome/dist/components/card/card.js';
+    import '@awesome.me/webawesome/dist/components/slider/slider.js';
+    import '@awesome.me/webawesome/dist/components/switch/switch.js';
+    import '@awesome.me/webawesome/dist/components/details/details.js';
+    import '@awesome.me/webawesome/dist/components/button/button.js';
+    import '@awesome.me/webawesome/dist/components/tooltip/tooltip.js';
+    import '@awesome.me/webawesome/dist/components/icon/icon.js';
+
+    const {CallbackProperty, Cartesian3, Cartographic, Color, CustomHeightmapTerrainProvider, Event, GeographicTilingScheme, ImageryLayer, JulianDate, Material, Math: CesiumMath, Matrix4, PointPrimitiveCollection, PolylineCollection, Rectangle, Transforms, Viewer} = Cesium;
+
+    // the park's shapes, its ride, and the painting of its tiles; the tiles are painted
+    // in workers, as many as the machine has cores to spare
+    import {PARK_BOUNDS, PLAIN, TRACK, dedupe, degrees, height, local, spline} from './skatepark.js';
+
+    const PARK = Rectangle.fromDegrees(...degrees(PARK_BOUNDS[0], PARK_BOUNDS[2]), ...degrees(PARK_BOUNDS[1], PARK_BOUNDS[3]));
+    const workers = Array.from({length: Math.max(2, (navigator.hardwareConcurrency ?? 4) - 2)}, () =>
+      new Worker(new URL('./skatepark-worker.js', import.meta.url), {type: 'module'}));
+    /** @type {Map<number, {resolve: (result: any) => void, reject: (error: any) => void, worker: Worker}>} */
+    const pending = new Map();
+    let nextId = 0;
+    for (const worker of workers) {
+      worker.onmessage = ({data: {id, result}}) => {
+        pending.get(id)?.resolve(result);
+        pending.delete(id);
+      };
+      // a worker that throws fails the tiles it was on, so the engine asks for them again
+      worker.onerror = (event) => {
+        for (const [id, tile] of pending) {
+          if (tile.worker !== worker) continue;
+          tile.reject(new Error(event.message));
+          pending.delete(id);
+        }
+      };
+    }
+    const inWorker = (kind, tile) =>
+      new Promise((resolve, reject) => {
+        const id = nextId++;
+        const worker = workers[id % workers.length];
+        pending.set(id, {resolve, reject, worker});
+        worker.postMessage({id, kind, tile});
+      });
+
+    const TERRAIN_SAMPLES = 64;
+    const terrain = new CustomHeightmapTerrainProvider({
+      width: TERRAIN_SAMPLES,
+      height: TERRAIN_SAMPLES,
+      callback(x, y, level) {
+        const rectangle = this.tilingScheme.tileXYToRectangle(x, y, level);
+        return inWorker('terrain', {
+          west: CesiumMath.toDegrees(rectangle.west), south: CesiumMath.toDegrees(rectangle.south),
+          east: CesiumMath.toDegrees(rectangle.east), north: CesiumMath.toDegrees(rectangle.north),
+          samples: TERRAIN_SAMPLES,
+        });
+      },
+    });
+
+    // the map, painted tile by tile from the height function at the tile's own resolution
+    class SyntheticImageryProvider {
+      constructor() {
+        this.tilingScheme = new GeographicTilingScheme();
+        this.rectangle = PARK;
+        this.tileWidth = 256;
+        this.tileHeight = 256;
+        this.minimumLevel = 0;
+        this.maximumLevel = 18;
+        this.tileDiscardPolicy = undefined;
+        this.errorEvent = new Event();
+        this.credit = undefined;
+        this.proxy = undefined;
+        this.hasAlphaChannel = false;
+        this.ready = true;
+      }
+      getTileCredits() {
+        return undefined;
+      }
+      pickFeatures() {
+        return undefined;
+      }
+      async requestImage(x, y, level) {
+        const size = this.tileWidth;
+        const rectangle = this.tilingScheme.tileXYToRectangle(x, y, level);
+        const data = await inWorker('map', {
+          west: CesiumMath.toDegrees(rectangle.west), north: CesiumMath.toDegrees(rectangle.north),
+          dLon: CesiumMath.toDegrees(rectangle.east - rectangle.west) / size,
+          dLat: CesiumMath.toDegrees(rectangle.north - rectangle.south) / size,
+          size,
+        });
+        // the engine uploads a bitmap as is, where it flips a canvas or an image
+        return createImageBitmap(new ImageData(data, size, size), {imageOrientation: 'flipY'});
+      }
+    }
+
+    const trackUrl = () => {
+      const geojson = {type: 'LineString', coordinates: spline(dedupe(TRACK), 25).map(([e, n]) => degrees(e, n))};
+      return URL.createObjectURL(new Blob([JSON.stringify(geojson)], {type: 'application/geo+json'}));
+    };
+
+    const createViewer = async (container) => {
+      const viewer = new Viewer(container, {
+        timeline: false, navigationHelpButton: false, animation: false, baseLayerPicker: false,
+        sceneModePicker: false, geocoder: false, homeButton: false, fullscreenButton: false,
+        infoBox: false, selectionIndicator: false, scene3DOnly: true, msaaSamples: 1,
+        baseLayer: new ImageryLayer(new SyntheticImageryProvider(), {rectangle: PARK}),
+        terrainProvider: terrain,
+      });
+      viewer.scene.requestRenderMode = true;
+      // the map stops at the park; beyond it the ground is a flat plain in one tone, fading
+      // into the haze toward a horizon that stays put whatever the camera does
+      viewer.scene.globe.baseColor = Color.fromCssColorString(PLAIN);
+      viewer.scene.globe.showGroundAtmosphere = true;
+      // the sky lit from a fixed direction: the sun's would leave it black here
+      viewer.scene.globe.dynamicAtmosphereLighting = false;
+      viewer.scene.fog.density = 2.0e-4 * 3;
+      viewer.scene.fog.minimumBrightness = 0.3;
+      viewer.scene.skyBox.show = false;
+      viewer.scene.sun.show = false;
+      viewer.scene.globe.enableLighting = true;
+      viewer.scene.postProcessStages.fxaa.enabled = true;
+      // today at 14:00, for the light
+      const afternoon = new Date();
+      afternoon.setHours(14, 0, 0, 0);
+      viewer.clock.currentTime = JulianDate.fromDate(afternoon);
+      viewer.clock.shouldAnimate = false;
+      // for poking at the page from the console
+      Object.assign(window, {viewer, height, local});
+      return viewer;
+    };
+
+    createViewer('cesiumContainer').then(async viewer => {
+      const progress = document.querySelector('#progress');
+      const button = document.querySelector('#play');
+      const playTip = document.querySelector('#playTip');
+      const time = document.querySelector('#time');
+      const stop = document.querySelector('#stop');
+      const legend = document.querySelector('#legend');
+      // play turns into pause while playing; stop also rewinds a paused run;
+      // scrubbing works whenever the track is loaded
+      let state = 'loading';
+      const setState = (next) => {
+        state = next;
+        progress.disabled = state === 'loading';
+        stop.disabled = !(state === 'playing' || (state === 'ready' && flyover.progress > 0));
+        button.loading = state === 'loading';
+        button.disabled = state === 'loading';
+        const icon = button.querySelector('wa-icon');
+        icon.name = state === 'playing' ? 'pause' : 'play';
+        icon.label = playTip.textContent = state === 'playing' ? 'Pause' : 'Play';
+        viewer.scene.globe.maximumScreenSpaceError = state === 'playing' ? 3 : 2;
+        // the overlay is in the way from the run's own camera
+        const overlayShown = state !== 'playing' || freeView.checked;
+        for (const entity of [...overlay, ...pathDrawings]) entity.show = overlayShown;
+        for (const dial of dials) dial.disabled = state !== 'ready';
+        fan.points.show = fan.lines.show = overlayShown;
+        legend.hidden = !overlayShown;
+      };
+      let scrubbing = false;
+      // the time into the run, over its length
+      const clock = (seconds) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
+      const showTime = () => {
+        const duration = flyover.duration ?? 0;
+        time.textContent = `${clock(flyover.progress * duration)} / ${clock(duration)}`;
+      };
+      // the dials: the loaded track is planned again on each change, and the path drawn
+      // again. No free look: in free view the scene's own controls keep the camera
+      const dials = ['style', 'motion', 'range'].map((id) => document.querySelector(`#${id}`));
+      const [style, motion, range] = dials;
+      const options = () => ({style: +style.value, motion: +motion.value, range: +range.value, freeLook: false});
+      const flyover = new CesiumPathFlyover(viewer, options());
+      flyover.progressChanged.addEventListener((p) => {
+        Cartesian3.clone(viewer.camera.position, cameraAt);
+        updateFan(p);
+        const shown = Math.round(p * 1000) / 1000;
+        if (!scrubbing && +progress.value !== shown) progress.value = shown;
+        showTime();
+      });
+      // Free view: the run places its camera in the scene's pre-update step, so the view
+      // is saved just before it and put back just after, and only the marker moves
+      const freeView = document.querySelector('#freeView');
+      const saved = {position: new Cartesian3(), direction: new Cartesian3(), up: new Cartesian3()};
+      const saveView = () => {
+        Cartesian3.clone(viewer.camera.position, saved.position);
+        Cartesian3.clone(viewer.camera.direction, saved.direction);
+        Cartesian3.clone(viewer.camera.up, saved.up);
+      };
+      const restoreView = () => viewer.camera.setView({destination: saved.position, orientation: {direction: saved.direction, up: saved.up}});
+      // scrubbing, stopping and planning place the run's camera: around them, the same
+      const keepingView = async (place) => {
+        if (!freeView.checked) return place();
+        saveView();
+        await place();
+        restoreView();
+      };
+      viewer.scene.preUpdate.addEventListener(() => state === 'playing' && freeView.checked && saveView());
+      viewer.scene.postUpdate.addEventListener(() => state === 'playing' && freeView.checked && restoreView());
+      freeView.addEventListener('change', () => {
+        // back on the run's camera when the free view ends
+        if (!freeView.checked && state === 'ready') flyover.progress = flyover.progress;
+        setState(state);
+      });
+      // the debugging overlay: in the way from the run's own view, so shown when the run is
+      // stopped and the view can be moved off it
+      const overlay = [];
+      // where the run puts the camera, as a marker for a view moved away from it
+      const cameraAt = new Cartesian3();
+      overlay.push(viewer.entities.add({
+        position: new CallbackProperty(() => cameraAt, false),
+        point: {pixelSize: 10, color: Color.DODGERBLUE, outlineColor: Color.WHITE, outlineWidth: 2},
+      }));
+      // the candidate fan: at the current progress, the heading offsets the planner searched,
+      // each camera position coloured by the lift it would have needed, green to red up to
+      // the cap, dark where the cap makes an occlusion the better choice
+      const fan = {
+        points: viewer.scene.primitives.add(new PointPrimitiveCollection()),
+        lines: viewer.scene.primitives.add(new PolylineCollection()),
+      };
+      // a lift at the cap is an occlusion the planner accepted; above it, the camera's
+      // own clearance, which the cap never limits
+      const OCCLUDED = Color.fromCssColorString('#333333');
+      const CLEARANCE = Color.fromCssColorString('#7b3fbf');
+      const fanColor = (lift, result) => {
+        if (lift > flyover.maxLift + 0.5) return Color.clone(CLEARANCE, result);
+        if (lift > flyover.maxLift - 0.5) return Color.clone(OCCLUDED, result);
+        return Color.fromHsl((1 - lift / flyover.maxLift) / 3, 0.8, 0.45, 1, result);
+      };
+      const fanEnu = new Matrix4();
+      const fanOffset = new Cartesian3();
+      const fanTarget = new Cartesian3();
+      // one point, one line and one colour per candidate, updated in place each frame
+      /** @type {{position: Cartesian3, color: Color, positions: Cartesian3[]}[]} */
+      const candidates = [];
+      const updateFan = (p) => {
+        const path = flyover.path_;
+        const plan = path?.plan;
+        if (!plan) return;
+        const k = Math.round(p * (path.headings.length - 1));
+        const index = p * (path.targets.length - 1);
+        const i = Math.min(Math.floor(index), path.targets.length - 1);
+        Cartesian3.lerp(path.targets[i], path.targets[Math.min(i + 1, path.targets.length - 1)], index - i, fanTarget);
+        const base = path.headings[k] - plan.headingOffset[k];
+        const rise = path.lift[k] - plan.lift[k];
+        const enu = Transforms.eastNorthUpToFixedFrame(fanTarget, viewer.scene.ellipsoid, fanEnu);
+        plan.candidates.offsets.forEach((offset, c) => {
+          if (candidates.length <= c) {
+            const candidate = {position: new Cartesian3(), color: new Color(), positions: [new Cartesian3(), new Cartesian3()]};
+            candidates.push(candidate);
+            fan.points.add({pixelSize: 9, outlineColor: Color.WHITE, outlineWidth: 1, disableDepthTestDistance: Number.POSITIVE_INFINITY});
+            fan.lines.add({width: 1, material: Material.fromType('Color', {color: candidate.color.withAlpha(0.6)})});
+          }
+          const candidate = candidates[c];
+          const lift = plan.candidates.lifts[k][c];
+          cameraOffsetEnu(base + offset, path.range[k], flyover.pitch, rise + lift, fanOffset);
+          Matrix4.multiplyByPoint(enu, fanOffset, candidate.position);
+          fanColor(lift, candidate.color);
+          const point = fan.points.get(c);
+          point.position = candidate.position;
+          point.color = candidate.color;
+          const line = fan.lines.get(c);
+          Cartesian3.clone(candidate.position, candidate.positions[0]);
+          Cartesian3.clone(fanTarget, candidate.positions[1]);
+          line.positions = candidate.positions;
+          Color.clone(candidate.color, line.material.uniforms.color).alpha = 0.6;
+        });
+      };
+      // the whole planned camera path, computed from the path's samples as the run
+      // places its camera, as a line with a curtain of the planner's lift under it: the
+      // curtain's bottom is where the camera would fly without the terrain planner, its
+      // top where it flies. The orange line is the lift the terrain required before the
+      // smoothing spread it along the path: the gap between it and the top is the
+      // anticipation, and the come-down
+      let pathDrawings = [];
+      const showCameraPath = () => {
+        for (const entity of pathDrawings) viewer.entities.remove(entity);
+        pathDrawings = [];
+        const path = flyover.path_;
+        const plan = path?.plan;
+        if (!plan) return;
+        const line = [];
+        const required = [];
+        const positions = [];
+        const bottoms = [];
+        const tops = [];
+        const stride = Math.max(1, Math.floor(path.targets.length / 400));
+        for (let k = 0; k < path.targets.length; k += stride) {
+          const enu = Transforms.eastNorthUpToFixedFrame(path.targets[k], viewer.scene.ellipsoid, fanEnu);
+          cameraOffsetEnu(path.headings[k], path.range[k], flyover.pitch, path.lift[k], fanOffset);
+          const carto = Cartographic.fromCartesian(Matrix4.multiplyByPoint(enu, fanOffset, fanTarget), viewer.scene.ellipsoid);
+          const bottom = carto.height - plan.lift[k];
+          line.push(Cartesian3.fromRadians(carto.longitude, carto.latitude, carto.height));
+          required.push(Cartesian3.fromRadians(carto.longitude, carto.latitude, bottom + plan.required[k]));
+          positions.push(Cartesian3.fromRadians(carto.longitude, carto.latitude, 0));
+          tops.push(carto.height);
+          bottoms.push(bottom);
+        }
+        pathDrawings.push(viewer.entities.add({polyline: {positions: line, width: 2, material: Color.DODGERBLUE}}));
+        pathDrawings.push(viewer.entities.add({polyline: {positions: required, width: 2, material: Color.DARKORANGE}}));
+        pathDrawings.push(viewer.entities.add({
+          wall: {positions, minimumHeights: bottoms, maximumHeights: tops, material: Color.DODGERBLUE.withAlpha(0.3)},
+        }));
+      };
+      // fly the camera to the run's first frame: place it there to read the pose,
+      // put the camera back, then animate to it
+      const flyToStart = () => {
+        const camera = viewer.camera;
+        const from = {destination: camera.position.clone(), orientation: {direction: camera.direction.clone(), up: camera.up.clone()}};
+        flyover.progress = 0;
+        const to = {destination: camera.position.clone(), orientation: {heading: camera.heading, pitch: camera.pitch, roll: 0}};
+        camera.setView(from);
+        camera.flyTo({...to, duration: 2});
+      };
+      progress.addEventListener('input', () => {
+        scrubbing = true;
+        keepingView(() => (flyover.progress = +progress.value));
+        showTime();
+      });
+      progress.addEventListener('change', () => {
+        scrubbing = false;
+        if (state === 'ready') setState('ready'); // the stop button follows the progress
+      });
+      // stop() freezes the run where it is and play() resumes from there: that is a pause;
+      // a stop also rewinds to the start
+      stop.addEventListener('click', () => {
+        flyover.stop();
+        keepingView(() => (flyover.progress = 0));
+        showTime();
+        setState('ready');
+      });
+      button.addEventListener('click', async () => {
+        if (state === 'playing') {
+          flyover.stop();
+          return;
+        }
+        setState('playing');
+        await flyover.play();
+        setState('ready');
+      });
+      // a change of the dials plans the loaded track again and draws its path again; the
+      // run picks up at the same progress
+      const replan = async () => {
+        setState('loading');
+        const at = flyover.progress;
+        await keepingView(async () => {
+          await flyover.replan(options());
+          flyover.progress = at;
+        });
+        showCameraPath();
+        showTime();
+        setState('ready');
+      };
+      for (const dial of dials) dial.addEventListener('change', replan);
+      setState('loading');
+      await flyover.load(trackUrl());
+      showCameraPath();
+      // the camera flies to the start, or in free view over the park
+      if (freeView.checked) {
+        await keepingView(() => (flyover.progress = 0));
+        viewer.camera.flyTo({destination: Cartesian3.fromDegrees(...degrees(2600, -2200), 2400), orientation: {heading: -0.55, pitch: -0.4, roll: 0}, duration: 0});
+      } else {
+        flyToStart();
+      }
+      showTime();
+      setState('ready');
+    });
+  </script>
+</body>
+
+</html>
