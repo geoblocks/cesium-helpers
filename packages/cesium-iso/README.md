@@ -32,6 +32,7 @@ const iso = new CesiumIso(viewer, {pitch: 30, heading: 45, size: 600, minSize: 2
 iso.active = true;
 
 iso.turn(1);       // a quarter turn, as E (-1 as Q)
+iso.turnTo(200);   // to a heading, in degrees, the shorter way
 iso.zoom(0.8);     // in, toward the middle of the screen
 iso.glideTo(position);
 iso.target = position; // at once
