@@ -48,3 +48,4 @@ iso.target = position; // at once
 | `minSize` | `20`    | The closest zoom, in meters
 | `maxSize` | `8000`  | The farthest zoom, in meters
 | `limit`   |         | A function moving a target back where the view may stand: it stops sliding there
+| `orbit`   | `5000`  | Meters from the target to the camera, beyond the scene; closer for small scenes, where faces a fraction of a millimeter apart would fight at 5 km
