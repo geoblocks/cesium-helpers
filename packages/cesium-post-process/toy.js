@@ -20,7 +20,7 @@ const skyBottomScratch = new Cartesian4();
 export default class Toy extends Effect {
   /**
    * @param {import('@cesium/engine').CesiumWidget} viewer
-   * @param {{light?: number, shade?: number, bevel?: number, outline?: number, saturation?: number, warm?: [number, number, number], sky?: [import('@cesium/core').Color, import('@cesium/core').Color]}} [options]
+   * @param {{light?: number, shade?: number, bevel?: number, outline?: number, jump?: number, saturation?: number, warm?: [number, number, number], sky?: [import('@cesium/core').Color, import('@cesium/core').Color]}} [options]
    */
   constructor(viewer, options = {}) {
     super(viewer);
@@ -28,6 +28,7 @@ export default class Toy extends Effect {
     this.shade_ = options.shade ?? 0.18;
     this.bevel_ = options.bevel ?? 0;
     this.outline_ = options.outline ?? 0.4;
+    this.jump_ = options.jump ?? 20;
     this.saturation_ = options.saturation ?? 1.04;
     this.warm_ = options.warm ?? [1.03, 1, 0.95];
     this.sky_ = options.sky;
@@ -62,6 +63,7 @@ export default class Toy extends Effect {
       shade: () => this.shade_,
       bevel: () => this.bevel_,
       outline: () => this.outline_,
+      jump: () => this.jump_,
       saturation: () => this.saturation_,
       warm: () => Cartesian3.fromArray(this.warm_, 0, warmScratch),
       skyTop: () => this.sky_ ? color(this.sky_[0], skyTopScratch) : NO_SKY,
@@ -134,6 +136,20 @@ export default class Toy extends Effect {
 
   set outline(value) {
     this.outline_ = value;
+    this.viewer.scene.requestRender();
+  }
+
+  /**
+   * How far the depth jumps, in pixels' sizes, to be a silhouette, outlined, rather than a crease,
+   * lit or shaded: 20 by default, for a city's buildings, their eaves lit; lower close up, where a
+   * thin thing standing on the ground (a chair's leg) would light its foot.
+   */
+  get jump() {
+    return this.jump_;
+  }
+
+  set jump(value) {
+    this.jump_ = value;
     this.viewer.scene.requestRender();
   }
 

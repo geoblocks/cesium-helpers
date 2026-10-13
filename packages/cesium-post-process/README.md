@@ -92,6 +92,7 @@ const toy = new Toy(viewer, {
   shade: 0.18,            // how much darker a concave one
   bevel: 0,               // the edges' bevel in meters, their light fading over it close up, as molded plastic's; 0 for a pixel
   outline: 0.4,           // how much darker the silhouettes' outline, a pixel wide; 0 for none
+  jump: 20,               // how far the depth jumps, in pixels' sizes, to be a silhouette, not a crease; lower close up, a chair's foot not lit
   saturation: 1.04,       // the colors' saturation, 1 to keep it
   warm: [1.03, 1, 0.95],  // a factor each of red, green and blue
   sky: [Color.fromCssColorString('#fbf1e4'), Color.fromCssColorString('#e9d3bc')], // a gradient for the sky, top to bottom; omit to keep it
