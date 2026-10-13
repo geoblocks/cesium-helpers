@@ -41,8 +41,11 @@
       <wa-button id="out" size="s" appearance="outlined">−</wa-button>
       <wa-button id="in" size="s" appearance="outlined">+</wa-button>
     </div>
-    <wa-switch id="toy" size="s" checked>Toy look</wa-switch>
-    <wa-switch id="white" size="s">White model</wa-switch>
+    <wa-select id="style" size="s" label="Style" value="toy">
+      <wa-option value="toy">Toy</wa-option>
+      <wa-option value="white">White model</wa-option>
+      <wa-option value="none">None</wa-option>
+    </wa-select>
     <wa-switch id="tilt-shift" size="s" checked>Tilt-shift</wa-switch>
   </wa-card>
   <script type="module">
@@ -52,6 +55,8 @@
     import '@awesome.me/webawesome/dist/styles/webawesome.css';
     import '@awesome.me/webawesome/dist/components/button/button.js';
     import '@awesome.me/webawesome/dist/components/card/card.js';
+    import '@awesome.me/webawesome/dist/components/option/option.js';
+    import '@awesome.me/webawesome/dist/components/select/select.js';
     import '@awesome.me/webawesome/dist/components/switch/switch.js';
 
     // swisstopo's buildings, to see the view on something standing
@@ -78,17 +83,16 @@
       const white = new WhiteModel(viewer, {sky: [Cesium.Color.fromCssColorString('#dcdedd'), Cesium.Color.fromCssColorString('#f3f3f1')]});
       // the effects in their order, again from the first, as Cesium adds a stage after the others
       const effects = () => {
-        const model = document.querySelector('#white').checked;
-        const on = document.querySelector('#toy').checked && !model;
-        const shown = [[toy, on], [white, model], [tiltShift, document.querySelector('#tilt-shift').checked], [vignette, on]];
+        const style = document.querySelector('#style').value;
+        const on = style === 'toy';
+        const shown = [[toy, on], [white, style === 'white'], [tiltShift, document.querySelector('#tilt-shift').checked], [vignette, on]];
         shown.forEach(([effect]) => effect.active = false);
         shown.forEach(([effect, active]) => effect.active = active);
       };
       effects();
 
       document.querySelector('#activate').addEventListener('change', e => iso.active = e.target.checked);
-      document.querySelector('#toy').addEventListener('change', effects);
-      document.querySelector('#white').addEventListener('change', effects);
+      document.querySelector('#style').addEventListener('change', effects);
       document.querySelector('#tilt-shift').addEventListener('change', effects);
       document.querySelector('#left').addEventListener('click', () => iso.turn(-1));
       document.querySelector('#right').addEventListener('click', () => iso.turn(1));
