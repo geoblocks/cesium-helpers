@@ -6,10 +6,10 @@
 precision highp sampler2D;
 uniform sampler2D depthTexture;
 
-// how much the depth bends, in pixels' sizes, to start and to end lighting an edge; how far it
-// jumps, in pixels' sizes, to be an edge in front of something farther
+// how much the depth bends, in pixels' sizes, to start and to end lighting an edge
 const vec2 CREASE = vec2(0.6, 1.6);
-const float JUMP = 20.0;
+// how far the depth jumps, in pixels' sizes, to be an edge in front of something farther, not a crease
+uniform float jump;
 // the bevel's widest, in pixels: its neighbors read that far at the most
 const float BEVEL = 8.0;
 // the sky's depth, far off
@@ -42,8 +42,8 @@ vec4 neighborsAt(vec2 uv, float c, float steps) {
 // how sharply the depth bends between neighbors n a span of meters apart, from 0 to 1, none across
 // a jump; convex where they lie farther than the middle, their sum positive
 float creaseOf(vec4 n, float span, float pixel) {
-  float jump = max(max(abs(n.x), abs(n.y)), max(abs(n.z), abs(n.w)));
-  return smoothstep(CREASE.x, CREASE.y, (abs(n.x + n.y) + abs(n.z + n.w)) / span) * (1.0 - step(JUMP * pixel, jump));
+  float far = max(max(abs(n.x), abs(n.y)), max(abs(n.z), abs(n.w)));
+  return smoothstep(CREASE.x, CREASE.y, (abs(n.x + n.y) + abs(n.z + n.w)) / span) * (1.0 - step(jump * pixel, far));
 }
 
 // 1 on the outline a pixel wide, on the near side of a jump: a neighbor much farther; n the
@@ -53,7 +53,7 @@ float outlineAt(vec2 uv, float c, vec4 n, float steps, float pixel) {
   float farther = steps > 1.0
     ? max(max(depthAt(uv + vec2(texel.x, 0.0)), depthAt(uv - vec2(texel.x, 0.0))), max(depthAt(uv + vec2(0.0, texel.y)), depthAt(uv - vec2(0.0, texel.y)))) - c
     : max(max(n.x, n.y), max(n.z, n.w));
-  return step(JUMP * pixel, farther);
+  return step(jump * pixel, farther);
 }
 
 // the sky's gradient at uv, from the top of the screen to its bottom
