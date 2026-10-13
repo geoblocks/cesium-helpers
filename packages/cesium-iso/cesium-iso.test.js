@@ -108,3 +108,12 @@ test('inactive again, the camera gets its own frustum back and the inputs', () =
   assert.equal(viewer.scene.camera.frustum.original, true);
   assert.equal(viewer.scene.screenSpaceCameraController.enableInputs, true);
 });
+
+test('the camera stands the orbit away from its target, 5 km by default, closer for a finer depth', () => {
+  for (const [options, orbit] of [[{}, 5000], [{orbit: 500}, 500]]) {
+    const viewer = fakeViewer();
+    const iso = new CesiumIso(viewer, options);
+    iso.active = true;
+    near(Cartesian3.distance(viewer.scene.camera.position, iso.target), orbit, 1e-6);
+  }
+});

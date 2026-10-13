@@ -1,7 +1,7 @@
 import {Cartesian2, Cartesian3, Cartographic, FixedFrameTransforms, IntersectionTests, Math as CesiumMath, Matrix4, Plane} from '@cesium/core';
 
-// in meters, how far the camera stays from its target, out of the scene's way: an orthographic view does not depend
-// on it
+// in meters, how far the camera stays from its target by default, out of the scene's way: an orthographic view's
+// size does not depend on it, its depth's precision does (32-bit floats: half a millimeter at 5 km)
 const ORBIT = 5000;
 // the keys, as in the Sims: Q and E turn, WASD or the arrows slide across the ground while held, [x, y] on the screen
 /** @type {Record<string, [number, number]>} */
@@ -37,9 +37,10 @@ export default class CesiumIso {
   /**
    * @param {import('@cesium/engine').CesiumWidget} viewer
    * @param {{pitch?: number, heading?: number, size?: number, minSize?: number, maxSize?: number,
-   *   limit?: (target: Cartesian3) => Cartesian3}} [options] The pitch, in degrees down from the horizon; a corner's
-   *   heading, in degrees, the others a quarter turn apart; the size, in meters across the screen's shorter side, and
-   *   its bounds; a limit, a target moved back where the view may stand: it stops sliding there.
+   *   limit?: (target: Cartesian3) => Cartesian3, orbit?: number}} [options] The pitch, in degrees down from the horizon; a
+   *   corner's heading, in degrees, the others a quarter turn apart; the size, in meters across the screen's shorter side,
+   *   and its bounds; a limit, a target moved back where the view may stand: it stops sliding there; the orbit, in meters
+   *   from the target to the camera, beyond the scene: closer, faces a fraction of a millimeter apart do not fight.
    */
   constructor(viewer, options = {}) {
     this.viewer = viewer;
@@ -49,6 +50,7 @@ export default class CesiumIso {
     this.minSize_ = options.minSize ?? 20;
     this.maxSize_ = options.maxSize ?? 8000;
     this.limit_ = options.limit;
+    this.orbit_ = options.orbit ?? ORBIT;
     this.active_ = false;
     /** @type {Cartesian3} */
     this.target_ = new Cartesian3();
@@ -253,7 +255,7 @@ export default class CesiumIso {
     const frame = FixedFrameTransforms.eastNorthUpToFixedFrame(this.target_, ellipsoid, frameScratch);
     const direction = Matrix4.multiplyByPointAsVector(frame, Cartesian3.fromElements(sh * cp, ch * cp, -sp, directionScratch), directionScratch);
     const up = Matrix4.multiplyByPointAsVector(frame, Cartesian3.fromElements(sh * sp, ch * sp, cp, upScratch), upScratch);
-    Matrix4.multiplyByPoint(frame, Cartesian3.fromElements(-sh * cp * ORBIT, -ch * cp * ORBIT, sp * ORBIT, orbitScratch), camera.position);
+    Matrix4.multiplyByPoint(frame, Cartesian3.fromElements(-sh * cp * this.orbit_, -ch * cp * this.orbit_, sp * this.orbit_, orbitScratch), camera.position);
     Cartesian3.clone(direction, camera.direction);
     Cartesian3.clone(up, camera.up);
     Cartesian3.cross(direction, up, camera.right);
