@@ -71,7 +71,7 @@ drone.crashed.addEventListener((position, impact) => {
 });
 
 drone.speedNow;  // current speed, in m/s
-drone.heightNow; // height above the terrain, in m, or undefined where it is not loaded
+drone.heightNow; // height above the ground, the terrain by default, in m, or undefined where it is not loaded
 ```
 
 ### Jamming
@@ -113,5 +113,25 @@ import {tilesetObstacle} from '@geoblocks/cesium-obstacles';
 drone.obstacleAhead = toward => tilesetObstacle(viewer.scene, buildings, viewer.camera.positionWC, toward, 5);
 ```
 
-The demo adds the drone camera effects of [cesium-post-process](../cesium-post-process): a wide lens,
+### Flying among a mesh
+
+`flyOn` flies the drone among a triangle mesh of [cesium-obstacles](../cesium-obstacles), a building's walls,
+roofs and floors known on the CPU, from groups of triangles or a glTF:
+
+```javascript
+import {createTriangleMeshFromGltf} from '@geoblocks/cesium-obstacles';
+import CesiumDrone, {flyOn} from '@geoblocks/cesium-drone';
+
+const mesh = createTriangleMeshFromGltf(await (await fetch('building.glb')).arrayBuffer(), modelMatrix);
+const drone = new CesiumDrone(viewer);
+// a body 0.25 m about its middle, the walls looked for 5 m ahead
+flyOn(drone, mesh, {radius: 0.25, reach: 5});
+```
+
+It turns the collision on: the walls stop the drone, crashing, in every direction, from rays cast from its middle
+and from around its body, beside, above and below it; climbing, the ceilings too. The roofs and floors are its
+ground, `drone.groundHeight`, which it keeps its clearance above as it does the terrain, and the terrain
+elsewhere.
+
+ of [cesium-post-process](../cesium-post-process): a wide lens,
 jello, a display and the video signal.
