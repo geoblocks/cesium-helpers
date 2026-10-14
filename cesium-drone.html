@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en" class="wa-theme-default wa-palette-default wa-light">
+
+<head>
+  <meta charset="UTF-8">
+  <script src="https://cdn.jsdelivr.net/npm/cesium@1.146.0/Build/Cesium/Cesium.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/cesium@1.146.0/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  <style>html,body,#cesiumContainer{height:100%;margin:0}#controls{--spacing:var(--wa-space-s);max-inline-size:32ch;position:absolute;inset-block-start:var(--wa-space-xl);inset-inline-start:var(--wa-space-xl)}#lost{color:#fff;text-shadow:0 0 4px #000;pointer-events:none;place-items:center;font:700 3rem monospace;display:grid;position:absolute;inset:0}#lost[hidden]{display:none}</style>
+  <script type="module" crossorigin src="./assets/cesium-drone-5KLACYFF.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/lit-BFn1CURT.js">
+  <link rel="modulepreload" crossorigin href="./assets/directive-BSZPiF1A.js">
+  <link rel="modulepreload" crossorigin href="./assets/card-AeaRol_r.js">
+  <link rel="modulepreload" crossorigin href="./assets/setup-DMh09s7J.js">
+  <link rel="modulepreload" crossorigin href="./assets/cesium-shim-e6hyQueX.js">
+  <link rel="modulepreload" crossorigin href="./assets/directive-helpers-BiOJKcbC.js">
+  <link rel="modulepreload" crossorigin href="./assets/switch-C191omm4.js">
+  <link rel="modulepreload" crossorigin href="./assets/cesium-input-pRtqz_CT.js">
+  <link rel="modulepreload" crossorigin href="./assets/cesium-obstacles-DyfyMOLQ.js">
+  <link rel="modulepreload" crossorigin href="./assets/EyeFromDepth-DmDC5MHh.js">
+  <link rel="modulepreload" crossorigin href="./assets/frame-clock-JIPNaZFQ.js">
+  <link rel="modulepreload" crossorigin href="./assets/Hash-CBIEOLtO.js">
+  <link rel="modulepreload" crossorigin href="./assets/jello-D4qoCMhb.js">
+  <link rel="modulepreload" crossorigin href="./assets/precipitation-DFeu9B7V.js">
+  <link rel="modulepreload" crossorigin href="./assets/focus-CEnpGAS5.js">
+  <link rel="modulepreload" crossorigin href="./assets/motion-blur-CD7KtenJ.js">
+  <link rel="modulepreload" crossorigin href="./assets/speed-lines-DgkCv6XE.js">
+  <link rel="modulepreload" crossorigin href="./assets/chunk.GWSUX3V5-BJ2wQfMz.js">
+  <link rel="modulepreload" crossorigin href="./assets/chunk.UEBQI7VV-up6OAE6C.js">
+  <link rel="modulepreload" crossorigin href="./assets/chunk.JAAVYFGY-DnLsQWHm.js">
+  <link rel="modulepreload" crossorigin href="./assets/option-CXgv_dG7.js">
+  <link rel="stylesheet" crossorigin href="./assets/flyover-studio-DfFS4Dmy.css">
+</head>
+
+<body>
+  <div id="cesiumContainer"></div>
+  <div id="lost" hidden>SIGNAL LOST</div>
+  <wa-card id="controls">
+    <p class="wa-caption-m">
+      W / S climb, A / D turn, the arrows fly forward and sideways, Shift boosts, R / F tilt the camera.
+      A gamepad works too. Take off with W; land by touching the ground gently; fly fast into a slope and you crash.
+      Hidden jammers turn the picture to snow; close to one, the control link is lost too: turn back or hide behind a ridge.
+      With collision on, the drone crashes into the orange block ahead at any speed, and into the slab on the left
+      when climbing into it, but flies under it; the translucent block on the right is not an obstacle.
+    </p>
+    <div class="wa-stack">
+      <wa-switch id="fly" size="s">Fly</wa-switch>
+      <wa-switch id="collision" size="s" checked>Collision</wa-switch>
+      <wa-switch id="rain" size="s">Rain</wa-switch>
+      <wa-switch id="jammers" size="s" checked>Jammers</wa-switch>
+      <wa-switch id="show-jammers" size="s">Show jammers</wa-switch>
+      <wa-select id="layout" size="s" label="Controller" value="game">
+        <wa-option value="game">Game: left stick moves, triggers climb</wa-option>
+        <wa-option value="mode2">Drone radio (Mode 2)</wa-option>
+      </wa-select>
+      <wa-select id="video" size="s" label="Video" value="analog">
+        <wa-option value="analog">Analog</wa-option>
+        <wa-option value="digital">Digital</wa-option>
+      </wa-select>
+    </div>
+  </wa-card>
+</body>
+
+</html>
