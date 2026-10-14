@@ -1,5 +1,8 @@
-import {Cartesian3, Cartographic, Ellipsoid, Matrix4} from "@cesium/core";
+import {Cartesian3, Cartographic, Ellipsoid, Matrix3, Matrix4} from "@cesium/core";
 import {Axis, Model, PrimitiveCollection, ShadowMode} from "@cesium/engine";
+import {gltfTriangles} from "./gltf-mesh.js";
+
+/** @typedef {import("./gltf-mesh.js").GltfTriangles} GltfTriangles */
 
 // Triangles to walk on, in meters, z up, in the frame of a model matrix: their models, and the floors and
 // walls a walker meets, without reading the depth, which waits for the GPU.
@@ -33,6 +36,18 @@ const floorCartographicScratch = new Cartographic();
  * @property {Float32Array} [lightmap] Its vertices' coordinates in a baked light's atlas, u and v each, written as
  *     the second texture coordinates.
  * @property {import("@cesium/engine").CustomShader} [customShader]
+ */
+
+/**
+ * @typedef {object} WalkMesh The floors and walls a walker meets, in the frame of a model matrix.
+ * @property {(x: number, y: number, z: number) => number | undefined} floorBelow The highest floor's height at
+ *     a position of the frame, not above it.
+ * @property {(origin: Cartesian3, direction: Cartesian3, maxDistance: number, options?: {walls?: boolean}) =>
+ *     {position: Cartesian3, normal: Cartesian3, distance: number} | undefined} raycast The first surface along a
+ *     ray on the globe.
+ * @property {(x: number, y: number, z: number, result?: Cartesian3) => Cartesian3} position A position of the
+ *     frame on the globe.
+ * @property {(position: Cartesian3, result?: Cartesian3) => Cartesian3} local A position on the globe in the frame.
  */
 
 /**
@@ -139,8 +154,10 @@ export function toGlb(vertices, triangles, color, emissive, uv, lightmap) {
 }
 
 /**
+ * Draws the groups and walks on them.
  * @param {WalkGroup[]} groups
  * @param {Matrix4} modelMatrix From the triangles' frame to the globe.
+ * @return {Promise<WalkMesh & {primitive: PrimitiveCollection}>}
  */
 export async function createWalkMesh(groups, modelMatrix) {
   // a single point, or nothing, has nothing to draw
@@ -174,8 +191,38 @@ export async function createWalkMesh(groups, modelMatrix) {
     throw failed.reason;
   }
 
+  return {primitive, ...collisionMesh(groups.filter(group => group.collide !== false), modelMatrix)};
+}
+
+/**
+ * Walks on the triangles of a glTF, drawn elsewhere or not at all: the same floors and walls as createWalkMesh's,
+ * of the glTF's meshes in its default scene (`gltfTriangles`), its y up turned z up.
+ * @param {ArrayBuffer | Uint8Array | object} gltf A binary glTF, or a glTF's JSON.
+ * @param {Matrix4} modelMatrix The model's, from the glTF's frame, z up, to the globe.
+ * @param {{buffers?: ArrayBuffer | Uint8Array | (ArrayBuffer | Uint8Array)[], collide?: (primitive: GltfTriangles) => boolean,
+ *     forwardAxis?: Axis}} [options] buffers: with a glTF's JSON, its binary buffer or buffers; collide: whether a
+ *     primitive is walked on, all by default; forwardAxis: the one the Model is loaded with, Axis.X as createWalkMesh's
+ *     by default, Axis.Z for Cesium's default, which turns the model a quarter round its up axis.
+ * @return {WalkMesh}
+ */
+export function createWalkMeshFromGltf(gltf, modelMatrix, {buffers, collide = () => true, forwardAxis = Axis.X} = {}) {
+  const primitives = gltfTriangles(gltf, buffers).filter(primitive => collide(primitive));
+  // Cesium turns a z forward model's +z to +x before its y up to z up: in the triangles' frame, z up, a quarter
+  // turn round z, (x, y, z) to (-y, x, z)
+  const matrix = forwardAxis === Axis.Z ?
+    Matrix4.multiply(modelMatrix, Matrix4.fromRotation(new Matrix3(0, -1, 0, 1, 0, 0, 0, 0, 1)), new Matrix4()) :
+    modelMatrix;
+  return collisionMesh(primitives, matrix);
+}
+
+/**
+ * The floors and walls a walker meets in triangles, without reading the depth.
+ * @param {{vertices: Float32Array, triangles: Uint32Array}[]} colliding
+ * @param {Matrix4} modelMatrix From the triangles' frame to the globe.
+ * @return {WalkMesh}
+ */
+function collisionMesh(colliding, modelMatrix) {
   // the groups walked on as one: their vertices one after the other, their triangles renumbered
-  const colliding = groups.filter(group => group.collide !== false);
   const vertices = new Float32Array(colliding.reduce((n, group) => n + group.vertices.length, 0));
   const triangles = new Uint32Array(colliding.reduce((n, group) => n + group.triangles.length, 0));
   let vertexOffset = 0;
@@ -329,7 +376,6 @@ export async function createWalkMesh(groups, modelMatrix) {
   };
 
   return {
-    primitive,
     floorBelow,
     /**
      * The first surface along a ray on the globe.
@@ -394,7 +440,7 @@ export function rayHeights(eye, step) {
  * arches, else on what it stood on before (the terrain); the walls ahead stop it, from rays cast at the knees,
  * the waist and the eyes, the floors and stairs left to the ground below, in every direction.
  * @param {import('./cesium-walk.js').default} walk
- * @param {Awaited<ReturnType<typeof createWalkMesh>>} mesh
+ * @param {WalkMesh} mesh
  * @param {{eye: number, step: number, reach: number}} options In meters: the eyes above the floor, the
  *     highest step, how far ahead the walls are looked for.
  */
