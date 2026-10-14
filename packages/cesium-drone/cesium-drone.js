@@ -167,7 +167,7 @@ export default class CesiumDrone {
      * roofs and floors otherwise (flyOn).
      * @type {(position: Cartographic) => number | undefined}
      */
-    this.groundHeight = position => this.viewer.scene.globe.getHeight(position);
+    this.groundHeight = position => this.viewer.scene.globe?.getHeight(position);
 
     this.handleTickFunction_ = this.handleTick_.bind(this);
   }

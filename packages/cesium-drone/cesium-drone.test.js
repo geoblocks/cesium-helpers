@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {Cartesian3, Cartographic} from '@cesium/core';
+import {Cartesian3, Cartographic, Matrix4} from '@cesium/core';
 import {Transforms} from '@cesium/engine';
 import {createTriangleMesh} from '@geoblocks/cesium-obstacles';
 import CesiumDrone, {flyOn} from './cesium-drone.js';
@@ -59,6 +59,16 @@ const placed = (mesh, x, y, z) => {
   mesh.position(x, y, z, drone.position_);
   return {drone, ...rest};
 };
+
+test('without a globe, the ground is the mesh\'s floor, and unknown off it, not an error', () => {
+  const scene = {camera: {setView: () => {}}, requestRender: () => {}, screenSpaceCameraController: {}};
+  const drone = new CesiumDrone(/** @type {any} */ ({scene, camera: scene.camera, clock: {}}), {speed: 10});
+  flyOn(drone, createTriangleMesh([level(3)], modelMatrix));
+  const above = (x, y) => Cartographic.fromCartesian(Matrix4.multiplyByPoint(modelMatrix, new Cartesian3(x, y, 8), new Cartesian3()));
+  const floor = Cartographic.fromCartesian(Matrix4.multiplyByPoint(modelMatrix, new Cartesian3(0, 0, 3), new Cartesian3())).height;
+  assert.ok(Math.abs(drone.groundHeight(above(0, 0)) - floor) < 1e-3);
+  assert.equal(drone.groundHeight(above(500, 500)), undefined);
+});
 
 test('by default, the ground is the terrain', () => {
   const {drone} = testDrone(12);
