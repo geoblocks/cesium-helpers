@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.1.1](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-post-process%400.1.0...%40geoblocks%2Fcesium-post-process%400.1.1) (2026-10-14)
+
+### Bug Fixes
+
+* **post-process:** publish effect.js and the cloud files ([9978341](https://github.com/geoblocks/cesium-helpers/commit/997834112b1e234a06cca994398cf07337cb431c))
+
+
 # 0.1.0 (2026-10-14)
 
 ### Bug Fixes
