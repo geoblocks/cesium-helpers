@@ -1,6 +1,6 @@
 import {Cartesian2, PolygonPipeline} from "@cesium/core";
 
-// Triangles of one color, built face by face, for createWalkMesh (walk-mesh.js).
+// Triangles of one color, built face by face, for createTriangleMesh (triangle-mesh.js) and a drawing of them.
 
 /**
  * @typedef {object} Chart A face's place among a group's vertices, for laying it out in an atlas.
@@ -25,8 +25,8 @@ export class Group {
   /**
    * Triangles of one color, in meters, z up.
    * @param {number[]} color Linear, and its alpha.
-   * @param {{charts?: boolean} & Record<string, any>} [options] The walk group's (show, collide, shadows, emissive,
-   *     uv, customShader, ...), passed on; charts: each face recorded, for an atlas.
+   * @param {{charts?: boolean} & Record<string, any>} [options] The group's (collide, and a drawing's own: show,
+   *     shadows, emissive, uv, ...), passed on; charts: each face recorded, for an atlas.
    */
   constructor(color, {charts = false, ...options} = {}) {
     this.color = color;
@@ -101,8 +101,8 @@ export class Group {
     this.face([x0, y0, z0], [x1, y0, z0], [x1, y1, z0], [x0, y1, z0]);
   }
 
-  /** The group for createWalkMesh: its color, vertices and triangles, its options, its charts if recorded. */
-  get walkGroup() {
+  /** The group for createTriangleMesh: its color, vertices and triangles, its options, its charts if recorded. */
+  get meshGroup() {
     return {color: this.color, vertices: new Float32Array(this.positions), triangles: new Uint32Array(this.indices), ...this.options,
       ...(this.charts ? {charts: this.charts} : {})};
   }

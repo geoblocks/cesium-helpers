@@ -1,7 +1,7 @@
 import {Cartesian3, Matrix4, Quaternion} from "@cesium/core";
 
-// The triangles of a glTF's meshes, in the walker's frame: glTF's y up turned z up, as createWalkMesh's models
-// are loaded (forwardAxis X), its glTF (x, y, z) at (x, -z, y).
+// The triangles of a glTF's meshes, in a triangle mesh's frame: glTF's y up turned z up, as Cesium loads a model
+// with forwardAxis X, its glTF (x, y, z) at (x, -z, y).
 
 // the extensions that change where the vertices are, which are not read
 const UNSUPPORTED = ['KHR_draco_mesh_compression', 'EXT_meshopt_compression', 'KHR_meshopt_compression', 'EXT_mesh_gpu_instancing'];
@@ -134,7 +134,7 @@ function toTriangles(mode, indices) {
 
 /**
  * The triangles of every mesh primitive of a glTF's scene (its default scene, else its first, else its root
- * nodes), lists, strips and fans, each node using a mesh giving its own copy, in the walker's frame, z up:
+ * nodes), lists, strips and fans, each node using a mesh giving its own copy, in a triangle mesh's frame, z up:
  * glTF's (x, y, z) at (x, -z, y). The positions in floats, or quantized (KHR_mesh_quantization), with a
  * byteStride or not, indexed or not. The materials, textures, animations, skins and morph targets are ignored;
  * Draco, meshopt, GPU instancing and sparse accessors are not read: they throw.

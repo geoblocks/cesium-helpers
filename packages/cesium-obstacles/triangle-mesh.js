@@ -1,11 +1,12 @@
 import {Cartesian3, Cartographic, Ellipsoid, Matrix3, Matrix4} from "@cesium/core";
-import {Axis, Model, PrimitiveCollection, ShadowMode} from "@cesium/engine";
+import {Axis} from "@cesium/engine";
 import {gltfTriangles} from "./gltf-mesh.js";
 
 /** @typedef {import("./gltf-mesh.js").GltfTriangles} GltfTriangles */
+/** @typedef {import("./cesium-obstacles.js").Obstacle} Obstacle */
 
-// Triangles to walk on, in meters, z up, in the frame of a model matrix: their models, and the floors and
-// walls a walker meets, without reading the depth, which waits for the GPU.
+// Triangles known on the CPU, in meters, z up, in the frame of a model matrix: the floors under a mover and the
+// walls ahead of it, in any direction, without reading the depth, which waits for the GPU.
 
 // the ground's cells, in meters
 const CELL = 2;
@@ -14,32 +15,18 @@ const FLOOR = 0.5;
 
 const originScratch = new Cartesian3();
 const directionScratch = new Cartesian3();
-const upScratch = new Cartesian3();
 const rayScratch = new Cartesian3();
+const upScratch = new Cartesian3();
+const eastScratch = new Cartesian3();
+const northScratch = new Cartesian3();
 const rayOriginScratch = new Cartesian3();
-const kneesScratch = new Cartographic();
+const offsetScratch = new Cartesian3();
+const belowScratch = new Cartographic();
 const floorScratch = new Cartesian3();
 const floorCartographicScratch = new Cartographic();
 
 /**
- * @typedef {object} WalkGroup Triangles of one color.
- * @property {number[]} color The base color, linear, and its alpha: translucent below 1.
- * @property {Float32Array} vertices x, y, z, in meters, z up.
- * @property {Uint32Array} triangles
- * @property {boolean} [show] false: walked on, not seen (an invisible edge).
- * @property {boolean} [collide] false: seen, not walked on (the battens, the water).
- * @property {boolean} [shadows] false: casts no shadow (the glass, the water).
- * @property {number} [emissive] The share of its color it gives off: the light indoors, which Cesium does not
- *     bounce off the walls.
- * @property {boolean} [uv] Whether its vertices carry their x and y as texture coordinates, in meters, for a
- *     shader drawing on the floors.
- * @property {Float32Array} [lightmap] Its vertices' coordinates in a baked light's atlas, u and v each, written as
- *     the second texture coordinates.
- * @property {import("@cesium/engine").CustomShader} [customShader]
- */
-
-/**
- * @typedef {object} WalkMesh The floors and walls a walker meets, in the frame of a model matrix.
+ * @typedef {object} TriangleMesh The floors and walls of triangles, in the frame of a model matrix.
  * @property {(x: number, y: number, z: number) => number | undefined} floorBelow The highest floor's height at
  *     a position of the frame, not above it.
  * @property {(origin: Cartesian3, direction: Cartesian3, maxDistance: number, options?: {walls?: boolean}) =>
@@ -51,161 +38,27 @@ const floorCartographicScratch = new Cartographic();
  */
 
 /**
- * The flat shaded model of the triangles, untextured, in glTF's y up: the positions in floats, a corner the same
- * in every model sharing it, no crack between them; the normals quantized (KHR_mesh_quantization) in 8 bits,
- * padded to 4 bytes, 16 in all, as against 24 in floats. Exported for the tests.
- * @param {Float32Array} vertices
- * @param {Uint32Array} triangles
- * @param {number[]} color
- * @param {number} emissive
- * @param {boolean} uv Whether to give the vertices their x and y as texture coordinates, in floats.
- * @param {Float32Array | undefined} lightmap The vertices' second texture coordinates, in floats, if any.
- * @return {ArrayBuffer} The binary glTF.
- */
-export function toGlb(vertices, triangles, color, emissive, uv, lightmap) {
-  const count = triangles.length;
-  const toGltf = (/** @type {number} */ v) => [vertices[v], vertices[v + 2], -vertices[v + 1]];
-  const positions = new Float32Array(count * 3);
-  const normals = new Int8Array(count * 4);
-  const texCoords = new Float32Array(uv ? count * 2 : 0);
-  const lightmapCoords = new Float32Array(lightmap ? count * 2 : 0);
-  const min = [Infinity, Infinity, Infinity];
-  const max = [-Infinity, -Infinity, -Infinity];
-  for (let i = 0; i < count; i += 3) {
-    const corners = [0, 1, 2].map(k => toGltf(triangles[i + k] * 3));
-    const [a, b, c] = corners.map(([x, y, z]) => new Cartesian3(x, y, z));
-    const normal = Cartesian3.cross(Cartesian3.subtract(b, a, new Cartesian3()), Cartesian3.subtract(c, a, new Cartesian3()), new Cartesian3());
-    if (Cartesian3.magnitudeSquared(normal) > 0) {
-      Cartesian3.normalize(normal, normal);
-    }
-    corners.forEach((corner, k) => {
-      positions.set(corner, (i + k) * 3);
-      normals.set([normal.x, normal.y, normal.z].map(n => Math.round(n * 127)), (i + k) * 4);
-      for (let axis = 0; axis < 3; axis++) {
-        min[axis] = Math.min(min[axis], Math.fround(corner[axis]));
-        max[axis] = Math.max(max[axis], Math.fround(corner[axis]));
-      }
-      if (uv) {
-        const v = triangles[i + k] * 3;
-        texCoords.set([vertices[v], vertices[v + 1]], (i + k) * 2);
-      }
-      if (lightmap) {
-        const v = triangles[i + k];
-        lightmapCoords.set([lightmap[v * 2], lightmap[v * 2 + 1]], (i + k) * 2);
-      }
-    });
-  }
-  // the float attributes after the positions and normals, each its own buffer view
-  const floats = /** @type {[string, Float32Array][]} */ ([...(uv ? [['TEXCOORD_0', texCoords]] : []), ...(lightmap ? [['TEXCOORD_1', lightmapCoords]] : [])]);
-  const floatsLength = floats.reduce((n, [, array]) => n + array.byteLength, 0);
-  let floatOffset = positions.byteLength + normals.byteLength;
-  const json = new TextEncoder().encode(JSON.stringify({
-    asset: {version: '2.0'},
-    extensionsUsed: ['KHR_mesh_quantization', ...(emissive > 1 ? ['KHR_materials_emissive_strength'] : [])],
-    extensionsRequired: ['KHR_mesh_quantization'],
-    scene: 0,
-    scenes: [{nodes: [0]}],
-    nodes: [{mesh: 0}],
-    meshes: [{primitives: [{attributes: {POSITION: 0, NORMAL: 1, ...Object.fromEntries(floats.map(([name], k) => [name, 2 + k]))}, material: 0}]}],
-    materials: [{
-      pbrMetallicRoughness: {baseColorFactor: color, metallicFactor: 0, roughnessFactor: 1},
-      // glTF caps the factor at 1, the strength carries the rest
-      emissiveFactor: color.slice(0, 3).map(c => Math.min(Math.max(c * Math.min(emissive, 1), 0), 1)),
-      ...(emissive > 1 ? {extensions: {KHR_materials_emissive_strength: {emissiveStrength: emissive}}} : {}),
-      doubleSided: true,
-      ...(color[3] < 1 ? {alphaMode: 'BLEND'} : {}),
-    }],
-    buffers: [{byteLength: positions.byteLength + normals.byteLength + floatsLength}],
-    bufferViews: [
-      {buffer: 0, byteOffset: 0, byteLength: positions.byteLength, target: 34962},
-      {buffer: 0, byteOffset: positions.byteLength, byteLength: normals.byteLength, byteStride: 4, target: 34962},
-      ...floats.map(([, array]) => {
-        const view = {buffer: 0, byteOffset: floatOffset, byteLength: array.byteLength, target: 34962};
-        floatOffset += array.byteLength;
-        return view;
-      }),
-    ],
-    accessors: [
-      {bufferView: 0, componentType: 5126, count, type: 'VEC3', min, max},
-      {bufferView: 1, componentType: 5120, normalized: true, count, type: 'VEC3'},
-      ...floats.map((_, k) => ({bufferView: 2 + k, componentType: 5126, count, type: 'VEC2'})),
-    ],
-  }));
-  const jsonLength = Math.ceil(json.length / 4) * 4;
-  const binLength = positions.byteLength + normals.byteLength + floatsLength;
-  const glb = new ArrayBuffer(12 + 8 + jsonLength + 8 + binLength);
-  const view = new DataView(glb);
-  view.setUint32(0, 0x46546c67, true);
-  view.setUint32(4, 2, true);
-  view.setUint32(8, glb.byteLength, true);
-  view.setUint32(12, jsonLength, true);
-  view.setUint32(16, 0x4e4f534a, true);
-  new Uint8Array(glb, 20, jsonLength).fill(0x20).set(json);
-  view.setUint32(20 + jsonLength, binLength, true);
-  view.setUint32(24 + jsonLength, 0x004e4942, true);
-  new Float32Array(glb, 28 + jsonLength, count * 3).set(positions);
-  new Int8Array(glb, 28 + jsonLength + positions.byteLength, count * 4).set(normals);
-  let offset = 28 + jsonLength + positions.byteLength + normals.byteLength;
-  for (const [, array] of floats) {
-    new Float32Array(glb, offset, array.length).set(array);
-    offset += array.byteLength;
-  }
-  return glb;
-}
-
-/**
- * Draws the groups and walks on them.
- * @param {WalkGroup[]} groups
+ * The floors and walls of groups of triangles; a group with `collide: false` is left out.
+ * @param {{vertices: Float32Array, triangles: Uint32Array, collide?: boolean}[]} groups x, y, z, in meters, z up.
  * @param {Matrix4} modelMatrix From the triangles' frame to the globe.
- * @return {Promise<WalkMesh & {primitive: PrimitiveCollection}>}
+ * @return {TriangleMesh}
  */
-export async function createWalkMesh(groups, modelMatrix) {
-  // a single point, or nothing, has nothing to draw
-  const visible = groups.filter(group => group.show !== false && group.triangles.length > 0 &&
-    group.vertices.some((value, k) => value !== group.vertices[k % 3]));
-  const urls = visible.map(group => URL.createObjectURL(new Blob([toGlb(group.vertices, group.triangles, group.color, group.emissive ?? 0, group.uv ?? false, group.lightmap)], {type: 'model/gltf-binary'})));
-  const loaded = await Promise.allSettled(visible.map(async (group, k) => {
-    // with glTF's y up only: Cesium would also turn the model's +z to +x, a quarter turn off the frame's axes
-    const model = await Model.fromGltfAsync({
-      url: urls[k],
-      modelMatrix,
-      forwardAxis: Axis.X,
-      shadows: group.shadows === false ? ShadowMode.RECEIVE_ONLY : ShadowMode.ENABLED,
-      ...(group.customShader ? {customShader: group.customShader} : {}),
-    });
-    model.readyEvent.addEventListener(() => URL.revokeObjectURL(urls[k]));
-    model.errorEvent.addEventListener(() => URL.revokeObjectURL(urls[k]));
-    return model;
-  }));
-  // in the groups' order
-  const primitive = new PrimitiveCollection();
-  for (const result of loaded) {
-    if (result.status === 'fulfilled') {
-      primitive.add(result.value);
-    }
-  }
-  const failed = loaded.find(result => result.status === 'rejected');
-  if (failed) {
-    primitive.destroy();
-    urls.forEach(url => URL.revokeObjectURL(url));
-    throw failed.reason;
-  }
-
-  return {primitive, ...collisionMesh(groups.filter(group => group.collide !== false), modelMatrix)};
+export function createTriangleMesh(groups, modelMatrix) {
+  return collisionMesh(groups.filter(group => group.collide !== false), modelMatrix);
 }
 
 /**
- * Walks on the triangles of a glTF, drawn elsewhere or not at all: the same floors and walls as createWalkMesh's,
- * of the glTF's meshes in its default scene (`gltfTriangles`), its y up turned z up.
+ * The floors and walls of a glTF's triangles, drawn elsewhere or not at all: its meshes in its default scene
+ * (`gltfTriangles`), its y up turned z up.
  * @param {ArrayBuffer | Uint8Array | object} gltf A binary glTF, or a glTF's JSON.
  * @param {Matrix4} modelMatrix The model's, from the glTF's frame, z up, to the globe.
  * @param {{buffers?: ArrayBuffer | Uint8Array | (ArrayBuffer | Uint8Array)[], collide?: (primitive: GltfTriangles) => boolean,
  *     forwardAxis?: Axis}} [options] buffers: with a glTF's JSON, its binary buffer or buffers; collide: whether a
- *     primitive is walked on, all by default; forwardAxis: the one the Model is loaded with, Axis.X as createWalkMesh's
- *     by default, Axis.Z for Cesium's default, which turns the model a quarter round its up axis.
- * @return {WalkMesh}
+ *     primitive is an obstacle, all by default; forwardAxis: the one the Model is loaded with, Cesium's default
+ *     Axis.Z, which turns the model a quarter round its up axis, or Axis.X.
+ * @return {TriangleMesh}
  */
-export function createWalkMeshFromGltf(gltf, modelMatrix, {buffers, collide = () => true, forwardAxis = Axis.X} = {}) {
+export function createTriangleMeshFromGltf(gltf, modelMatrix, {buffers, collide = () => true, forwardAxis = Axis.Z} = {}) {
   const primitives = gltfTriangles(gltf, buffers).filter(primitive => collide(primitive));
   // Cesium turns a z forward model's +z to +x before its y up to z up: in the triangles' frame, z up, a quarter
   // turn round z, (x, y, z) to (-y, x, z)
@@ -216,10 +69,10 @@ export function createWalkMeshFromGltf(gltf, modelMatrix, {buffers, collide = ()
 }
 
 /**
- * The floors and walls a walker meets in triangles, without reading the depth.
+ * The floors and walls of triangles.
  * @param {{vertices: Float32Array, triangles: Uint32Array}[]} colliding
  * @param {Matrix4} modelMatrix From the triangles' frame to the globe.
- * @return {WalkMesh}
+ * @return {TriangleMesh}
  */
 function collisionMesh(colliding, modelMatrix) {
   // the groups walked on as one: their vertices one after the other, their triangles renumbered
@@ -382,7 +235,7 @@ function collisionMesh(colliding, modelMatrix) {
      * @param {Cartesian3} origin
      * @param {Cartesian3} direction A unit vector.
      * @param {number} maxDistance In meters.
-     * @param {{walls?: boolean}} [options] walls: skip the floors, stairs and ramps, which the walker climbs.
+     * @param {{walls?: boolean}} [options] walls: skip the floors, stairs and ramps, which a mover stands on.
      * @return {{position: Cartesian3, normal: Cartesian3, distance: number} | undefined} Where the
      *     ray stops, the surface's normal toward the ray's origin, and the distance in meters.
      */
@@ -426,48 +279,60 @@ function collisionMesh(colliding, modelMatrix) {
 }
 
 /**
- * The heights above the floor the walls are looked for at: the knees, the waist and the eyes.
- * @param {number} eye
- * @param {number} step
- * @return {number[]} In meters, from the lowest.
+ * The obstacle ahead of a mover in a mesh, for a walker's or a drone's obstacleAhead: rays cast from the mover's
+ * position, and from points about it, in the direction of its steps, the nearest surface hit within the reach,
+ * in every direction, as ObstacleProbe's ahead would return it.
+ * @param {TriangleMesh} mesh
+ * @param {() => Cartesian3} from Where the mover is, on the globe.
+ * @param {{offsets?: Cartesian3[], reach: number, walls?: boolean}} options offsets: where the rays start, in
+ *     meters east, north and up of the mover, the mover alone by default; reach: how far ahead, in meters;
+ *     walls: whether the floors, stairs and ramps are left to the ground, true by default.
+ * @return {(toward: Cartesian3, key?: string) => Obstacle | undefined}
  */
-export function rayHeights(eye, step) {
-  return [step + 0.05, (step + eye) / 2, eye];
-}
-
-/**
- * Walks a CesiumWalk on a mesh: it stands on the highest floor below its knees, up the stairs, under the
- * arches, else on what it stood on before (the terrain); the walls ahead stop it, from rays cast at the knees,
- * the waist and the eyes, the floors and stairs left to the ground below, in every direction.
- * @param {import('./cesium-walk.js').default} walk
- * @param {WalkMesh} mesh
- * @param {{eye: number, step: number, reach: number}} options In meters: the eyes above the floor, the
- *     highest step, how far ahead the walls are looked for.
- */
-export function walkOn(walk, mesh, {eye, step, reach}) {
-  const camera = walk.viewer.scene.camera;
-  const fallback = walk.groundHeight;
-  const heights = rayHeights(eye, step);
-  const walls = {walls: true};
-  walk.obstacleAhead = toward => {
-    const eyes = camera.positionWC;
-    const up = Ellipsoid.WGS84.geodeticSurfaceNormal(eyes, upScratch);
+export function meshObstacleAhead(mesh, from, {offsets = [Cartesian3.ZERO], reach, walls = true}) {
+  const options = {walls};
+  return toward => {
+    const position = from();
+    const up = Ellipsoid.WGS84.geodeticSurfaceNormal(position, upScratch);
+    // east and north, but at the poles
+    const east = Cartesian3.fromElements(-up.y, up.x, 0, eastScratch);
+    if (Cartesian3.equals(east, Cartesian3.ZERO)) {
+      Cartesian3.clone(Cartesian3.UNIT_Y, east);
+    }
+    Cartesian3.normalize(east, east);
+    const north = Cartesian3.cross(up, east, northScratch);
     let nearest;
-    for (const height of heights) {
-      const origin = Cartesian3.add(eyes, Cartesian3.multiplyByScalar(up, height - eye, rayOriginScratch), rayOriginScratch);
-      const hit = mesh.raycast(origin, toward, reach, walls);
+    for (const offset of offsets) {
+      const origin = Cartesian3.add(position, Cartesian3.multiplyByScalar(up, offset.z, rayOriginScratch), rayOriginScratch);
+      if (offset.x !== 0 || offset.y !== 0) {
+        Cartesian3.add(origin, Cartesian3.multiplyByScalar(east, offset.x, offsetScratch), origin);
+        Cartesian3.add(origin, Cartesian3.multiplyByScalar(north, offset.y, offsetScratch), origin);
+      }
+      const hit = mesh.raycast(origin, toward, reach, options);
       if (hit && (!nearest || hit.distance < nearest.distance)) {
         nearest = hit;
       }
     }
     return nearest && {point: nearest.position, normal: nearest.normal};
   };
-  walk.groundHeight = cartographic => {
-    const knees = Cartographic.clone(cartographic, kneesScratch);
-    knees.height -= eye - step;
-    const {x, y, z} = mesh.local(Cartographic.toCartesian(knees, Ellipsoid.WGS84, floorScratch), floorScratch);
+}
+
+/**
+ * The ground of a mover in a mesh, for a walker's or a drone's groundHeight: the highest floor below a point
+ * under the mover.
+ * @param {TriangleMesh} mesh
+ * @param {{below?: number}} [options] below: how far under the mover, in meters, the floor is looked for from: a
+ *     walker's knees, the highest step it climbs; 0 by default.
+ * @return {(position: Cartographic) => number | undefined} The floor's height above the ellipsoid, in meters,
+ *     undefined off the mesh's floors.
+ */
+export function meshGroundHeight(mesh, {below = 0} = {}) {
+  return position => {
+    const point = Cartographic.clone(position, belowScratch);
+    point.height -= below;
+    const {x, y, z} = mesh.local(Cartographic.toCartesian(point, Ellipsoid.WGS84, floorScratch), floorScratch);
     const floor = mesh.floorBelow(x, y, z);
-    return floor === undefined ? fallback(cartographic) :
+    return floor === undefined ? undefined :
       Cartographic.fromCartesian(mesh.position(x, y, floor, floorScratch), Ellipsoid.WGS84, floorCartographicScratch).height;
   };
 }
