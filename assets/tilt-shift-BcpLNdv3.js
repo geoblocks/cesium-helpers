@@ -1,4 +1,4 @@
-import{G as e,O as t,a as n,j as r,k as i}from"./cesium-shim-e6hyQueX.js";import{i as a,n as o,r as s,t as c}from"./EyeFromDepth-DmDC5MHh.js";import{t as l}from"./focus-CEnpGAS5.js";function u(n,a=1){let o=[`x`,`y`].map((i,o)=>new t({name:`${n}_${i}`,fragmentShader:`#define USE_STEP_SIZE\n${e}`,uniforms:{delta:1,sigma:2,stepSize:1,direction:o},sampleMode:r.LINEAR,textureScale:a})),s=e=>({get:()=>o[0].uniforms[e],set:t=>{for(let n of o)n.uniforms[e]=t}});return new i({name:n,stages:o,uniforms:Object.defineProperties({},{sigma:s(`sigma`),stepSize:s(`stepSize`)})})}var d=`// Tilt-shift: a narrow band of sharpness around the focal distance and the blurred image further
+import{K as e,O as t,a as n,j as r,k as i}from"./cesium-shim-CaB5chxw.js";import{i as a,n as o,r as s,t as c}from"./EyeFromDepth-DmDC5MHh.js";import{t as l}from"./focus-g1a6RmZZ.js";function u(n,a=1){let o=[`x`,`y`].map((i,o)=>new t({name:`${n}_${i}`,fragmentShader:`#define USE_STEP_SIZE\n${e}`,uniforms:{delta:1,sigma:2,stepSize:1,direction:o},sampleMode:r.LINEAR,textureScale:a})),s=e=>({get:()=>o[0].uniforms[e],set:t=>{for(let n of o)n.uniforms[e]=t}});return new i({name:n,stages:o,uniforms:Object.defineProperties({},{sigma:s(`sigma`),stepSize:s(`stepSize`)})})}var d=`// Tilt-shift: a narrow band of sharpness around the focal distance and the blurred image further
 // off, with the punchy colors of miniature photographs. Distances compare as ratios, like a lens:
 // sharp within range factors of two of the focal distance, fully blurred at twice that. An
 // orthographic camera has no distance to compare: a band across the screen, as a miniature's fake,
@@ -28,7 +28,7 @@ void main() {
   vec4 sceneColor = mix(texture(colorTexture, v_textureCoordinates), texture(blurTexture, v_textureCoordinates), blur);
 
   vec3 color = sceneColor.rgb;
-  color = mix(vec3(dot(color, vec3(0.2126, 0.7152, 0.0722))), color, 1.0 + saturation);
+  color = czm_saturation(color, 1.0 + saturation);
   color = mix(color, smoothstep(0.0, 1.0, color), saturation);
   out_FragColor = vec4(clamp(color, 0.0, 1.0), sceneColor.a);
 }

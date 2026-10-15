@@ -1,4 +1,4 @@
-import{C as e,O as t,k as n,w as r}from"./cesium-shim-e6hyQueX.js";import{i,n as a,r as o,t as s}from"./EyeFromDepth-DmDC5MHh.js";import{t as c}from"./Hash-CBIEOLtO.js";var l=`// Camera motion blur, after "A Reconstruction Filter for Plausible Motion Blur" (McGuire et al.,
+import{C as e,O as t,S as n,k as r,w as i}from"./cesium-shim-CaB5chxw.js";import{i as a,n as o,r as s,t as c}from"./EyeFromDepth-DmDC5MHh.js";import{t as l}from"./Hash-CBIEOLtO.js";var u=`// Camera motion blur, after "A Reconstruction Filter for Plausible Motion Blur" (McGuire et al.,
 // I3D 2012). Only the camera moves, so each pixel's motion follows from its depth and the
 // reprojection into the previous frame, computed once per pixel into the velocity buffer of
 // MotionBlurVelocity.glsl. The blur gathers jittered samples along the pixel's motion, weighted
@@ -69,7 +69,7 @@ void main() {
   }
   out_FragColor = color / weight;
 }
-`,u=`// The velocity buffer of the motion blur, at a fraction of the resolution: each pixel's half
+`,d=`// The velocity buffer of the motion blur, at a fraction of the resolution: each pixel's half
 // blur, as a fraction of the viewport, and its distance from the camera. Computed once per
 // pixel here rather than once per sample in the gather. Needs EyeFromDepth.
 precision highp sampler2D;
@@ -100,4 +100,4 @@ void main() {
   }
   out_FragColor = vec4(0.5 * motion, eye.w == 0.0 ? 1e30 : length(eye.xyz), 1.0);
 }
-`,d=class extends i{constructor(t,n={}){super(t),this.strength_=n.strength??1,this.exposure_=n.exposure??1/24,this.previousViewProjection_=new e,this.reprojection_=new e,this.previousTime_=0,this.onPostRender_=()=>{let t=this.viewer.scene.camera;e.multiply(t.frustum.projectionMatrix,t.viewMatrix,this.previousViewProjection_),this.previousTime_=performance.now()}}createStage_(i){let a=new t({name:`czm_motion_blur_velocity`,fragmentShader:s+u,uniforms:{reprojection:()=>e.multiply(this.previousViewProjection_,i.camera.inverseViewMatrix,this.reprojection_),exposureScale:()=>this.strength_*this.exposure_/Math.min(Math.max((performance.now()-this.previousTime_)/1e3,1/240),1/10)},textureScale:.5,pixelDatatype:r.FLOAT}),o=new n({stages:[a,new t({fragmentShader:c+l,uniforms:{velocityTexture:a.name}})],inputPreviousStageTexture:!1});return o.enabled=this.strength_>0,o}activated_(e){a(e),this.onPostRender_(),e.postRender.addEventListener(this.onPostRender_)}deactivating_(e){e.postRender.removeEventListener(this.onPostRender_),o(e)}get strength(){return this.strength_}set strength(e){this.strength_=e,this.stage_&&(this.stage_.enabled=e>0),this.viewer.scene.requestRender()}get exposure(){return this.exposure_}set exposure(e){this.exposure_=e,this.viewer.scene.requestRender()}};export{d as t};
+`,f=class extends a{constructor(t,n={}){super(t),this.strength_=n.strength??1,this.exposure_=n.exposure??1/24,this.previousViewProjection_=new e,this.reprojection_=new e,this.previousTime_=0,this.onPostRender_=()=>{let t=this.viewer.scene.camera;e.multiply(t.frustum.projectionMatrix,t.viewMatrix,this.previousViewProjection_),this.previousTime_=performance.now()}}createStage_(a){let o=new t({name:`czm_motion_blur_velocity`,fragmentShader:c+d,uniforms:{reprojection:()=>e.multiply(this.previousViewProjection_,a.camera.inverseViewMatrix,this.reprojection_),exposureScale:()=>this.strength_*this.exposure_/n.clamp((performance.now()-this.previousTime_)/1e3,1/240,1/10)},textureScale:.5,pixelDatatype:i.FLOAT}),s=new r({stages:[o,new t({fragmentShader:l+u,uniforms:{velocityTexture:o.name}})],inputPreviousStageTexture:!1});return s.enabled=this.strength_>0,s}activated_(e){o(e),this.onPostRender_(),e.postRender.addEventListener(this.onPostRender_)}deactivating_(e){e.postRender.removeEventListener(this.onPostRender_),s(e)}get strength(){return this.strength_}set strength(e){this.strength_=e,this.stage_&&(this.stage_.enabled=e>0),this.viewer.scene.requestRender()}get exposure(){return this.exposure_}set exposure(e){this.exposure_=e,this.viewer.scene.requestRender()}};export{f as t};
