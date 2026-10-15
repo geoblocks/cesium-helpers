@@ -1,5 +1,4 @@
 import {Math as CesiumMath} from '@cesium/core';
-import {ScreenSpaceEventType} from '@cesium/engine';
 import Controls from '@geoblocks/cesium-input';
 import HoldZoom from './zoom.js';
 
@@ -76,7 +75,15 @@ export default class FirstPersonCameraMode {
     this.entered_ = false;
 
     this.onMouseMoveCallback_ = this.onMouseMove_.bind(this);
-    this.onMouseWheelCallback_ = this.onMouseWheel_.bind(this);
+    // the wheel on the canvas itself, as Cesium's handler reads it (its delta the opposite of deltaY), the page kept from
+    // scrolling; not on the widget's handler, whose wheel action is the app's
+    this.onWheelCallback_ = (/** @type {WheelEvent} */ event) => {
+      event.preventDefault();
+      this.onMouseWheel_(-event.deltaY);
+    };
+    // the camera controller's inputs before the mode, given back as they were
+    /** @type {boolean | undefined} */
+    this.inputsBefore_ = undefined;
     this.onTickCallback_ = this.onTick_.bind(this);
     // Cesium's handler captures the pointer on pointerdown, which throws while the pointer is locked:
     // keep the canvas's pointer events from it, the mouse events still come
@@ -105,7 +112,9 @@ export default class FirstPersonCameraMode {
 
   enter_() {
     this.entered_ = true;
-    this.scene_.screenSpaceCameraController.enableInputs = false;
+    const controller = this.scene_.screenSpaceCameraController;
+    this.inputsBefore_ = controller.enableInputs;
+    controller.enableInputs = false;
     const frustum = this.frustum_();
     this.originalFov_ = frustum.fov;
     this.baseFov_ = /** @type {number} */ (frustum.fov);
@@ -116,12 +125,12 @@ export default class FirstPersonCameraMode {
     window.addEventListener('pointerdown', this.onCanvasPointerCallback_, true);
     window.addEventListener('pointerup', this.onCanvasPointerCallback_, true);
     this.viewer_.clock.onTick.addEventListener(this.onTickCallback_);
-    this.viewer_.screenSpaceEventHandler.setInputAction(this.onMouseWheelCallback_, ScreenSpaceEventType.WHEEL);
+    this.scene_.canvas.addEventListener('wheel', this.onWheelCallback_, {passive: false});
   }
 
   leave_() {
     this.entered_ = false;
-    this.scene_.screenSpaceCameraController.enableInputs = true;
+    this.scene_.screenSpaceCameraController.enableInputs = this.inputsBefore_ ?? true;
     this.frustum_().fov = this.originalFov_;
     this.zoom_.zoom = 0;
     this.input.active = false;
@@ -129,7 +138,7 @@ export default class FirstPersonCameraMode {
     window.removeEventListener('pointerdown', this.onCanvasPointerCallback_, true);
     window.removeEventListener('pointerup', this.onCanvasPointerCallback_, true);
     this.viewer_.clock.onTick.removeEventListener(this.onTickCallback_);
-    this.viewer_.screenSpaceEventHandler.removeInputAction(ScreenSpaceEventType.WHEEL);
+    this.scene_.canvas.removeEventListener('wheel', this.onWheelCallback_);
   }
 
   get active() {
@@ -195,7 +204,7 @@ export default class FirstPersonCameraMode {
   }
 
   /**
-   * @param {number} movement
+   * @param {number} movement The wheel's delta, Cesium's sign: positive rolled away from the user, the view zoomed in.
    */
   onMouseWheel_(movement) {
     if (this.zoom_.zoom > 0) {
