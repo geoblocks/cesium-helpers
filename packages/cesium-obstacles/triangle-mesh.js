@@ -1,5 +1,5 @@
-import {Cartesian3, Cartographic, Ellipsoid, IntersectionTests, Matrix4, Ray} from "@cesium/core";
-import {Axis, Transforms} from "@cesium/engine";
+import {Cartesian3, Cartographic, Ellipsoid, FixedFrameTransforms, IntersectionTests, Matrix4, Ray} from "@cesium/core";
+import {Axis} from "@cesium/engine";
 import {gltfTriangles} from "./gltf-mesh.js";
 
 /** @typedef {import("./gltf-mesh.js").GltfTriangles} GltfTriangles */
@@ -265,8 +265,7 @@ export function meshObstacleAhead(mesh, from, {offsets = [Cartesian3.ZERO], reac
   const options = {walls};
   return toward => {
     const position = from();
-    // @ts-expect-error Transforms.eastNorthUpToFixedFrame is missing from the @cesium/engine 26.4.0 typings
-    const frame = Transforms.eastNorthUpToFixedFrame(position, Ellipsoid.WGS84, frameScratch);
+    const frame = FixedFrameTransforms.eastNorthUpToFixedFrame(position, Ellipsoid.WGS84, frameScratch);
     let nearest;
     for (const offset of offsets) {
       const origin = Matrix4.multiplyByPoint(frame, offset, rayOriginScratch);
