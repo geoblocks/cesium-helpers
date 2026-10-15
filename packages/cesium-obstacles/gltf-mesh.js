@@ -1,4 +1,4 @@
-import {Cartesian3, ComponentDatatype, Matrix4, Quaternion} from "@cesium/core";
+import {Cartesian3, ComponentDatatype, Matrix4, PrimitiveType, Quaternion} from "@cesium/core";
 import {Axis} from "@cesium/engine";
 
 // The triangles of a glTF's meshes, in a triangle mesh's frame: glTF's y up turned z up by Cesium's own matrix
@@ -123,13 +123,13 @@ function readAccessor(gltf, buffers, index) {
  */
 function toTriangles(mode, indices) {
   const n = indices.length;
-  if (mode === 4) {
+  if (mode === PrimitiveType.TRIANGLES) {
     return Uint32Array.from(indices);
   }
   const triangles = new Uint32Array(Math.max(n - 2, 0) * 3);
   for (let i = 0; i + 2 < n; i++) {
     // a strip's every other triangle turned back the right way round; a fan's round its first vertex
-    const corners = mode === 5 ? [i, i + 1 + (i % 2), i + 2 - (i % 2)] : [i + 1, i + 2, 0];
+    const corners = mode === PrimitiveType.TRIANGLE_STRIP ? [i, i + 1 + (i % 2), i + 2 - (i % 2)] : [i + 1, i + 2, 0];
     triangles.set(corners.map(k => indices[k]), i * 3);
   }
   return triangles;
@@ -182,8 +182,8 @@ export function gltfTriangles(gltf, buffers) {
     let primitives = meshes.get(meshIndex);
     if (!primitives) {
       primitives = json.meshes[meshIndex].primitives.map((/** @type {any} */ primitive) => {
-        const mode = primitive.mode ?? 4;
-        if (mode < 4 || mode > 6 || primitive.attributes.POSITION === undefined) {
+        const mode = primitive.mode ?? PrimitiveType.TRIANGLES;
+        if (mode < PrimitiveType.TRIANGLES || mode > PrimitiveType.TRIANGLE_FAN || primitive.attributes.POSITION === undefined) {
           return undefined;
         }
         const {values, count} = readAccessor(json, data, primitive.attributes.POSITION);

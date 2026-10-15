@@ -1,5 +1,5 @@
-import {Cartesian3, Cartographic, Ellipsoid, Matrix3, Matrix4} from "@cesium/core";
-import {Axis} from "@cesium/engine";
+import {Cartesian3, Cartographic, Ellipsoid, IntersectionTests, Math as CesiumMath, Matrix3, Matrix4, Ray} from "@cesium/core";
+import {Axis, Transforms} from "@cesium/engine";
 import {gltfTriangles} from "./gltf-mesh.js";
 
 /** @typedef {import("./gltf-mesh.js").GltfTriangles} GltfTriangles */
@@ -16,11 +16,13 @@ const FLOOR = 0.5;
 const originScratch = new Cartesian3();
 const directionScratch = new Cartesian3();
 const rayScratch = new Cartesian3();
-const upScratch = new Cartesian3();
-const eastScratch = new Cartesian3();
-const northScratch = new Cartesian3();
 const rayOriginScratch = new Cartesian3();
-const offsetScratch = new Cartesian3();
+const frameScratch = new Matrix4();
+const cornerScratch = [new Cartesian3(), new Cartesian3(), new Cartesian3()];
+const edgeScratch = [new Cartesian3(), new Cartesian3()];
+const normalScratch = new Cartesian3();
+const triangleRay = new Ray();
+const downRay = new Ray(Cartesian3.ZERO, Cartesian3.negate(Cartesian3.UNIT_Z, new Cartesian3()));
 const belowScratch = new Cartographic();
 const floorScratch = new Cartesian3();
 const floorCartographicScratch = new Cartographic();
@@ -63,7 +65,7 @@ export function createTriangleMeshFromGltf(gltf, modelMatrix, {buffers, collide 
   // Cesium turns a z forward model's +z to +x before its y up to z up: in the triangles' frame, z up, a quarter
   // turn round z, (x, y, z) to (-y, x, z)
   const matrix = forwardAxis === Axis.Z ?
-    Matrix4.multiply(modelMatrix, Matrix4.fromRotation(new Matrix3(0, -1, 0, 1, 0, 0, 0, 0, 1)), new Matrix4()) :
+    Matrix4.multiply(modelMatrix, Matrix4.fromRotation(Matrix3.fromRotationZ(CesiumMath.PI_OVER_TWO)), new Matrix4()) :
     modelMatrix;
   return collisionMesh(primitives, matrix);
 }
@@ -99,6 +101,8 @@ function collisionMesh(colliding, modelMatrix) {
   const allCells = new Map();
   const isFloor = new Uint8Array(triangles.length / 3);
   const vertex = (/** @type {number} */ index) => vertices.subarray(index * 3, index * 3 + 3);
+  // a triangle's corners as Cartesian3, in scratch
+  const corners = (/** @type {number} */ i) => cornerScratch.map((corner, k) => Cartesian3.unpack(/** @type {any} */ (vertices), triangles[i + k] * 3, corner));
   const add = (/** @type {Map<string, number[]>} */ map, /** @type {string} */ key, /** @type {number} */ i) => {
     const list = map.get(key);
     if (list) {
@@ -109,10 +113,9 @@ function collisionMesh(colliding, modelMatrix) {
   };
   for (let i = 0; i < triangles.length; i += 3) {
     const [a, b, c] = [vertex(triangles[i]), vertex(triangles[i + 1]), vertex(triangles[i + 2])];
-    const nx = (b[1] - a[1]) * (c[2] - a[2]) - (b[2] - a[2]) * (c[1] - a[1]);
-    const ny = (b[2] - a[2]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[2] - a[2]);
-    const nz = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
-    isFloor[i / 3] = Math.abs(nz) >= FLOOR * Math.hypot(nx, ny, nz) ? 1 : 0;
+    const [p0, p1, p2] = corners(i);
+    const normal = Cartesian3.cross(Cartesian3.subtract(p1, p0, edgeScratch[0]), Cartesian3.subtract(p2, p0, edgeScratch[1]), normalScratch);
+    isFloor[i / 3] = Math.abs(normal.z) >= FLOOR * Cartesian3.magnitude(normal) ? 1 : 0;
     for (let x = Math.floor(Math.min(a[0], b[0], c[0]) / CELL); x <= Math.floor(Math.max(a[0], b[0], c[0]) / CELL); x++) {
       for (let y = Math.floor(Math.min(a[1], b[1], c[1]) / CELL); y <= Math.floor(Math.max(a[1], b[1], c[1]) / CELL); y++) {
         const key = `${x},${y}`;
@@ -132,23 +135,14 @@ function collisionMesh(colliding, modelMatrix) {
    * @return {number | undefined} Its height, in meters.
    */
   const floorBelow = (x, y, z) => {
+    Cartesian3.fromElements(x, y, z, downRay.origin);
     let highest;
     for (const i of cells.get(`${Math.floor(x / CELL)},${Math.floor(y / CELL)}`) ?? []) {
-      const a = triangles[i] * 3, b = triangles[i + 1] * 3, c = triangles[i + 2] * 3;
-      const ux = vertices[b] - vertices[a], uy = vertices[b + 1] - vertices[a + 1];
-      const vx = vertices[c] - vertices[a], vy = vertices[c + 1] - vertices[a + 1];
-      const d = ux * vy - vx * uy;
-      if (d === 0) {
-        continue;
-      }
-      const s = ((x - vertices[a]) * vy - vx * (y - vertices[a + 1])) / d;
-      const t = (ux * (y - vertices[a + 1]) - (x - vertices[a]) * uy) / d;
-      if (s < 0 || t < 0 || s + t > 1) {
-        continue;
-      }
-      const height = vertices[a + 2] + s * (vertices[b + 2] - vertices[a + 2]) + t * (vertices[c + 2] - vertices[a + 2]);
-      if (height <= z && (highest === undefined || height > highest)) {
-        highest = height;
+      const [p0, p1, p2] = corners(i);
+      // a ray straight down meets the highest floor first
+      const t = IntersectionTests.rayTriangleParametric(downRay, p0, p1, p2);
+      if (t !== undefined && t >= 0 && (highest === undefined || z - t > highest)) {
+        highest = z - t;
       }
     }
     return highest;
@@ -158,7 +152,7 @@ function collisionMesh(colliding, modelMatrix) {
   const tested = new Uint32Array(triangles.length / 3);
   let ray = 0;
   /**
-   * The nearest triangle along a ray, in meters, by Möller and Trumbore's test, through the cells the
+   * The nearest triangle along a ray, in meters, by Cesium's ray and triangle test, through the cells the
    * ray crosses, nearest first.
    * @param {Cartesian3} o The origin.
    * @param {Cartesian3} d The unit direction.
@@ -168,6 +162,8 @@ function collisionMesh(colliding, modelMatrix) {
    */
   const nearestHit = (o, d, far, walls) => {
     ray++;
+    Cartesian3.clone(o, triangleRay.origin);
+    Cartesian3.clone(d, triangleRay.direction);
     let best;
     let x = Math.floor(o.x / CELL);
     let y = Math.floor(o.y / CELL);
@@ -186,26 +182,9 @@ function collisionMesh(colliding, modelMatrix) {
           continue;
         }
         tested[i / 3] = ray;
-        const a = triangles[i] * 3, b = triangles[i + 1] * 3, c = triangles[i + 2] * 3;
-        const e1x = vertices[b] - vertices[a], e1y = vertices[b + 1] - vertices[a + 1], e1z = vertices[b + 2] - vertices[a + 2];
-        const e2x = vertices[c] - vertices[a], e2y = vertices[c + 1] - vertices[a + 1], e2z = vertices[c + 2] - vertices[a + 2];
-        const px = d.y * e2z - d.z * e2y, py = d.z * e2x - d.x * e2z, pz = d.x * e2y - d.y * e2x;
-        const det = e1x * px + e1y * py + e1z * pz;
-        if (Math.abs(det) < 1e-9) {
-          continue;
-        }
-        const sx = o.x - vertices[a], sy = o.y - vertices[a + 1], sz = o.z - vertices[a + 2];
-        const u = (sx * px + sy * py + sz * pz) / det;
-        if (u < 0 || u > 1) {
-          continue;
-        }
-        const qx = sy * e1z - sz * e1y, qy = sz * e1x - sx * e1z, qz = sx * e1y - sy * e1x;
-        const v = (d.x * qx + d.y * qy + d.z * qz) / det;
-        if (v < 0 || u + v > 1) {
-          continue;
-        }
-        const t = (e2x * qx + e2y * qy + e2z * qz) / det;
-        if (t >= 0 && t <= far && (!best || t < best.distance)) {
+        const [p0, p1, p2] = corners(i);
+        const t = IntersectionTests.rayTriangleParametric(triangleRay, p0, p1, p2);
+        if (t !== undefined && t >= 0 && t <= far && (!best || t < best.distance)) {
           best = {distance: t, triangle: i};
         }
       }
@@ -251,10 +230,9 @@ function collisionMesh(colliding, modelMatrix) {
       }
       const position = Matrix4.multiplyByPoint(modelMatrix, Cartesian3.add(o, Cartesian3.multiplyByScalar(d, hit.distance, rayScratch), rayScratch), new Cartesian3());
       const i = hit.triangle;
-      const [a, b, c] = [vertex(triangles[i]), vertex(triangles[i + 1]), vertex(triangles[i + 2])];
-      const e1 = new Cartesian3(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
-      const e2 = new Cartesian3(c[0] - a[0], c[1] - a[1], c[2] - a[2]);
-      const normal = Matrix4.multiplyByPointAsVector(toNormal, Cartesian3.cross(e1, e2, e1), new Cartesian3());
+      const [p0, p1, p2] = corners(i);
+      const cross = Cartesian3.cross(Cartesian3.subtract(p1, p0, edgeScratch[0]), Cartesian3.subtract(p2, p0, edgeScratch[1]), normalScratch);
+      const normal = Matrix4.multiplyByPointAsVector(toNormal, cross, new Cartesian3());
       Cartesian3.normalize(normal, normal);
       if (Cartesian3.dot(normal, direction) > 0) {
         Cartesian3.negate(normal, normal);
@@ -293,21 +271,11 @@ export function meshObstacleAhead(mesh, from, {offsets = [Cartesian3.ZERO], reac
   const options = {walls};
   return toward => {
     const position = from();
-    const up = Ellipsoid.WGS84.geodeticSurfaceNormal(position, upScratch);
-    // east and north, but at the poles
-    const east = Cartesian3.fromElements(-up.y, up.x, 0, eastScratch);
-    if (Cartesian3.equals(east, Cartesian3.ZERO)) {
-      Cartesian3.clone(Cartesian3.UNIT_Y, east);
-    }
-    Cartesian3.normalize(east, east);
-    const north = Cartesian3.cross(up, east, northScratch);
+    // @ts-expect-error Transforms.eastNorthUpToFixedFrame is missing from the @cesium/engine 26.4.0 typings
+    const frame = Transforms.eastNorthUpToFixedFrame(position, Ellipsoid.WGS84, frameScratch);
     let nearest;
     for (const offset of offsets) {
-      const origin = Cartesian3.add(position, Cartesian3.multiplyByScalar(up, offset.z, rayOriginScratch), rayOriginScratch);
-      if (offset.x !== 0 || offset.y !== 0) {
-        Cartesian3.add(origin, Cartesian3.multiplyByScalar(east, offset.x, offsetScratch), origin);
-        Cartesian3.add(origin, Cartesian3.multiplyByScalar(north, offset.y, offsetScratch), origin);
-      }
+      const origin = Matrix4.multiplyByPoint(frame, offset, rayOriginScratch);
       const hit = mesh.raycast(origin, toward, reach, options);
       if (hit && (!nearest || hit.distance < nearest.distance)) {
         nearest = hit;

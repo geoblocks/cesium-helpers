@@ -37,6 +37,7 @@ export const {
   PostProcessStageComposite,
   PostProcessStageLibrary,
   PostProcessStageSampleMode,
+  PrimitiveType,
   Quaternion,
   Ray,
   Rectangle,
