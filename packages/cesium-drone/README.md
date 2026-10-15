@@ -133,5 +133,5 @@ and from around its body, beside, above and below it; climbing, the ceilings too
 ground, `drone.groundHeight`, which it keeps its clearance above as it does the terrain, and the terrain
 elsewhere.
 
- of [cesium-post-process](../cesium-post-process): a wide lens,
+The demo adds the drone camera effects of [cesium-post-process](../cesium-post-process): a wide lens,
 jello, a display and the video signal.
