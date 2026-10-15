@@ -117,3 +117,45 @@ test('the camera stands the orbit away from its target, 5 km by default, closer 
     near(Cartesian3.distance(viewer.scene.camera.position, iso.target), orbit, 1e-6);
   }
 });
+
+test('the heading set, in degrees, turns the view at once, no easing', () => {
+  const viewer = fakeViewer();
+  const iso = new CesiumIso(viewer, {pitch: 30});
+  iso.active = true;
+  iso.heading = 100;
+  near(iso.heading, 100);
+  const direction = local(viewer.scene.camera.direction, BERN);
+  near(Math.atan2(direction.x, direction.y), CesiumMath.toRadians(100));
+});
+
+test('the size, in meters across the shorter side: read, and set at once within its bounds', () => {
+  const viewer = fakeViewer();
+  const iso = new CesiumIso(viewer, {size: 100, minSize: 20, maxSize: 400});
+  iso.active = true;
+  assert.equal(iso.size, 100);
+  iso.size = 200;
+  assert.equal(iso.size, 200);
+  near(viewer.scene.camera.frustum.width, 200 * 800 / 600);
+  iso.size = 1000;
+  assert.equal(iso.size, 400);
+});
+
+test('placed on a perspective frustum (a subclass\'s), the view leaves it without a width of its own', () => {
+  const viewer = fakeViewer();
+  const iso = new CesiumIso(viewer);
+  iso.active = true;
+  viewer.scene.camera.frustum = {fov: 1};
+  iso.target = BERN;
+  assert.equal('width' in viewer.scene.camera.frustum, false);
+});
+
+test('a pointer let go that the view never saw go down is left alone: no anchoring, no pick', () => {
+  const viewer = fakeViewer();
+  const iso = new CesiumIso(viewer);
+  iso.active = true;
+  let picked = 0;
+  viewer.scene.pickPositionSupported = true;
+  viewer.scene.pickPosition = () => (picked++, Cartesian3.clone(BERN));
+  iso.up_(/** @type {any} */ ({pointerId: 7, timeStamp: 0}));
+  assert.equal(picked, 0);
+});

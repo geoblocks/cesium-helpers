@@ -36,6 +36,8 @@ iso.turnTo(200);   // to a heading, in degrees, the shorter way
 iso.zoom(0.8);     // in, toward the middle of the screen
 iso.glideTo(position);
 iso.target = position; // at once
+iso.heading = 90;      // at once, in degrees, no easing
+iso.size = 300;        // at once, in meters across the screen's shorter side, within minSize and maxSize
 ```
 
 ## Options

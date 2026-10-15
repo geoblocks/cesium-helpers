@@ -186,6 +186,30 @@ export default class CesiumIso {
   }
 
   /**
+   * The heading set, in degrees: the view turned there at once, with no easing (turnTo eases); an animation under way,
+   * a drift or a turn, is dropped. While active.
+   * @param {number} heading
+   */
+  set heading(heading) {
+    this.turning_ = this.drift_ = this.drifted_ = undefined;
+    this.heading_ = CesiumMath.toRadians(heading);
+    this.place_();
+  }
+
+  /**
+   * The view's size, in meters across the screen's shorter side; set, within its bounds, the view zooms at once about
+   * its target (zoom zooms about a point of the screen).
+   */
+  get size() {
+    return this.size_;
+  }
+
+  set size(size) {
+    this.size_ = CesiumMath.clamp(size, this.minSize_, this.maxSize_);
+    this.place_();
+  }
+
+  /**
    * A turn, eased, to a heading, in degrees, the shorter way round: the view toward a side a place is seen from.
    * @param {number} heading
    */
@@ -261,7 +285,10 @@ export default class CesiumIso {
     Cartesian3.clone(up, camera.up);
     Cartesian3.cross(direction, up, camera.right);
     // the orthographic frustum's width
-    Object.assign(camera.frustum, {width: this.width_()});
+    // the orthographic frustum's width; a subclass placing the camera on a perspective frustum has none to set
+    if ('width' in camera.frustum) {
+      camera.frustum.width = this.width_();
+    }
     this.viewer.scene.requestRender();
   }
 
@@ -444,6 +471,10 @@ export default class CesiumIso {
    * @param {PointerEvent} e
    */
   up_(e) {
+    // a pointer pressed elsewhere (on a control over the canvas) and let go here was never the view's
+    if (!this.pointers_.has(e.pointerId)) {
+      return;
+    }
     this.pointers_.delete(e.pointerId);
     // a finger lifted: the other slides on, from here
     this.drag_ = this.pointers_.size ? this.start_(e) : undefined;
