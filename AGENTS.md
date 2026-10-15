@@ -31,6 +31,18 @@ comment. Known cases: smoothstep, damping and Gaussian smoothing, the quantized-
 the depth buffer), `requestAnimationFrame` loops that must run under `requestRenderMode`, and anything marked `@private`
 or `@internal` in Cesium. Do not use private or internal Cesium APIs.
 
+## Write ES2025
+
+Use the language's newer built-ins over the older idioms:
+
+- Iterator helpers: `map.values().filter(...).toArray()`, not `[...map.values()].filter(...)`. Spread or
+  `Array.from` only when an array is needed as such (to sort, reverse or index it).
+- Set methods: `union`, `intersection`, `difference`, `symmetricDifference`, `isSubsetOf`, `isSupersetOf`,
+  `isDisjointFrom`, not `filter` with `has`.
+- JSON modules: `import data from './data.json' with {type: 'json'}`, not `JSON.parse(readFileSync(...))`, unless the
+  file's name is known only at run time or a test needs a fresh copy to change.
+- `Promise.try`, `RegExp.escape` and `Float16Array` where they fit.
+
 ## Layout and commands
 
 - `npm test` runs `node --test "packages/**/*.test.js"`. `npm run typecheck` runs `tsc`. `npm run build-demos` runs
