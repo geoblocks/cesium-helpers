@@ -93,14 +93,16 @@ void main() {
   vec3 hue = sceneColor.rgb * pressed / max(value, 1e-4);
   vec3 color = mix(vec3(pressed), hue / max(1.0, max(hue.r, max(hue.g, hue.b))), saturation);
   float steps = clamp(bevel / pixel, 1.0, BEVEL);
-  vec4 n = neighborsAt(uv, c, steps);
-  float crease = creaseOf(n, steps * pixel, pixel);
-  color *= n.x + n.y + n.z + n.w > 0.0 ? 1.0 + light * crease : 1.0 - shade * crease;
+  if (light != 0.0 || shade != 0.0) {
+    vec4 n = neighborsAt(uv, c, steps);
+    float crease = creaseOf(n, steps * pixel, pixel);
+    color *= n.x + n.y + n.z + n.w > 0.0 ? 1.0 + light * crease : 1.0 - shade * crease;
+  }
   if (occlusion > 0.0) {
     color *= 1.0 - occlusion * occludedAt(uv, p, normal, pixel);
   }
   if (outline > 0.0) {
-    color *= 1.0 - outline * outlineAt(uv, c, n, steps, pixel);
+    color *= 1.0 - outline * outlineAt(uv, c, vec4(0.0), steps, pixel);
   }
   out_FragColor = vec4(clamp(color * warm, 0.0, 1.0), sceneColor.a);
 }
