@@ -16,6 +16,9 @@ const skyBottomScratch = new Cartesian4();
  * outward and shaded where it bends inward, rounded close up, the silhouettes
  * outlined in a darker shade of their color, the colors a little richer and
  * warmer, the sky a soft gradient if asked.
+ * The edges are found in the depth of the nearest of Cesium's frustums only: with `scene.logarithmicDepthBuffer` off,
+ * Cesium splits the view at `farToNearRatio` times the near plane, and what lies past the split has no depth here, so
+ * the sky gradient is painted over it; keep the logarithmic depth, or a near plane that keeps the scene in one frustum.
  */
 export default class Toy extends Effect {
   /**

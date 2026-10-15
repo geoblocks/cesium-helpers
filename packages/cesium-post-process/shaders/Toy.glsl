@@ -31,11 +31,15 @@ void main() {
   // the neighbors a bevel's width away: the bend measured over it, strongest on the edge and fading
   // to nothing a bevel off, a rounded edge's highlight
   float steps = clamp(bevel / pixel, 1.0, BEVEL);
-  vec4 n = neighborsAt(uv, c, steps);
-  float crease = creaseOf(n, steps * pixel, pixel);
-  vec3 color = sceneColor.rgb * (n.x + n.y + n.z + n.w > 0.0 ? 1.0 + light * crease : 1.0 - shade * crease);
+  vec3 color = sceneColor.rgb;
+  // the creases' neighbours read only when they light or shade: a scene drawing its own edges asks for neither
+  if (light != 0.0 || shade != 0.0) {
+    vec4 n = neighborsAt(uv, c, steps);
+    float crease = creaseOf(n, steps * pixel, pixel);
+    color *= n.x + n.y + n.z + n.w > 0.0 ? 1.0 + light * crease : 1.0 - shade * crease;
+  }
   if (outline > 0.0) {
-    color *= 1.0 - outline * outlineAt(uv, c, n, steps, pixel);
+    color *= 1.0 - outline * outlineAt(uv, c, vec4(0.0), steps, pixel);
   }
   color = czm_saturation(color, saturation) * warm;
   out_FragColor = vec4(clamp(color, 0.0, 1.0), sceneColor.a);
