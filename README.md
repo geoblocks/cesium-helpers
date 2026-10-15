@@ -54,10 +54,20 @@ npm install
 # check which packages have changed since the last release.
 npx lerna changed
 
-# publish a new npm packages for all the changed packages.
-# Versions and changelogs are derived from the conventional commit messages,
-# and a GitHub release is created for each package (requires GH_TOKEN).
-npx lerna publish
+# release from an up to date master.
+git checkout master
+git pull --ff-only
+
+# bump the versions of the changed packages: versions and changelogs are derived from the
+# conventional commit messages, then lerna commits, tags and pushes them (no GitHub token needed).
+npx lerna version
+
+# check the release commit and the tags it created.
+git log -1
+git tag --points-at HEAD
+
+# publish to npm the packages tagged on the current commit (needs npm credentials only).
+npx lerna publish from-git
 ```
 
 The shaders are written in `packages/*/shaders/*.glsl` and converted to JavaScript modules
