@@ -6,7 +6,7 @@ test("a box's twelve triangles, a polygon's round its hole, the options passed o
   const group = new Group([1, 1, 1, 1], {collide: false, charts: true});
   group.box(0, 0, 0, 1, 1, 1);
   group.polygon([[0, 0], [4, 0], [4, 4], [0, 4]], [[[1, 1], [1, 3], [3, 3], [3, 1]]], () => 2);
-  const {vertices, triangles, collide, charts} = group.walkGroup;
+  const {vertices, triangles, collide, charts} = group.meshGroup;
   assert.equal(triangles.length / 3, 12 + 8);
   assert.equal(vertices.length / 3, 24 + 8);
   assert.equal(collide, false);

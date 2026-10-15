@@ -11,8 +11,18 @@
   "main": "cesium-obstacles.js",
   "module": "cesium-obstacles.js",
   "sideEffects": false,
+  "exports": {
+    ".": "./cesium-obstacles.js",
+    "./cesium-obstacles.js": "./cesium-obstacles.js",
+    "./triangle-mesh.js": "./triangle-mesh.js",
+    "./gltf-mesh.js": "./gltf-mesh.js",
+    "./mesh-builder.js": "./mesh-builder.js"
+  },
   "files": [
-    "cesium-obstacles.js"
+    "cesium-obstacles.js",
+    "triangle-mesh.js",
+    "gltf-mesh.js",
+    "mesh-builder.js"
   ],
   "publishConfig": {
     "access": "public"

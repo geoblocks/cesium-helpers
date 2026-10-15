@@ -79,31 +79,23 @@ ellipsoid at a `Cartographic`, or `undefined` while unknown.
 
 ## Walking on a mesh
 
-`@geoblocks/cesium-walk/walk-mesh.js` makes triangles you know on the CPU, a building's floors, stairs and
-walls, into both what is seen and what is walked on, with no wait for the GPU:
+`walkOn` walks on a triangle mesh of [cesium-obstacles](../cesium-obstacles), floors, stairs and walls known on
+the CPU, from groups of triangles or a glTF, with no wait for the GPU:
 
 ```javascript
-import CesiumWalk from '@geoblocks/cesium-walk';
-import {createWalkMesh, walkOn} from '@geoblocks/cesium-walk/walk-mesh.js';
+import {Model} from '@cesium/engine';
+import {createTriangleMeshFromGltf} from '@geoblocks/cesium-obstacles';
+import CesiumWalk, {walkOn} from '@geoblocks/cesium-walk';
 
-import {Group} from '@geoblocks/cesium-walk/mesh-builder.js';
-
-// groups of triangles of one color each, in meters, z up, in the frame of a model matrix
-const floor = new Group([0.8, 0.8, 0.8, 1]);
-floor.polygon([[0, 0], [10, 0], [10, 6], [0, 6]], [], () => 0);
-const walls = new Group([0.9, 0.9, 0.85, 1]);
-walls.box(0, 0, 0, 10, 0.2, 2.5);
-const mesh = await createWalkMesh([floor.walkGroup, walls.walkGroup], modelMatrix);
-viewer.scene.primitives.add(mesh.primitive);
+const url = 'building.glb';
+viewer.scene.primitives.add(await Model.fromGltfAsync({url, modelMatrix}));
+const mesh = createTriangleMeshFromGltf(await (await fetch(url)).arrayBuffer(), modelMatrix);
 
 const walkMode = new CesiumWalk(viewer);
 // stand on the highest floor below the knees, climb steps up to 0.4 m, stop at the walls 0.5 m ahead
 walkOn(walkMode, mesh, {eye: 1.6, step: 0.4, reach: 0.5});
 ```
 
-A group can be walked on and not seen (`show: false`), seen and not walked on (`collide: false`), cast no
-shadow (`shadows: false`), glow (`emissive`), carry texture coordinates for a custom shader (`uv`,
-`customShader`) or a baked light's atlas (`lightmap`). The faces flatter than 60° are floors, the others
-walls. `Group` (`mesh-builder.js`) builds the groups face by face: `face`, `polygon` (with holes), `sides`, `box`;
-`charts: true` records each face, to lay them out in an atlas. `mesh.floorBelow(x, y, z)` and `mesh.raycast(origin, direction, maxDistance)` answer in the
-mesh's frame and on the globe.
+The walker stands on the highest floor below its knees, up the stairs and under the arches, else on the ground
+it had (the terrain). The walls stop it in every direction, from rays cast at its knees, waist and eyes
+(`rayHeights(eye, step)`); the floors and stairs are left to its ground.

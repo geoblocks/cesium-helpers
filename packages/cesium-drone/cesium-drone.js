@@ -1,7 +1,7 @@
-import {Cartesian3, Cartographic, Event, Math as CesiumMath, Matrix4} from '@cesium/core';
+import {Cartesian3, Cartographic, Ellipsoid, Event, Math as CesiumMath, Matrix4} from '@cesium/core';
 import {Transforms} from '@cesium/engine';
 import Controls from '@geoblocks/cesium-input';
-import {ObstacleProbe, blockedStep} from '@geoblocks/cesium-obstacles';
+import {ObstacleProbe, blockedStep, meshGroundHeight, meshObstacleAhead} from '@geoblocks/cesium-obstacles';
 
 export {jammingAt} from './jamming.js';
 
@@ -73,6 +73,7 @@ const cartographicScratch = new Cartographic();
 const towardScratch = new Cartesian3();
 const allowedScratch = new Cartesian3();
 const obstacleCartographicScratch = new Cartographic();
+const upScratch = new Cartesian3();
 
 /**
  * An arcade drone: it stays level, holds its altitude when the sticks are released, and is flown
@@ -129,7 +130,7 @@ export default class CesiumDrone {
     this.crashed = new Event();
 
     /**
-     * Height above the terrain, in meters, or undefined where the terrain is not loaded.
+     * Height above the ground (groundHeight), in meters, or undefined where it is not known yet.
      * @type {number | undefined}
      */
     this.heightNow = undefined;
@@ -159,6 +160,14 @@ export default class CesiumDrone {
      * @type {(toward: Cartesian3, key: string) => import('@geoblocks/cesium-obstacles').Obstacle | undefined}
      */
     this.obstacleAhead = (toward, key) => this.obstacleProbe_.ahead(toward, key);
+
+    /**
+     * The height of the ground under a position, in meters above the ellipsoid, or undefined when unknown yet:
+     * what the drone keeps its clearance above, slides along and crashes into. The terrain by default; a model's
+     * roofs and floors otherwise (flyOn).
+     * @type {(position: Cartographic) => number | undefined}
+     */
+    this.groundHeight = position => this.viewer.scene.globe?.getHeight(position);
 
     this.handleTickFunction_ = this.handleTick_.bind(this);
   }
@@ -226,7 +235,7 @@ export default class CesiumDrone {
       return;
     }
     const cartographic = Cartographic.fromCartesian(position ?? this.position_, undefined, cartographicScratch);
-    const ground = this.viewer.scene.globe.getHeight(cartographic) ?? cartographic.height;
+    const ground = this.groundHeight(cartographic) ?? cartographic.height;
     cartographic.height = ground + RESPAWN_HEIGHT;
     Cartographic.toCartesian(cartographic, undefined, this.position_);
     Cartesian3.clone(Cartesian3.ZERO, this.velocity_);
@@ -325,7 +334,7 @@ export default class CesiumDrone {
       return false;
     }
     const point = Cartographic.fromCartesian(obstacle.point, undefined, obstacleCartographicScratch);
-    const ground = this.viewer.scene.globe.getHeight(point);
+    const ground = this.groundHeight(point);
     if (ground !== undefined && point.height - ground < ON_TERRAIN) {
       return false;
     }
@@ -345,9 +354,8 @@ export default class CesiumDrone {
    * @param {boolean} failsafe whether the motors are stopped
    */
   keepAboveTerrain_(previous, enu, dt, failsafe) {
-    const globe = this.viewer.scene.globe;
     const cartographic = Cartographic.fromCartesian(this.position_, undefined, cartographicScratch);
-    const ground = globe.getHeight(cartographic);
+    const ground = this.groundHeight(cartographic);
     if (ground === undefined) {
       // the terrain is not loaded yet under the drone
       this.heightNow = undefined;
@@ -365,7 +373,7 @@ export default class CesiumDrone {
     if (horizontal > 0.1) {
       const ahead = Cartesian3.fromElements((velocity.x / horizontal) * SLOPE_BASE, (velocity.y / horizontal) * SLOPE_BASE, 0, aheadScratch);
       Cartesian3.add(this.position_, Matrix4.multiplyByPointAsVector(enu, ahead, ahead), ahead);
-      const groundAhead = globe.getHeight(Cartographic.fromCartesian(ahead, undefined, aheadCartographicScratch));
+      const groundAhead = this.groundHeight(Cartographic.fromCartesian(ahead, undefined, aheadCartographicScratch));
       if (groundAhead !== undefined) {
         slope = Math.max(groundAhead - ground, 0) / SLOPE_BASE;
       }
@@ -388,7 +396,7 @@ export default class CesiumDrone {
       const rise = Matrix4.multiplyByPointAsVector(enu, Cartesian3.fromElements(0, 0, velocity.z * dt, aheadScratch), aheadScratch);
       Cartesian3.add(previous, rise, this.position_);
       const back = Cartographic.fromCartesian(this.position_, undefined, cartographicScratch);
-      const groundBack = globe.getHeight(back) ?? ground;
+      const groundBack = this.groundHeight(back) ?? ground;
       if (back.height < groundBack + this.clearance) {
         back.height = groundBack + this.clearance;
         Cartographic.toCartesian(back, undefined, this.position_);
@@ -416,4 +424,39 @@ export default class CesiumDrone {
     controller.enableTilt = enable;
     controller.enableLook = enable;
   }
+}
+
+/**
+ * Flies a CesiumDrone among a triangle mesh of cesium-obstacles: its walls stop it, crashing, in every direction,
+ * from rays cast from its middle and from around its body, ahead, beside, above and below it; climbing, the
+ * ceilings too; its roofs and floors are its ground, else the ground it had (the terrain). Turns the collision on.
+ * @param {CesiumDrone} drone
+ * @param {import('@geoblocks/cesium-obstacles').TriangleMesh} mesh
+ * @param {{radius?: number, reach?: number}} [options] In meters: the drone's body about its middle, 0.25 by
+ *     default; how far ahead the walls are looked for, as far as a step goes at the top speed, 5 by default.
+ */
+export function flyOn(drone, mesh, {radius = 0.25, reach = 5} = {}) {
+  const from = () => drone.position_;
+  const offsets = [
+    Cartesian3.ZERO,
+    new Cartesian3(radius, 0, 0), new Cartesian3(-radius, 0, 0),
+    new Cartesian3(0, radius, 0), new Cartesian3(0, -radius, 0),
+    new Cartesian3(0, 0, radius), new Cartesian3(0, 0, -radius),
+  ];
+  const walls = meshObstacleAhead(mesh, from, {offsets, reach});
+  const all = meshObstacleAhead(mesh, from, {offsets, reach, walls: false});
+  drone.obstacleAhead = toward => {
+    const up = Ellipsoid.WGS84.geodeticSurfaceNormal(drone.position_, upScratch);
+    if (Cartesian3.dot(toward, up) <= 0) {
+      return walls(toward);
+    }
+    // climbing, the ceilings too; a floor seen from above is the ground's
+    const obstacle = all(toward);
+    return obstacle?.normal && Cartesian3.dot(obstacle.normal, up) > 0 ? walls(toward) : obstacle;
+  };
+  // under the body: a ceiling the drone runs into is not its ground
+  const ground = meshGroundHeight(mesh, {below: radius});
+  const fallback = drone.groundHeight;
+  drone.groundHeight = position => ground(position) ?? fallback(position);
+  drone.collision = true;
 }

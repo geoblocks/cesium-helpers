@@ -1,6 +1,6 @@
 import {Cartesian3, Math as CesiumMath} from "@cesium/core";
 import Controls from "@geoblocks/cesium-input";
-import {ObstacleProbe, blockedStep} from "@geoblocks/cesium-obstacles";
+import {ObstacleProbe, blockedStep, meshGroundHeight, meshObstacleAhead} from "@geoblocks/cesium-obstacles";
 
 // in seconds: a frame after a backgrounded tab must not walk or fall far
 const MAX_DELTA = 0.1;
@@ -381,4 +381,32 @@ export default class CesiumWalk {
     const scene = this.viewer.scene;
     return scene.ellipsoid.geodeticSurfaceNormal(scene.camera.position, normalScratch);
   }
+}
+
+/**
+ * The heights above the floor the walls are looked for at: the knees, the waist and the eyes.
+ * @param {number} eye
+ * @param {number} step
+ * @return {number[]} In meters, from the lowest.
+ */
+export function rayHeights(eye, step) {
+  return [step + 0.05, (step + eye) / 2, eye];
+}
+
+/**
+ * Walks a CesiumWalk on a triangle mesh of cesium-obstacles: it stands on the highest floor below its knees, up
+ * the stairs, under the arches, else on what it stood on before (the terrain); the walls ahead stop it, from rays
+ * cast at the knees, the waist and the eyes, the floors and stairs left to the ground below, in every direction.
+ * @param {CesiumWalk} walk
+ * @param {import("@geoblocks/cesium-obstacles").TriangleMesh} mesh
+ * @param {{eye: number, step: number, reach: number}} options In meters: the eyes above the floor, the
+ *     highest step, how far ahead the walls are looked for.
+ */
+export function walkOn(walk, mesh, {eye, step, reach}) {
+  const camera = walk.viewer.scene.camera;
+  const fallback = walk.groundHeight;
+  const offsets = rayHeights(eye, step).map(height => new Cartesian3(0, 0, height - eye));
+  walk.obstacleAhead = meshObstacleAhead(mesh, () => camera.positionWC, {offsets, reach});
+  const ground = meshGroundHeight(mesh, {below: eye - step});
+  walk.groundHeight = cartographic => ground(cartographic) ?? fallback(cartographic);
 }

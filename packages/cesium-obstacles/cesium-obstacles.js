@@ -1,5 +1,12 @@
 import {Cartesian2, Cartesian3, Math as CesiumMath, Ray} from "@cesium/core";
 
+export {createTriangleMesh, createTriangleMeshFromGltf, meshGroundHeight, meshObstacleAhead} from "./triangle-mesh.js";
+export {gltfTriangles} from "./gltf-mesh.js";
+export {Group} from "./mesh-builder.js";
+
+/** @typedef {import("./triangle-mesh.js").TriangleMesh} TriangleMesh */
+/** @typedef {import("./gltf-mesh.js").GltfTriangles} GltfTriangles */
+
 // the mover keeps REACH meters from the obstacles in view, and slides along them. Reading the depth stalls
 // the frame until the GPU is done, so an obstacle is looked for at most every SAMPLE_INTERVAL milliseconds,
 // or when the direction of the steps turns. Out of view, there is no obstacle: Cesium's ways to look there
