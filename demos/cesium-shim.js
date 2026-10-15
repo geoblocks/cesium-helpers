@@ -2,6 +2,7 @@
 // global instead of bundling a second copy of @cesium/core and @cesium/engine with the helpers.
 // Keep this list in sync with the helpers' imports; the build fails otherwise.
 export const {
+  Axis,
   BoundingSphere,
   CameraEventType,
   Cartesian2,
@@ -24,15 +25,18 @@ export const {
   KeyboardEventModifier,
   Material,
   Math,
+  Matrix3,
   Matrix4,
   PixelDatatype,
   Plane,
   PointPrimitiveCollection,
+  PolygonPipeline,
   PolylineMaterialAppearance,
   PostProcessStage,
   PostProcessStageComposite,
   PostProcessStageLibrary,
   PostProcessStageSampleMode,
+  Quaternion,
   Ray,
   Rectangle,
   RenderState,
