@@ -46,14 +46,33 @@ float creaseOf(vec4 n, float span, float pixel) {
   return smoothstep(CREASE.x, CREASE.y, (abs(n.x + n.y) + abs(n.z + n.w)) / span) * (1.0 - step(jump * pixel, far));
 }
 
-// 1 on the outline a pixel wide, on the near side of a jump: a neighbor much farther; n the
-// neighbors steps pixels away, those a pixel away when steps is 1
+// how far the surface beyond the pixel at uv lies behind it, in one direction o (a pixel's step): the two neighbours
+// that way extrapolated back to the pixel, linearly in an orthographic view, where the depth is affine on the screen,
+// in its reciprocal in a perspective one. A plane at any slope extrapolates exactly to the pixel, so a face seen at a
+// grazing angle is never a jump, only a nearer thing standing in front of a farther one. The nearer of the extrapolation
+// and the neighbour itself: beside a thin thing two pixels away, the extrapolation through it runs far behind the pixel
+float farSide(vec2 uv, vec2 o, float c) {
+  float d1 = depthAt(uv + o);
+  float d2 = depthAt(uv + 2.0 * o);
+  if (d1 == SKY) {
+    return SKY;
+  }
+  if (czm_orthographicIn3D == 1.0) {
+    return min(d1, d2 == SKY ? d1 : 2.0 * d1 - d2) - c;
+  }
+  float r = d2 == SKY ? 1.0 / d1 : 2.0 / d1 - 1.0 / d2;
+  return (r <= 0.0 ? d1 : min(d1, 1.0 / r)) - c;
+}
+
+// the outline, a pixel wide, on the near side of a jump: the farthest of the four directions' surfaces behind the pixel,
+// against the jump, anti-aliased over a quarter of it each way (n and steps, the creases' neighbours, unused here: the
+// outline reads its own)
 float outlineAt(vec2 uv, float c, vec4 n, float steps, float pixel) {
   vec2 texel = 1.0 / czm_viewport.zw;
-  float farther = steps > 1.0
-    ? max(max(depthAt(uv + vec2(texel.x, 0.0)), depthAt(uv - vec2(texel.x, 0.0))), max(depthAt(uv + vec2(0.0, texel.y)), depthAt(uv - vec2(0.0, texel.y)))) - c
-    : max(max(n.x, n.y), max(n.z, n.w));
-  return step(jump * pixel, farther);
+  float farther = max(max(farSide(uv, vec2(texel.x, 0.0), c), farSide(uv, vec2(-texel.x, 0.0), c)),
+    max(farSide(uv, vec2(0.0, texel.y), c), farSide(uv, vec2(0.0, -texel.y), c)));
+  float limit = jump * pixel;
+  return smoothstep(0.75 * limit, 1.25 * limit, farther);
 }
 
 // the sky's gradient at uv, from the top of the screen to its bottom
