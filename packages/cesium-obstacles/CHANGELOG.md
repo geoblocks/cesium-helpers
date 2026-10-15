@@ -3,6 +3,19 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.2.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-obstacles%400.1.1...%40geoblocks%2Fcesium-obstacles%400.2.0) (2026-10-15)
+
+* refactor(obstacles)!: move the triangle mesh from cesium-walk to here ([38b3a6f](https://github.com/geoblocks/cesium-helpers/commit/38b3a6fcf3df2666fb5681bb7c252a300fb3e625))
+
+### BREAKING CHANGES
+
+* @geoblocks/cesium-walk/walk-mesh.js (createWalkMesh,
+  toGlb, walkOn, rayHeights) and @geoblocks/cesium-walk/mesh-builder.js
+  (Group) are gone: walkOn and rayHeights come from @geoblocks/cesium-walk,
+  Group and the mesh from @geoblocks/cesium-obstacles; nothing draws the
+  groups any more.
+
+
 ## [0.1.1](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-obstacles%400.1.0...%40geoblocks%2Fcesium-obstacles%400.1.1) (2026-10-14)
 
 ### Bug Fixes

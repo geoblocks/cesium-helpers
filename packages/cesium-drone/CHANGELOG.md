@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.2.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-drone%400.1.0...%40geoblocks%2Fcesium-drone%400.2.0) (2026-10-15)
+
+### Bug Fixes
+
+* **drone:** no globe, no error from the default ground ([8af26c1](https://github.com/geoblocks/cesium-helpers/commit/8af26c17029796881ed784ff1f7e28787c86a3c7))
+
+### Features
+
+* **drone:** fly among a triangle mesh, flyOn ([82b11dc](https://github.com/geoblocks/cesium-helpers/commit/82b11dc3869969d0e6a98120a98c5c30f70cfcae))
+
+
 # 0.1.0 (2026-10-14)
 
 ### Features
