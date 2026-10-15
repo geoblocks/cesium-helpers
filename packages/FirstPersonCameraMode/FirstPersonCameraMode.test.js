@@ -38,3 +38,33 @@ test("the mouse turns the view on the tick, before the frame renders", () => {
   assert.equal(views.length, 1);
   assert.ok(views[0].heading > 0);
 });
+
+// a viewer whose camera controller's inputs an app turned off before the mode, and whose widget handler is not the
+// mode's to touch
+const lockedViewer = () => {
+  const camera = {heading: 0, pitch: 0, frustum: {fov: 1}, setView: () => {}};
+  const refused = () => {
+    throw new Error("the widget's handler is not the mode's");
+  };
+  const viewer = {
+    scene: {
+      camera,
+      requestRender: () => {},
+      canvas: {addEventListener: () => {}, removeEventListener: () => {}},
+      screenSpaceCameraController: {enableInputs: false},
+    },
+    clock: {onTick: {addEventListener: () => {}, removeEventListener: () => {}}},
+    screenSpaceEventHandler: {setInputAction: refused, removeInputAction: refused},
+  };
+  return /** @type {any} */ (viewer);
+};
+
+test("entered and left, the camera controller's inputs are as they were, off included, and the widget's handler untouched", () => {
+  globalThis.window = /** @type {any} */ ({addEventListener: () => {}, removeEventListener: () => {}});
+  const viewer = lockedViewer();
+  const mode = new FirstPersonCameraMode(viewer);
+  mode.enter_();
+  assert.equal(viewer.scene.screenSpaceCameraController.enableInputs, false);
+  mode.leave_();
+  assert.equal(viewer.scene.screenSpaceCameraController.enableInputs, false);
+});
