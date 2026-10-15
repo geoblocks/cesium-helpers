@@ -63,3 +63,13 @@ test('the jump, in pixels\' sizes, from a crease to an outline: 20 by default, g
   assert.equal(white.createStage_(undefined).uniforms.jump(), 8);
   assert.deepEqual(viewer.calls, ['render']);
 });
+
+test('the outline is the near side of a jump measured against the far side\'s surface extrapolated, anti-aliased', () => {
+  const shader = new Toy(fakeViewer()).createStage_(undefined).fragmentShader;
+  assert.match(shader, /float farSide\(/);
+  // the nearer of the neighbour and the extrapolation: beside a thin thing, the extrapolation through it is no jump
+  const far = shader.slice(shader.indexOf('float farSide('));
+  assert.equal(far.slice(0, far.indexOf('\n}')).match(/min\(d1, /g)?.length, 2);
+  const outline = shader.slice(shader.indexOf('float outlineAt('));
+  assert.doesNotMatch(outline.slice(0, outline.indexOf('\n}')), /step\(jump/);
+});
