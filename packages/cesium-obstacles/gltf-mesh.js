@@ -1,23 +1,26 @@
-import {Cartesian3, Matrix4, Quaternion} from "@cesium/core";
+import {Cartesian3, ComponentDatatype, Matrix4, Quaternion} from "@cesium/core";
+import {Axis} from "@cesium/engine";
 
-// The triangles of a glTF's meshes, in a triangle mesh's frame: glTF's y up turned z up, as Cesium loads a model
-// with forwardAxis X, its glTF (x, y, z) at (x, -z, y).
+// The triangles of a glTF's meshes, in a triangle mesh's frame: glTF's y up turned z up by Cesium's own matrix
+// (Axis.Y_UP_TO_Z_UP), its glTF (x, y, z) at (x, -z, y), as Cesium loads a model with forwardAxis X.
 
 // the extensions that change where the vertices are, which are not read
 const UNSUPPORTED = ['KHR_draco_mesh_compression', 'EXT_meshopt_compression', 'KHR_meshopt_compression', 'EXT_mesh_gpu_instancing'];
 
 const COMPONENTS = {SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4};
-// the component types: their DataView getter, their size in bytes and, normalized, their largest value
+// the component types (glTF's are Cesium's ComponentDatatype's): their DataView getter, their size in bytes and, normalized, their largest value
 /** @type {Record<number, [string, number, number]>} */
 const TYPES = {
-  5120: ['getInt8', 1, 127],
-  5121: ['getUint8', 1, 255],
-  5122: ['getInt16', 2, 32767],
-  5123: ['getUint16', 2, 65535],
-  5125: ['getUint32', 4, 0],
-  5126: ['getFloat32', 4, 0],
+  [ComponentDatatype.BYTE]: ['getInt8', 1, 127],
+  [ComponentDatatype.UNSIGNED_BYTE]: ['getUint8', 1, 255],
+  [ComponentDatatype.SHORT]: ['getInt16', 2, 32767],
+  [ComponentDatatype.UNSIGNED_SHORT]: ['getUint16', 2, 65535],
+  [ComponentDatatype.UNSIGNED_INT]: ['getUint32', 4, 0],
+  [ComponentDatatype.FLOAT]: ['getFloat32', 4, 0],
 };
 
+// in Cesium, not in its typings
+const yUpToZUp = /** @type {Matrix4} */ (/** @type {any} */ (Axis).Y_UP_TO_Z_UP);
 const pointScratch = new Cartesian3();
 
 /**
@@ -217,10 +220,10 @@ export function gltfTriangles(gltf, buffers) {
         const vertices = new Float32Array(positions.length);
         for (let i = 0; i < positions.length; i += 3) {
           const p = Matrix4.multiplyByPoint(world, Cartesian3.fromElements(positions[i], positions[i + 1], positions[i + 2], pointScratch), pointScratch);
-          vertices[i] = p.x;
-          // not -0
-          vertices[i + 1] = 0 - p.z;
-          vertices[i + 2] = p.y;
+          // + 0: not -0
+          vertices[i] = p.x + 0;
+          vertices[i + 1] = p.y + 0;
+          vertices[i + 2] = p.z + 0;
         }
         result.push({vertices, triangles: triangles.slice(), name: node.name ?? json.meshes[node.mesh].name, node: index, mesh: node.mesh, primitive: k});
       });
@@ -230,7 +233,7 @@ export function gltfTriangles(gltf, buffers) {
     }
   };
   for (const root of roots) {
-    visit(root, Matrix4.IDENTITY);
+    visit(root, yUpToZUp);
   }
   return result;
 }

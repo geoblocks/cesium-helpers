@@ -11,6 +11,7 @@ export const {
   Cartographic,
   CatmullRomSpline,
   Color,
+  ComponentDatatype,
   EasingFunction,
   Ellipsoid,
   EllipsoidTerrainProvider,
