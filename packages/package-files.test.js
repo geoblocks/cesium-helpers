@@ -18,7 +18,7 @@ for (const name of readdirSync(root, {withFileTypes: true}).filter(each => each.
     const listed = new Set(files.flatMap(file => file.includes('*') ? globSync(file, {cwd: folder}) : [file]).map(file => normalize(file)));
     const missing = [];
     const seen = new Set();
-    const queue = [...listed].filter(file => file.endsWith('.js') && existsSync(join(folder, file)));
+    const queue = listed.values().filter(file => file.endsWith('.js') && existsSync(join(folder, file))).toArray();
     while (queue.length) {
       const file = queue.pop();
       if (seen.has(file)) {
