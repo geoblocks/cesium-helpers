@@ -221,3 +221,54 @@ test("on a mesh, a wall at the knees stops the walker, the floor does not", () =
   const down = Cartesian3.normalize(Cartesian3.subtract(mesh.position(1.5, 0, 0), eyes, new Cartesian3()), new Cartesian3());
   assert.equal(walk.obstacleAhead(down, "down"), undefined);
 });
+
+// a camera that walks: its position moves with camera.move, on the equator at longitude 0, on a mesh laid out in
+// the east-north-up frame there
+const walkingViewer = () => {
+  const frame = Transforms.eastNorthUpToFixedFrame(Cartesian3.fromDegrees(0, 0, 0));
+  const camera = {
+    position: new Cartesian3(),
+    direction: new Cartesian3(),
+    right: new Cartesian3(),
+    get positionWC() {
+      return this.position;
+    },
+    move: (/** @type {Cartesian3} */ direction, /** @type {number} */ amount) =>
+      Cartesian3.add(camera.position, Cartesian3.multiplyByScalar(direction, amount, new Cartesian3()), camera.position),
+  };
+  const viewer = {
+    camera,
+    scene: {camera, ellipsoid: Ellipsoid.WGS84, globe: undefined, canvas: {}},
+    clock: {onTick: {addEventListener: () => {}, removeEventListener: () => {}}},
+  };
+  return {viewer: /** @type {any} */ (viewer), frame};
+};
+
+test("at a concave corner the slide along one wall does not go through the other", () => {
+  const {viewer, frame} = walkingViewer();
+  // a 10 m square room: four walls 3 m high, and its floor
+  /** @type {{vertices: Float32Array, triangles: Uint32Array}[]} */
+  const groups = [];
+  const wall = (/** @type {number} */ x0, /** @type {number} */ y0, /** @type {number} */ x1, /** @type {number} */ y1) =>
+    groups.push({vertices: new Float32Array([x0, y0, 0, x1, y1, 0, x1, y1, 3, x0, y0, 3]), triangles: new Uint32Array([0, 1, 2, 0, 2, 3])});
+  wall(0, 0, 10, 0);
+  wall(10, 0, 10, 10);
+  wall(10, 10, 0, 10);
+  wall(0, 10, 0, 0);
+  groups.push({vertices: new Float32Array([0, 0, 0, 10, 0, 0, 10, 10, 0, 0, 10, 0]), triangles: new Uint32Array([0, 1, 2, 0, 2, 3])});
+  const mesh = createTriangleMesh(groups, frame);
+  const walk = new CesiumWalk(viewer, 2.5, 1.65);
+  walk.collision = true;
+  walkOn(walk, mesh, {eye: 1.65, step: 0.25, reach: 1});
+  // from (8, 7.9) at eye height, walking diagonally into the corner at (10, 10), 60 steps a second for 20 seconds: a
+  // little off the diagonal, the walker meets one wall first (aimed at the corner's edge itself, its rays would pass
+  // between the two walls' triangles)
+  mesh.position(8, 7.9, 1.65, viewer.camera.position);
+  const toward = Matrix4.multiplyByPointAsVector(frame, new Cartesian3(Math.SQRT1_2, Math.SQRT1_2, 0), new Cartesian3());
+  for (let tick = 0; tick < 1200; tick++) {
+    walk.step_(toward, 2.5 / 60, "forward");
+  }
+  const {x, y} = mesh.local(viewer.camera.position);
+  assert.ok(x < 9.7 && y < 9.7, `through a wall: (${x.toFixed(3)}, ${y.toFixed(3)})`);
+  assert.ok(x > 9.3 && y > 9.3, `stopped short of the corner: (${x.toFixed(3)}, ${y.toFixed(3)})`);
+});
