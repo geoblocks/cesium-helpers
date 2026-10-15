@@ -244,19 +244,29 @@ const walkingViewer = () => {
   return {viewer: /** @type {any} */ (viewer), frame};
 };
 
-test("at a concave corner the slide along one wall does not go through the other", () => {
-  const {viewer, frame} = walkingViewer();
-  // a 10 m square room: four walls 3 m high, and its floor
+// a 10 m square room: four walls 3 m high, and its floor; a 1 m square column in it at (4, 4) if asked
+const squareRoom = (column = false) => {
   /** @type {{vertices: Float32Array, triangles: Uint32Array}[]} */
   const groups = [];
-  const wall = (/** @type {number} */ x0, /** @type {number} */ y0, /** @type {number} */ x1, /** @type {number} */ y1) =>
-    groups.push({vertices: new Float32Array([x0, y0, 0, x1, y1, 0, x1, y1, 3, x0, y0, 3]), triangles: new Uint32Array([0, 1, 2, 0, 2, 3])});
+  const wall = (/** @type {number} */ x0, /** @type {number} */ y0, /** @type {number} */ x1, /** @type {number} */ y1, height = 3) =>
+    groups.push({vertices: new Float32Array([x0, y0, 0, x1, y1, 0, x1, y1, height, x0, y0, height]), triangles: new Uint32Array([0, 1, 2, 0, 2, 3])});
   wall(0, 0, 10, 0);
   wall(10, 0, 10, 10);
   wall(10, 10, 0, 10);
   wall(0, 10, 0, 0);
+  if (column) {
+    wall(4, 4, 5, 4);
+    wall(5, 4, 5, 5);
+    wall(5, 5, 4, 5);
+    wall(4, 5, 4, 4);
+  }
   groups.push({vertices: new Float32Array([0, 0, 0, 10, 0, 0, 10, 10, 0, 0, 10, 0]), triangles: new Uint32Array([0, 1, 2, 0, 2, 3])});
-  const mesh = createTriangleMesh(groups, frame);
+  return {groups, wall};
+};
+
+test("at a concave corner the slide along one wall does not go through the other", () => {
+  const {viewer, frame} = walkingViewer();
+  const mesh = createTriangleMesh(squareRoom().groups, frame);
   const walk = new CesiumWalk(viewer, 2.5, 1.65);
   walk.collision = true;
   walkOn(walk, mesh, {eye: 1.65, step: 0.25, reach: 1});
@@ -271,4 +281,57 @@ test("at a concave corner the slide along one wall does not go through the other
   const {x, y} = mesh.local(viewer.camera.position);
   assert.ok(x < 9.7 && y < 9.7, `through a wall: (${x.toFixed(3)}, ${y.toFixed(3)})`);
   assert.ok(x > 9.3 && y > 9.3, `stopped short of the corner: (${x.toFixed(3)}, ${y.toFixed(3)})`);
+});
+
+test("the walker's body keeps it off the side and the corner of a column it walks past", () => {
+  const {viewer, frame} = walkingViewer();
+  const mesh = createTriangleMesh(squareRoom(true).groups, frame);
+  const walk = new CesiumWalk(viewer, 2.5, 1.65);
+  walk.collision = true;
+  walkOn(walk, mesh, {eye: 1.65, step: 0.25, reach: 1, radius: 0.4});
+  // north along x 5.2, a hair's breadth past the column's east side and corners, which no ray ahead meets
+  mesh.position(5.2, 2, 1.65, viewer.camera.position);
+  const north = Matrix4.multiplyByPointAsVector(frame, Cartesian3.UNIT_Y, new Cartesian3());
+  let nearest = Infinity;
+  for (let tick = 0; tick < 300; tick++) {
+    walk.step_(north, 2.5 / 60, "forward");
+    const {x, y} = mesh.local(viewer.camera.position);
+    nearest = Math.min(nearest, Math.hypot(Math.max(4 - x, 0, x - 5), Math.max(4 - y, 0, y - 5)));
+  }
+  const {y} = mesh.local(viewer.camera.position);
+  assert.ok(y > 8, `stuck at y ${y.toFixed(3)}`);
+  assert.ok(nearest > 0.4 - 1e-3, `the body ${nearest.toFixed(3)} m from the column`);
+});
+
+test("the walker's body keeps it off a wall it walks along", () => {
+  const {viewer, frame} = walkingViewer();
+  const mesh = createTriangleMesh(squareRoom().groups, frame);
+  const walk = new CesiumWalk(viewer, 2.5, 1.65);
+  walk.collision = true;
+  walkOn(walk, mesh, {eye: 1.65, step: 0.25, reach: 1, radius: 0.4});
+  mesh.position(9.9, 2, 1.65, viewer.camera.position);
+  const north = Matrix4.multiplyByPointAsVector(frame, Cartesian3.UNIT_Y, new Cartesian3());
+  walk.step_(north, 2.5 / 60, "forward");
+  const {x, y} = mesh.local(viewer.camera.position);
+  assert.ok(Math.abs(x - 9.6) < 1e-6, `at x ${x.toFixed(3)}`);
+  assert.ok(y > 2, "the step taken");
+});
+
+test("a step's riser under the knees does not push the walker back", () => {
+  const {viewer, frame} = walkingViewer();
+  const {groups, wall} = squareRoom();
+  // a step 0.2 m high across the room at x 5, its tread the floor behind it
+  wall(5, 0, 5, 10, 0.2);
+  groups.push({vertices: new Float32Array([5, 0, 0.2, 10, 0, 0.2, 10, 10, 0.2, 5, 10, 0.2]), triangles: new Uint32Array([0, 1, 2, 0, 2, 3])});
+  const mesh = createTriangleMesh(groups, frame);
+  const walk = new CesiumWalk(viewer, 2.5, 1.65);
+  walk.collision = true;
+  walkOn(walk, mesh, {eye: 1.65, step: 0.25, reach: 1, radius: 0.4});
+  mesh.position(4.7, 5, 1.65, viewer.camera.position);
+  const east = Matrix4.multiplyByPointAsVector(frame, Cartesian3.UNIT_X, new Cartesian3());
+  for (let tick = 0; tick < 30; tick++) {
+    walk.step_(east, 2.5 / 60, "forward");
+  }
+  const {x} = mesh.local(viewer.camera.position);
+  assert.ok(x > 5.5, `held back at x ${x.toFixed(3)}`);
 });

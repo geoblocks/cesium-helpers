@@ -21,6 +21,9 @@ const frameScratch = new Matrix4();
 const cornerScratch = [new Cartesian3(), new Cartesian3(), new Cartesian3()];
 const edgeScratch = [new Cartesian3(), new Cartesian3()];
 const normalScratch = new Cartesian3();
+const toPointScratch = new Cartesian3();
+const closestScratch = new Cartesian3();
+const nearestScratch = new Cartesian3();
 const triangleRay = new Ray();
 const downRay = new Ray(Cartesian3.ZERO, Cartesian3.negate(Cartesian3.UNIT_Z, new Cartesian3()));
 const belowScratch = new Cartographic();
@@ -34,6 +37,9 @@ const floorCartographicScratch = new Cartographic();
  * @property {(origin: Cartesian3, direction: Cartesian3, maxDistance: number, options?: {walls?: boolean}) =>
  *     {position: Cartesian3, normal: Cartesian3, distance: number} | undefined} raycast The first surface along a
  *     ray on the globe.
+ * @property {(point: Cartesian3, radius: number, options?: {walls?: boolean}) =>
+ *     {position: Cartesian3, normal: Cartesian3, distance: number} | undefined} nearest The surface nearest a point
+ *     on the globe, within a radius.
  * @property {(x: number, y: number, z: number, result?: Cartesian3) => Cartesian3} position A position of the
  *     frame on the globe.
  * @property {(position: Cartesian3, result?: Cartesian3) => Cartesian3} local A position on the globe in the frame.
@@ -63,6 +69,55 @@ export function createTriangleMesh(groups, modelMatrix) {
 export function createTriangleMeshFromGltf(gltf, modelMatrix, {buffers, collide = () => true, forwardAxis = Axis.Z} = {}) {
   const primitives = gltfTriangles(gltf, buffers, forwardAxis).filter(primitive => collide(primitive));
   return collisionMesh(primitives, modelMatrix);
+}
+
+/**
+ * The point of a triangle nearest a point: Ericson's (Real-Time Collision Detection, 5.1.5), by the point's
+ * barycentric region; Cesium has no point and triangle test.
+ * @param {Cartesian3} p
+ * @param {Cartesian3} a
+ * @param {Cartesian3} b
+ * @param {Cartesian3} c
+ * @param {Cartesian3} result
+ * @return {Cartesian3}
+ */
+function closestPointOnTriangle(p, a, b, c, result) {
+  const ab = Cartesian3.subtract(b, a, edgeScratch[0]);
+  const ac = Cartesian3.subtract(c, a, edgeScratch[1]);
+  const ap = Cartesian3.subtract(p, a, toPointScratch);
+  const d1 = Cartesian3.dot(ab, ap);
+  const d2 = Cartesian3.dot(ac, ap);
+  if (d1 <= 0 && d2 <= 0) {
+    return Cartesian3.clone(a, result);
+  }
+  const bp = Cartesian3.subtract(p, b, toPointScratch);
+  const d3 = Cartesian3.dot(ab, bp);
+  const d4 = Cartesian3.dot(ac, bp);
+  if (d3 >= 0 && d4 <= d3) {
+    return Cartesian3.clone(b, result);
+  }
+  const vc = d1 * d4 - d3 * d2;
+  if (vc <= 0 && d1 >= 0 && d3 <= 0) {
+    return Cartesian3.add(a, Cartesian3.multiplyByScalar(ab, d1 / (d1 - d3), result), result);
+  }
+  const cp = Cartesian3.subtract(p, c, toPointScratch);
+  const d5 = Cartesian3.dot(ab, cp);
+  const d6 = Cartesian3.dot(ac, cp);
+  if (d6 >= 0 && d5 <= d6) {
+    return Cartesian3.clone(c, result);
+  }
+  const vb = d5 * d2 - d1 * d6;
+  if (vb <= 0 && d2 >= 0 && d6 <= 0) {
+    return Cartesian3.add(a, Cartesian3.multiplyByScalar(ac, d2 / (d2 - d6), result), result);
+  }
+  const va = d3 * d6 - d5 * d4;
+  if (va <= 0 && d4 - d3 >= 0 && d5 - d6 >= 0) {
+    const w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
+    return Cartesian3.add(b, Cartesian3.multiplyByScalar(Cartesian3.subtract(c, b, result), w, result), result);
+  }
+  const denominator = 1 / (va + vb + vc);
+  Cartesian3.add(a, Cartesian3.multiplyByScalar(ab, vb * denominator, result), result);
+  return Cartesian3.add(result, Cartesian3.multiplyByScalar(ac, vc * denominator, toPointScratch), result);
 }
 
 /**
@@ -201,6 +256,20 @@ function collisionMesh(colliding, modelMatrix) {
     return best;
   };
 
+  /**
+   * A triangle's unit normal on the globe, pointing the way of a vector.
+   * @param {number} i The triangle.
+   * @param {Cartesian3} toward
+   * @return {Cartesian3}
+   */
+  const normalToward = (i, toward) => {
+    const [p0, p1, p2] = corners(i);
+    const cross = Cartesian3.cross(Cartesian3.subtract(p1, p0, edgeScratch[0]), Cartesian3.subtract(p2, p0, edgeScratch[1]), normalScratch);
+    const normal = Matrix4.multiplyByPointAsVector(toNormal, cross, new Cartesian3());
+    Cartesian3.normalize(normal, normal);
+    return Cartesian3.dot(normal, toward) < 0 ? Cartesian3.negate(normal, normal) : normal;
+  };
+
   return {
     floorBelow,
     /**
@@ -223,15 +292,45 @@ function collisionMesh(colliding, modelMatrix) {
         return undefined;
       }
       const position = Matrix4.multiplyByPoint(modelMatrix, Ray.getPoint(triangleRay, hit.distance, rayScratch), new Cartesian3());
-      const i = hit.triangle;
-      const [p0, p1, p2] = corners(i);
-      const cross = Cartesian3.cross(Cartesian3.subtract(p1, p0, edgeScratch[0]), Cartesian3.subtract(p2, p0, edgeScratch[1]), normalScratch);
-      const normal = Matrix4.multiplyByPointAsVector(toNormal, cross, new Cartesian3());
-      Cartesian3.normalize(normal, normal);
-      if (Cartesian3.dot(normal, direction) > 0) {
-        Cartesian3.negate(normal, normal);
-      }
+      const normal = normalToward(hit.triangle, Cartesian3.negate(direction, toPointScratch));
       return {position, normal, distance: Cartesian3.distance(origin, position)};
+    },
+    /**
+     * The surface nearest a point on the globe, within a radius: a mover's body kept clear of the walls, in
+     * every direction, by the point of a triangle nearest its middle.
+     * @param {Cartesian3} point
+     * @param {number} radius In meters.
+     * @param {{walls?: boolean}} [options] walls: skip the floors, stairs and ramps, which a mover stands on.
+     * @return {{position: Cartesian3, normal: Cartesian3, distance: number} | undefined} The nearest point of
+     *     the surface, its normal toward the point, and the distance in meters.
+     */
+    nearest: (point, radius, {walls = false} = {}) => {
+      const p = Matrix4.multiplyByPoint(toLocal, point, originScratch);
+      const r = radius * Matrix4.getMaximumScale(toLocal);
+      ray++;
+      let best;
+      for (let x = Math.floor((p.x - r) / CELL); x <= Math.floor((p.x + r) / CELL); x++) {
+        for (let y = Math.floor((p.y - r) / CELL); y <= Math.floor((p.y + r) / CELL); y++) {
+          for (const i of allCells.get(`${x},${y}`) ?? []) {
+            if (tested[i / 3] === ray || (walls && isFloor[i / 3])) {
+              continue;
+            }
+            tested[i / 3] = ray;
+            const [p0, p1, p2] = corners(i);
+            const closest = closestPointOnTriangle(p, p0, p1, p2, closestScratch);
+            const distance = Cartesian3.distance(closest, p);
+            if (distance <= r && (!best || distance < best.distance)) {
+              best = {distance, triangle: i, position: Cartesian3.clone(closest, nearestScratch)};
+            }
+          }
+        }
+      }
+      if (!best) {
+        return undefined;
+      }
+      const position = Matrix4.multiplyByPoint(modelMatrix, best.position, new Cartesian3());
+      const normal = normalToward(best.triangle, Cartesian3.subtract(point, position, toPointScratch));
+      return {position, normal, distance: Cartesian3.distance(point, position)};
     },
     /**
      * @param {number} x

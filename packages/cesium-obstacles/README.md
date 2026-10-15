@@ -80,8 +80,10 @@ const mesh = createTriangleMesh([floor.meshGroup, walls.meshGroup], modelMatrix)
 A group is `{vertices: Float32Array, triangles: Uint32Array}`, `collide: false` leaving it out. The faces flatter
 than 60° are floors, the others walls. `Group` builds the groups face by face: `face`, `polygon` (with holes),
 `sides`, `box`; its options are passed on to `meshGroup`, for a drawing of them, and `charts: true` records each
-face, to lay them out in an atlas. `mesh.floorBelow(x, y, z)` and `mesh.raycast(origin, direction, maxDistance,
-{walls})` answer in the mesh's frame and on the globe; `mesh.position` and `mesh.local` go from one to the other.
+face, to lay them out in an atlas. `mesh.floorBelow(x, y, z)` answers in the mesh's frame, `mesh.raycast(origin,
+direction, maxDistance, {walls})` and `mesh.nearest(point, radius, {walls})`, the surface nearest a point within a
+radius, a mover's body kept clear of what no ray ahead meets, on the globe; `mesh.position` and `mesh.local` go
+from one frame to the other.
 
 From a glTF, drawn by Cesium as usual: the same floors and walls, from the meshes of its default scene, each
 node's transform applied, glTF's y up turned z up. Load the model and read the same bytes:

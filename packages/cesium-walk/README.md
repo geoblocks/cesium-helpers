@@ -92,10 +92,14 @@ viewer.scene.primitives.add(await Model.fromGltfAsync({url, modelMatrix}));
 const mesh = createTriangleMeshFromGltf(await (await fetch(url)).arrayBuffer(), modelMatrix);
 
 const walkMode = new CesiumWalk(viewer);
-// stand on the highest floor below the knees, climb steps up to 0.4 m, stop at the walls 0.5 m ahead
-walkOn(walkMode, mesh, {eye: 1.6, step: 0.4, reach: 0.5});
+// stand on the highest floor below the knees, climb steps up to 0.4 m, stop at the walls 0.5 m ahead, keep
+// 0.4 m from the walls beside
+walkOn(walkMode, mesh, {eye: 1.6, step: 0.4, reach: 0.5, radius: 0.4});
 ```
 
 The walker stands on the highest floor below its knees, up the stairs and under the arches, else on the ground
 it had (the terrain). The walls stop it in every direction, from rays cast at its knees, waist and eyes
-(`rayHeights(eye, step)`); the floors and stairs are left to its ground.
+(`rayHeights(eye, step)`); the floors and stairs are left to its ground. With a `radius`, its body at those
+heights is pushed out of any wall nearer than that, the side or the corner of a piece it walks past, which no ray
+ahead meets, and which the camera's near plane would otherwise cut open; a step's riser under the knees is
+climbed, not kept from. Without, the walker is a point, as on the depth probe.
