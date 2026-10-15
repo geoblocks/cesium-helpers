@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.2.2](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-walk%400.2.1...%40geoblocks%2Fcesium-walk%400.2.2) (2026-10-15)
+
+### Bug Fixes
+
+* **walk:** stop at the second wall of a concave corner instead of sliding through it ([8d1a545](https://github.com/geoblocks/cesium-helpers/commit/8d1a54553a3ba56b040c40cca5fb3b5d3b6000dc))
+
+
 ## [0.2.1](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-walk%400.2.0...%40geoblocks%2Fcesium-walk%400.2.1) (2026-10-15)
 
 **Note:** Version bump only for package @geoblocks/cesium-walk

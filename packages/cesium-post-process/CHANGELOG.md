@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.1.3](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-post-process%400.1.2...%40geoblocks%2Fcesium-post-process%400.1.3) (2026-10-15)
+
+### Bug Fixes
+
+* **post-process:** outline a jump against the far side's surface, anti-aliased ([3a1fdae](https://github.com/geoblocks/cesium-helpers/commit/3a1fdaeeaca2193ba6725bfe1a763ea2252cbee2))
+
+### Performance Improvements
+
+* **post-process:** the Toy reads the creases' neighbours only when it lights or shades them ([2a00d7b](https://github.com/geoblocks/cesium-helpers/commit/2a00d7b4227dd339f5e466d98cb9ca32fead984b))
+
+
 ## [0.1.2](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-post-process%400.1.1...%40geoblocks%2Fcesium-post-process%400.1.2) (2026-10-15)
 
 **Note:** Version bump only for package @geoblocks/cesium-post-process
