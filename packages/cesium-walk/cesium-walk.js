@@ -12,6 +12,9 @@ const LANDING = 0.15;
 const BOB_TIME = 0.15;
 // in meters: nearer its height, the camera stays, so that a walker standing still renders no frame
 const SETTLED = 1e-3;
+// at a concave corner the slide along one wall heads into the other: a step is checked again along its slide, this
+// many times at most, before it is taken
+const SLIDE_PASSES = 3;
 
 // the default bindings: W, A, S, D or the arrows to walk, Shift to sprint and Space to jump; on a gamepad, the
 // left stick, at any speed and in any direction, Cross to sprint and Square to jump, as in GTA 5. Keys by
@@ -322,18 +325,29 @@ export default class CesiumWalk {
   }
 
   /**
-   * Moves the camera a step, stopping at obstacles or sliding along them.
+   * Moves the camera a step, stopping at obstacles or sliding along them; a slide is checked against the obstacles
+   * ahead of it in turn, so that at a concave corner it stops at the second wall rather than going through it.
    * @param {Cartesian3} direction The unit direction of the step, level.
    * @param {number} step The length of the step, negative backward, in meters.
    * @param {string} kind Which steps these are, for the obstacle looked for last time.
    */
   step_(direction, step, kind) {
     const camera = this.viewer.camera;
-    const toward = Cartesian3.multiplyByScalar(direction, Math.sign(step), stepScratch);
-    const obstacle = this.collision ? this.obstacleAhead(toward, `${kind}${Math.sign(step)}`) : undefined;
-    const allowed = blockedStep(toward, Math.abs(step), camera.positionWC, obstacle, allowedScratch);
-    if (allowed.length > 0) {
-      camera.move(allowed.direction, allowed.length);
+    let toward = Cartesian3.multiplyByScalar(direction, Math.sign(step), stepScratch);
+    let length = Math.abs(step);
+    for (let pass = 0; pass < SLIDE_PASSES && length > 0; pass++) {
+      // a slide's look is its own, not the step's: the probe keeps its last look in each direction by its key
+      const obstacle = this.collision ? this.obstacleAhead(toward, `${kind}${Math.sign(step)}${pass ? "slide" : ""}`) : undefined;
+      const allowed = blockedStep(toward, length, camera.positionWC, obstacle, allowedScratch);
+      const same = Cartesian3.equalsEpsilon(allowed.direction, toward, CesiumMath.EPSILON9);
+      length = allowed.length;
+      toward = Cartesian3.clone(allowed.direction, stepScratch);
+      if (same) {
+        break;
+      }
+    }
+    if (length > 0) {
+      camera.move(toward, length);
     }
   }
 
