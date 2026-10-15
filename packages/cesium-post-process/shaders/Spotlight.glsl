@@ -64,7 +64,7 @@ void main() {
     return;
   }
   vec3 color = sceneColor.rgb;
-  vec3 ambient = mix(color, vec3(dot(color, vec3(0.2126, 0.7152, 0.0722))), darkness) * (1.0 - darkness);
+  vec3 ambient = czm_saturation(color, 1.0 - darkness) * (1.0 - darkness);
   vec4 eye = eyeAt(depthTexture, v_textureCoordinates);
 
   // eye.w is 0 for the sky, where the view ray goes on

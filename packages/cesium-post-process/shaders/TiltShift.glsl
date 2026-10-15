@@ -28,7 +28,7 @@ void main() {
   vec4 sceneColor = mix(texture(colorTexture, v_textureCoordinates), texture(blurTexture, v_textureCoordinates), blur);
 
   vec3 color = sceneColor.rgb;
-  color = mix(vec3(dot(color, vec3(0.2126, 0.7152, 0.0722))), color, 1.0 + saturation);
+  color = czm_saturation(color, 1.0 + saturation);
   color = mix(color, smoothstep(0.0, 1.0, color), saturation);
   out_FragColor = vec4(clamp(color, 0.0, 1.0), sceneColor.a);
 }

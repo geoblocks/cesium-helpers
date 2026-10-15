@@ -1,4 +1,4 @@
-import {Matrix4, PixelDatatype} from '@cesium/core';
+import {Matrix4, PixelDatatype, Math as CesiumMath} from '@cesium/core';
 import {PostProcessStage, PostProcessStageComposite} from '@cesium/engine';
 import {acquireTerrainDepth, releaseTerrainDepth} from './depth-test.js';
 import Effect from './effect.js';
@@ -47,7 +47,7 @@ export default class MotionBlur extends Effect {
         // in requestRenderMode, the time since the previous frame is not the time of the motion
         exposureScale: () =>
           (this.strength_ * this.exposure_) /
-          Math.min(Math.max((performance.now() - this.previousTime_) / 1000, 1 / 240), 1 / 10),
+          CesiumMath.clamp((performance.now() - this.previousTime_) / 1000, 1 / 240, 1 / 10),
       },
       textureScale: 0.5,
       pixelDatatype: PixelDatatype.FLOAT,

@@ -42,6 +42,7 @@ export const {
   Ray,
   Rectangle,
   RenderState,
+  Resource,
   Sampler,
   SceneMode,
   ScreenSpaceEventHandler,

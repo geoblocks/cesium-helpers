@@ -1,4 +1,4 @@
-import {Cartesian3, Cartesian4, Cartographic, Event, Matrix4} from '@cesium/core';
+import {Cartesian3, Cartesian4, Cartographic, Event, Matrix4, Math as CesiumMath} from '@cesium/core';
 import {PostProcessStage} from '@cesium/engine';
 import {acquireTerrainDepth, releaseTerrainDepth} from './depth-test.js';
 import Effect from './effect.js';
@@ -18,14 +18,14 @@ const MIN_DISTANCE = 300;
 const MIN_CHANNEL = 500;
 // longest time between two frames, in seconds, after a pause in requestRenderMode
 const MAX_STEP = 0.1;
-const TWO_PI = 2 * Math.PI;
+const TWO_PI = CesiumMath.TWO_PI;
 // the branches of a channel (Lightning.glsl's BRANCHES), the share of them that exist, and how far down
 // the channel they leave it and at what angle from it, in radians, at most
 const BRANCHES = 5;
 const BRANCH_ODDS = 0.7;
 const BRANCH_ANGLE = [0.25, 0.75];
 // how far from the camera's heading a strike lands in front of it, in radians
-const AHEAD = Math.PI / 6;
+const AHEAD = CesiumMath.PI / 6;
 // the radar's intensity, 0 to 1, over which a point goes from never to always struck: from about
 // 2.5 to 8 mm/h, the map being the square root of the rate over 10 mm/h
 const STORM = [0.5, 0.9];
@@ -46,7 +46,7 @@ const ABOVE_FADE = 200;
  * @param {number} x
  */
 function smoothstep(edge0, edge1, x) {
-  const t = Math.min(Math.max((x - edge0) / (edge1 - edge0), 0), 1);
+  const t = CesiumMath.clamp((x - edge0) / (edge1 - edge0), 0, 1);
   return t * t * (3 - 2 * t);
 }
 
@@ -114,7 +114,7 @@ export default class Lightning extends Effect {
         }
         return strike;
       });
-      this.above_ = Math.min(Math.max((scene.camera.positionCartographic.height - this.cloudBase_ + ABOVE_FADE) / (2 * ABOVE_FADE), 0), 1);
+      this.above_ = CesiumMath.clamp((scene.camera.positionCartographic.height - this.cloudBase_ + ABOVE_FADE) / (2 * ABOVE_FADE), 0, 1);
       const view = scene.camera.viewMatrix;
       for (let i = 0; i < MAX_STRIKES; i++) {
         const strike = this.strikes_[i];

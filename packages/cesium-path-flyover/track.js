@@ -1,5 +1,5 @@
 import {Cartesian3, Math as CesiumMath, Matrix4} from "@cesium/core";
-import {Transforms} from "@cesium/engine";
+import {Resource, Transforms} from "@cesium/engine";
 
 const scratchA = new Cartesian3();
 const scratchB = new Cartesian3();
@@ -161,14 +161,14 @@ export function forwardHeading(samples, previous) {
     const dx = current.x - last.x;
     const dy = current.y - last.y;
     const length = Math.hypot(dx, dy);
-    if (length > 1e-6) {
+    if (length > CesiumMath.EPSILON6) {
       const weight = 1 - (i - 1) / steps;
       east += (dx / length) * weight;
       north += (dy / length) * weight;
     }
     last = Cartesian3.clone(current, scratchA);
   }
-  if (Math.hypot(east, north) < 1e-6) {
+  if (Math.hypot(east, north) < CesiumMath.EPSILON6) {
     return previous;
   }
   return Math.atan2(east, north);
@@ -178,12 +178,8 @@ export function forwardHeading(samples, previous) {
  * @param {string} url
  * @return {Promise<string>}
  */
-export async function fetchTrackText(url) {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to load track: ${response.status} ${url}`);
-  }
-  return response.text();
+export function fetchTrackText(url) {
+  return /** @type {Promise<string>} */ (Resource.fetchText({url}));
 }
 
 /**
@@ -222,7 +218,7 @@ const BREATH_PERIODS = [12, 19, 31];
 export function breathe(seconds, seed) {
   let value = 0;
   BREATH_PERIODS.forEach((period, i) => {
-    value += Math.sin((2 * Math.PI * seconds) / period + seed * (i + 1));
+    value += Math.sin((CesiumMath.TWO_PI * seconds) / period + seed * (i + 1));
   });
   return value / BREATH_PERIODS.length;
 }

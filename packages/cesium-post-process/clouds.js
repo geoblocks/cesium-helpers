@@ -1,4 +1,4 @@
-import {Cartesian3, Ellipsoid, Matrix4, PixelDatatype, Rectangle} from '@cesium/core';
+import {Cartesian3, Ellipsoid, Matrix4, PixelDatatype, Rectangle, Math as CesiumMath} from '@cesium/core';
 import {PostProcessStage, PostProcessStageComposite, TextureMagnificationFilter, TextureMinificationFilter} from '@cesium/engine';
 // @ts-expect-error the engine exports its 3D textures and samplers, but does not type them
 import {Sampler, Texture3D, TextureWrap} from '@cesium/engine';
@@ -341,7 +341,7 @@ export default class Clouds extends Effect {
    * @param {number} height meters
    */
   shadowExtentFor_(height) {
-    return Math.min(Math.max(SHADOW_SPREAD * height, SHADOW_EXTENTS[0]), SHADOW_EXTENTS[1]);
+    return CesiumMath.clamp(SHADOW_SPREAD * height, SHADOW_EXTENTS[0], SHADOW_EXTENTS[1]);
   }
 
   /**

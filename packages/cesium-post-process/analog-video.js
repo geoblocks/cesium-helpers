@@ -1,3 +1,4 @@
+import {Math as CesiumMath} from '@cesium/core';
 import {PostProcessStage} from '@cesium/engine';
 import Effect from './effect.js';
 import {acquireFrames, releaseFrames} from './frame-clock.js';
@@ -48,7 +49,7 @@ export function signalAt(seconds, interference) {
   const weak = interference >= 1 ? 1 : interference * (0.75 + 0.25 * wander);
   // a tear lasts two frames: decided once for each pair
   const pair = Math.floor((seconds * FRAME_RATE) / 2) % 1000;
-  const chance = (2 * TEAR_RATE / FRAME_RATE) * Math.min(Math.max((interference - 0.3) / 0.5, 0), 1);
+  const chance = (2 * TEAR_RATE / FRAME_RATE) * CesiumMath.clamp((interference - 0.3) / 0.5, 0, 1);
   const tear = interference < 1 && hash(pair, 11) < chance ? 0.2 + 0.6 * hash(pair, 13) : -1;
   return {weak, tear};
 }

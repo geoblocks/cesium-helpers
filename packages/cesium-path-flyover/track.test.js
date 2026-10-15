@@ -110,11 +110,11 @@ test("parseTrack falls back to GPX rtept when there is no trkpt", () => {
   assert.deepEqual(parseTrack(both), [[6.1, 46.1], [6.2, 46.2]]);
 });
 
-test("fetchTrackText throws with the status and URL on a failed response", async () => {
+test("fetchTrackText rejects with the status on a failed response", async () => {
   const original = globalThis.fetch;
   globalThis.fetch = async () => new Response("<html>not found</html>", {status: 404});
   try {
-    await assert.rejects(() => fetchTrackText("http://example.test/track.gpx"), /404.*track\.gpx/);
+    await assert.rejects(() => fetchTrackText("http://example.test/track.gpx"), (error) => error.statusCode === 404);
   } finally {
     globalThis.fetch = original;
   }

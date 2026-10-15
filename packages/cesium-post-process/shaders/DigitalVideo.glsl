@@ -23,7 +23,7 @@ void main() {
   vec4 sceneColor = texture(colorTexture, uv);
   // clean: slightly crushed blacks, a little more color
   vec3 rgb = sceneColor.rgb;
-  rgb = mix(vec3(dot(rgb, vec3(0.299, 0.587, 0.114))), rgb, 1.1);
+  rgb = czm_saturation(rgb, 1.1);
   rgb = max(rgb - 0.02, 0.0) / 0.98;
 
   if (severity > 0.0) {

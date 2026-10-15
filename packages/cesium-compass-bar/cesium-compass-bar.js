@@ -1,3 +1,4 @@
+import { Math as CesiumMath } from "@cesium/core";
 import { LitElement, css, html } from "lit";
 
 const DIRECTIONS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
@@ -134,7 +135,7 @@ export default class CesiumCompassBar extends LitElement {
       return;
     }
     // the tape follows the pointer, so dragging right decreases the heading
-    const heading = this.drag.heading - ((event.clientX - this.drag.x) / this.intercardinalWidth) * (Math.PI / 4);
+    const heading = this.drag.heading - ((event.clientX - this.drag.x) / this.intercardinalWidth) * CesiumMath.PI_OVER_FOUR;
     const camera = this.scene.camera;
     camera.setView({ orientation: { heading, pitch: camera.pitch, roll: camera.roll } });
   }
@@ -188,7 +189,7 @@ export default class CesiumCompassBar extends LitElement {
   render() {
     const width = this.intercardinalWidth;
     // positions in intercardinal units: the camera heading and the half span of the bar
-    const center = this.heading / (Math.PI / 4);
+    const center = this.heading / CesiumMath.PI_OVER_FOUR;
     const halfSpan = width > 0 ? this.hostWidth / 2 / width : 0;
     const first = Math.ceil(center - halfSpan - 0.5);
     const last = Math.floor(center + halfSpan + 0.5);
@@ -204,7 +205,7 @@ export default class CesiumCompassBar extends LitElement {
     `;
     const cells = [];
     for (let k = first; k <= last; k++) {
-      const direction = DIRECTIONS[((k % 8) + 8) % 8];
+      const direction = DIRECTIONS[CesiumMath.mod(k, 8)];
       cells.push(html`
         <div>
           <div class="label" part="label ${k % 2 === 0 ? 'major' : 'minor'}">${direction}</div>

@@ -6,6 +6,7 @@
 // edges. And a square of texels that tiles over the clouds' map, for CloudsDensity.glsl to read
 // once rather than compute noise at each sample: red and green jitter the map's lookup, blue varies
 // its coverage. Each channel is stretched over the bytes' range.
+import {Math as CesiumMath} from '@cesium/core';
 
 // cells of the base shape across the cube
 const BASE_CELLS = 4;
@@ -49,7 +50,7 @@ function perlin(period, seed) {
     const cx = c % period;
     const cy = Math.floor(c / period) % period;
     const cz = Math.floor(c / period ** 2);
-    const theta = 2 * Math.PI * hash(cx, cy, cz, seed);
+    const theta = CesiumMath.TWO_PI * hash(cx, cy, cz, seed);
     const cosPhi = 2 * hash(cx, cy, cz, seed + 1) - 1;
     const sinPhi = Math.sqrt(1 - cosPhi * cosPhi);
     gradients.set([sinPhi * Math.cos(theta), sinPhi * Math.sin(theta), cosPhi], 3 * c);

@@ -1,6 +1,5 @@
 import {PostProcessStage} from '@cesium/engine';
 import Effect from './effect.js';
-import Hsl from './shaders/Hsl.js';
 import InfraredShader from './shaders/Infrared.js';
 
 /**
@@ -19,7 +18,7 @@ export default class Infrared extends Effect {
   /** @override */
   createStage_() {
     return new PostProcessStage({
-      fragmentShader: Hsl + InfraredShader,
+      fragmentShader: InfraredShader,
       uniforms: {
         strength: () => this.strength_,
       },

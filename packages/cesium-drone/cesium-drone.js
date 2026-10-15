@@ -417,12 +417,7 @@ export default class CesiumDrone {
    * @param {boolean} enable
    */
   enableNavigation_(enable) {
-    const controller = this.viewer.scene.screenSpaceCameraController;
-    controller.enableTranslate = enable;
-    controller.enableZoom = enable;
-    controller.enableRotate = enable;
-    controller.enableTilt = enable;
-    controller.enableLook = enable;
+    this.viewer.scene.screenSpaceCameraController.enableInputs = enable;
   }
 }
 

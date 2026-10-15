@@ -27,7 +27,6 @@ uniform vec4 skyTop;
 uniform vec4 skyBottom;
 in vec2 v_textureCoordinates;
 
-const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);
 // the darkest colors' values, under the poché's, kept as they are rather than pressed into the
 // whites, fading into them over these shares of it: an architect's poché, solid black, or a text's
 const vec2 POCHE = vec2(0.6, 1.4);
@@ -88,7 +87,7 @@ void main() {
   float pixel = pixelAt(c);
   // the color's value pressed between the darkest and the lightest, but the darkest's; its hue as
   // saturated as asked, scaled down rather than clipped where a channel would pass 1
-  float value = dot(sceneColor.rgb, LUMA);
+  float value = czm_luminance(sceneColor.rgb);
   float kept = poche > 0.0 ? 1.0 - smoothstep(POCHE.x * poche, POCHE.y * poche, value) : 0.0;
   float pressed = mix(mix(values.x, values.y, value), value, kept);
   vec3 hue = sceneColor.rgb * pressed / max(value, 1e-4);

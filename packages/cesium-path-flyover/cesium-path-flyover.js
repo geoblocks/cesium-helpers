@@ -328,10 +328,7 @@ export default class CesiumPathFlyover {
    */
   groundFractions_() {
     const ellipsoid = this.viewer.scene.ellipsoid;
-    const flat = /** @type {CatmullRomSpline} */ (this.spline_).points.map((p) => {
-      const c = Cartographic.fromCartesian(p, ellipsoid, cartographicScratch);
-      return Cartesian3.fromRadians(c.longitude, c.latitude, 0, ellipsoid);
-    });
+    const flat = /** @type {CatmullRomSpline} */ (this.spline_).points.map((p) => ellipsoid.scaleToGeodeticSurface(p, new Cartesian3()));
     const distances = [0];
     for (let i = 1; i < flat.length; i++) {
       distances.push(distances[i - 1] + Cartesian3.distance(flat[i - 1], flat[i]));

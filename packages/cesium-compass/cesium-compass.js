@@ -4,8 +4,7 @@
 import {LitElement, css, svg, html} from 'lit';
 import {styleMap} from 'lit/directives/style-map.js';
 
-import {Cartesian2, Cartesian3, Matrix4, Ellipsoid, Ray, Math as CesiumMath} from '@cesium/core';
-import {Transforms} from '@cesium/engine';
+import {Cartesian2, Cartesian3, FixedFrameTransforms, Matrix4, Ellipsoid, Ray, Math as CesiumMath} from '@cesium/core';
 
 const vectorScratch = new Cartesian2();
 const windowPositionScratch = new Cartesian2();
@@ -416,8 +415,7 @@ export default class CesiumCompass extends LitElement {
     this.context.viewCenter = this.scene.globe.pick(pickRayScratch, this.scene, centerScratch);
 
     this.context.frameBackup = Matrix4.clone(camera.transform, this.context.frameBackup || new Matrix4());
-    // @ts-expect-error Transforms.eastNorthUpToFixedFrame is missing from the @cesium/engine 26.4.0 typings
-    this.context.frame = Transforms.eastNorthUpToFixedFrame(
+    this.context.frame = FixedFrameTransforms.eastNorthUpToFixedFrame(
       this.context.viewCenter ? this.context.viewCenter : camera.positionWC,
       Ellipsoid.WGS84,
       newTransformScratch

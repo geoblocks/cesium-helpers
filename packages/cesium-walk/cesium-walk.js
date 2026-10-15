@@ -269,12 +269,11 @@ export default class CesiumWalk {
     // walk along the view direction projected onto the ground plane,
     // so that looking down does not push the camera into the terrain
     const normal = this.surfaceNormal_();
-    const along = Cartesian3.multiplyByScalar(
-      normal,
-      Cartesian3.dot(camera.direction, normal),
+    const along = Cartesian3.subtract(
+      camera.direction,
+      Cartesian3.projectVector(camera.direction, normal, forwardScratch),
       forwardScratch
     );
-    Cartesian3.subtract(camera.direction, along, along);
     const level = Cartesian3.magnitude(along) > CesiumMath.EPSILON6;
     if (level) {
       Cartesian3.normalize(along, along);
@@ -318,7 +317,7 @@ export default class CesiumWalk {
     if (this.landing_ < 1e-3) {
       this.landing_ = 0;
     }
-    this.stepPhase_ += (Cartesian3.magnitude(this.velocity_) * deltaTime / STEP_LENGTH) * Math.PI;
+    this.stepPhase_ += (Cartesian3.magnitude(this.velocity_) * deltaTime / STEP_LENGTH) * CesiumMath.PI;
     this.clampCameraToTerrain_();
   }
 

@@ -119,7 +119,7 @@ class MeshIndex {
       const b0 = ((v1 - v2) * (u - u2) + (u2 - u1) * (v - v2)) * inverse;
       const b1 = ((v2 - v0) * (u - u2) + (u0 - u2) * (v - v2)) * inverse;
       const b2 = 1 - b0 - b1;
-      if (b0 >= -1e-15 && b1 >= -1e-15 && b2 >= -1e-15) {
+      if (b0 >= -CesiumMath.EPSILON15 && b1 >= -CesiumMath.EPSILON15 && b2 >= -CesiumMath.EPSILON15) {
         return CesiumMath.lerp(this.minimumHeight_, this.maximumHeight_, (b0 * hs[i0] + b1 * hs[i1] + b2 * hs[i2]) / MAX_SHORT);
       }
     }

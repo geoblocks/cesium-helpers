@@ -66,7 +66,7 @@ void main() {
   snow *= 1.0 - steep * (1.0 - STEEP_SNOW * smoothstep(0.35, 0.65, noise + 0.5));
   // eye.w is 0 for the sky
   snow *= coverage * eye.w;
-  float brightness = dot(sceneColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+  float brightness = czm_luminance(sceneColor.rgb);
   // blue in the shade, warm in the sun, with the relief of the scene kept in the brightness
   vec3 lit = mix(SNOW_SHADE, SNOW_SUN, sun) * clamp(0.68 + 0.25 * sun + 0.1 * brightness, 0.0, 1.0);
   out_FragColor = vec4(mix(sceneColor.rgb, lit, snow), sceneColor.a);
