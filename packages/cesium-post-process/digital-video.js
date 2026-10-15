@@ -1,3 +1,4 @@
+import {Math as CesiumMath} from '@cesium/core';
 import {PostProcessStage} from '@cesium/engine';
 import Effect from './effect.js';
 import {acquireFrames, releaseFrames} from './frame-clock.js';
@@ -91,7 +92,7 @@ export default class DigitalVideo extends Effect {
       return;
     }
     const t = (now - episode.start) / episode.duration;
-    this.severity_ = Math.max(0, Math.sin(Math.PI * Math.min(t, 1))) ** 0.7 * (0.4 + 0.6 * this.breakup_);
+    this.severity_ = Math.max(0, Math.sin(CesiumMath.PI * Math.min(t, 1))) ** 0.7 * (0.4 + 0.6 * this.breakup_);
     this.blackout_ = episode.blackout && Math.abs(t - 0.5) * episode.duration < BLACKOUT / 2 ? 1 : 0;
   }
 

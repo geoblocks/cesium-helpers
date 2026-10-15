@@ -1,4 +1,4 @@
-import {Cartesian4} from '@cesium/core';
+import {Cartesian4, Math as CesiumMath} from '@cesium/core';
 import {PostProcessStage} from '@cesium/engine';
 import Effect from './effect.js';
 import {acquireFrames, releaseFrames} from './frame-clock.js';
@@ -18,7 +18,7 @@ const MAX_ROTATION = 0.008;
 // amplitude of the first sinusoid at full amount, per axis: x, y, rotation
 const MAX_AMPLITUDES = [MAX_SHIFT, 0.5 * MAX_SHIFT, MAX_ROTATION];
 
-const TAU = 2 * Math.PI;
+const TAU = CesiumMath.TWO_PI;
 /** @type {('x' | 'y' | 'z' | 'w')[]} one sinusoid per component */
 const COMPONENTS = ['x', 'y', 'z', 'w'];
 

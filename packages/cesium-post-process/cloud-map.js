@@ -1,3 +1,4 @@
+import {Math as CesiumMath} from '@cesium/core';
 import {imageData} from './weather-map.js';
 
 // The clouds' map, from a map of the rain: a radar sees the rain, "not the small cloud droplets and
@@ -44,7 +45,7 @@ function boxBlur(values, width, height, radius, rows) {
     }
     let sum = 0;
     for (let j = -radius; j <= radius; j++) {
-      sum += line[Math.min(Math.max(j, 0), length - 1)];
+      sum += line[CesiumMath.clamp(j, 0, length - 1)];
     }
     for (let j = 0; j < length; j++) {
       values[start + j * step] = sum / (2 * radius + 1);

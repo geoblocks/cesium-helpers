@@ -1,7 +1,6 @@
 import {PostProcessStage} from '@cesium/engine';
 import Effect from './effect.js';
 import ColorIsolationShader from './shaders/ColorIsolation.js';
-import Hsl from './shaders/Hsl.js';
 
 /**
  * Color isolation: one hue keeps its color, the rest of the scene turns gray.
@@ -21,7 +20,7 @@ export default class ColorIsolation extends Effect {
   /** @override */
   createStage_() {
     return new PostProcessStage({
-      fragmentShader: Hsl + ColorIsolationShader,
+      fragmentShader: ColorIsolationShader,
       uniforms: {
         hue: () => this.hue_ / 360,
         range: () => this.range_ / 360,

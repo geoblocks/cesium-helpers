@@ -139,7 +139,7 @@ export default class DroneDisplay extends Effect {
   throttle_() {
     const seconds = performance.now() / 1000 - this.startTime_;
     const wander = 2 * Math.sin(seconds * 0.3) * Math.sin(seconds * 0.13 + 1);
-    return Math.round(Math.min(Math.max(CRUISE_THROTTLE + CLIMB_THROTTLE * this.verticalSpeed_ + wander, 0), 100));
+    return Math.round(CesiumMath.clamp(CRUISE_THROTTLE + CLIMB_THROTTLE * this.verticalSpeed_ + wander, 0, 100));
   }
 
   /**

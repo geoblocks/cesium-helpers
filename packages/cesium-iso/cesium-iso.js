@@ -1,4 +1,5 @@
 import {Cartesian2, Cartesian3, Cartographic, FixedFrameTransforms, IntersectionTests, Math as CesiumMath, Matrix4, Plane} from '@cesium/core';
+import {EasingFunction} from '@cesium/engine';
 
 // in meters, how far the camera stays from its target by default, out of the scene's way: an orthographic view's
 // size does not depend on it, its depth's precision does (32-bit floats: half a millimeter at 5 km)
@@ -17,7 +18,7 @@ const TWIST = CesiumMath.toRadians(15);
 const DAMPING = 0.95;
 const LET_GO = 60;
 
-const easeInOut = (/** @type {number} */ t) => t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
+const easeInOut = EasingFunction.QUADRATIC_IN_OUT;
 const positionScratch = new Cartesian2();
 const planeScratch = new Plane(Cartesian3.UNIT_Z, 0);
 const normalScratch = new Cartesian3();
@@ -55,7 +56,7 @@ export default class CesiumIso {
     /** @type {Cartesian3} */
     this.target_ = new Cartesian3();
     this.heading_ = 0;
-    /** @type {Map<number, {x: number, y: number}>} */
+    /** @type {Map<number, Cartesian2>} */
     this.pointers_ = new Map();
     /** @type {{grab?: Cartesian3 | undefined, turn?: boolean, last?: {x: number, y: number}, distance?: number, angle?: number, twist?: number} | undefined} */
     this.drag_ = undefined;
@@ -192,7 +193,7 @@ export default class CesiumIso {
     this.drift_ = this.drifted_ = undefined;
     this.anchor_();
     const to = CesiumMath.toRadians(heading);
-    const delta = Math.atan2(Math.sin(to - this.heading_), Math.cos(to - this.heading_));
+    const delta = CesiumMath.negativePiToPi(to - this.heading_);
     this.turning_ = {from: this.heading_, to: this.heading_ + delta, start: performance.now()};
     this.animate_();
   }
@@ -278,7 +279,7 @@ export default class CesiumIso {
    * @param {number} sign
    */
   cornerAfter_(heading, sign) {
-    const quarter = Math.PI / 2;
+    const quarter = CesiumMath.PI_OVER_TWO;
     return this.corner_ + (Math.round((heading - this.corner_) / quarter) + sign) * quarter;
   }
 
@@ -365,8 +366,8 @@ export default class CesiumIso {
     const points = [...this.pointers_.values()];
     if (points.length === 2) {
       const [a, b] = points;
-      const middle = new Cartesian2((a.x + b.x) / 2, (a.y + b.y) / 2);
-      return {grab: this.ground_(middle, this.target_), distance: Math.hypot(b.x - a.x, b.y - a.y), angle: Math.atan2(b.y - a.y, b.x - a.x), twist: 0};
+      const middle = Cartesian2.lerp(a, b, 0.5, new Cartesian2());
+      return {grab: this.ground_(middle, this.target_), distance: Cartesian2.distance(a, b), angle: Math.atan2(b.y - a.y, b.x - a.x), twist: 0};
     }
     const slide = e.pointerType === 'touch' || e.button === 2 || e.ctrlKey || e.shiftKey;
     const point = /** @type {{x: number, y: number}} */ (points[0]);
@@ -384,15 +385,15 @@ export default class CesiumIso {
     const drag = this.drag_;
     const points = [...this.pointers_.values()];
     if (points.length === 2 && drag.distance !== undefined) {
-      const [a, b] = /** @type {[{x: number, y: number}, {x: number, y: number}]} */ (points);
-      const middle = new Cartesian2((a.x + b.x) / 2, (a.y + b.y) / 2);
-      const [distance, angle] = [Math.hypot(b.x - a.x, b.y - a.y), Math.atan2(b.y - a.y, b.x - a.x)];
+      const [a, b] = /** @type {[Cartesian2, Cartesian2]} */ (points);
+      const middle = Cartesian2.lerp(a, b, 0.5, new Cartesian2());
+      const [distance, angle] = [Cartesian2.distance(a, b), Math.atan2(b.y - a.y, b.x - a.x)];
       this.size_ = CesiumMath.clamp(this.size_ * drag.distance / distance, this.minSize_, this.maxSize_);
       this.place_();
       if (drag.grab) {
         this.keep_(drag.grab, middle);
       }
-      const turned = Math.atan2(Math.sin(angle - /** @type {number} */ (drag.angle)), Math.cos(angle - /** @type {number} */ (drag.angle)));
+      const turned = CesiumMath.negativePiToPi(angle - /** @type {number} */ (drag.angle));
       drag.twist = /** @type {number} */ (drag.twist) + turned;
       if (Math.abs(drag.twist) >= TWIST) {
         // the screen's y down: the fingers turning clockwise on it turn the ground clockwise under them
@@ -405,7 +406,7 @@ export default class CesiumIso {
       return;
     } else if (drag.turn && drag.last) {
       const point = /** @type {{x: number, y: number}} */ (points[0]);
-      this.heading_ -= 2 * Math.PI * (point.x - drag.last.x) / this.viewer.scene.canvas.clientHeight;
+      this.heading_ -= CesiumMath.TWO_PI * (point.x - drag.last.x) / this.viewer.scene.canvas.clientHeight;
       drag.last = point;
       this.place_();
     } else if (drag.grab) {
@@ -539,7 +540,7 @@ export default class CesiumIso {
       }
       if (this.turning_) {
         const t = Math.min(1, (now - this.turning_.start) / TURN_TIME);
-        this.heading_ = this.turning_.from + (this.turning_.to - this.turning_.from) * easeInOut(t);
+        this.heading_ = CesiumMath.lerp(this.turning_.from, this.turning_.to, easeInOut(t));
         this.place_();
         if (t === 1) {
           this.turning_ = undefined;

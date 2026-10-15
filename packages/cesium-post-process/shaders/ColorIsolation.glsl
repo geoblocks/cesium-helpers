@@ -12,8 +12,8 @@ in vec2 v_textureCoordinates;
 void main() {
   vec4 sceneColor = texture(colorTexture, v_textureCoordinates);
   vec3 color = clamp(sceneColor.rgb, 0.0, 1.0);
-  float gray = dot(color, vec3(0.2126, 0.7152, 0.0722));
-  float h = rgbToHsl(color).x;
+  float gray = czm_luminance(color);
+  float h = czm_RGBToHSL(color).x;
   // a triangle around the hue, on the circle
   float r = 1.0 / max(range, 1e-3);
   float weight = max(1.0 - abs((h - hue) * r), 0.0)

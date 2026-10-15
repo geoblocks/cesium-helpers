@@ -31,10 +31,6 @@ const float GRAIN_COLOR = 0.3;
 // light scattered back through the film base is red-orange
 const vec3 HALATION = vec3(1.0, 0.35, 0.15);
 
-float luminance(vec3 color) {
-  return dot(color, vec3(0.2126, 0.7152, 0.0722));
-}
-
 float hash(float n) {
   return fract(sin(n) * 43758.5453);
 }
@@ -67,10 +63,10 @@ void main() {
 
   vec3 color = texture(colorTexture, uv).rgb;
   // faded film: less saturation, lifted blacks, a warm cast
-  color = mix(color, vec3(luminance(color)), 0.4 * fade);
+  color = mix(color, vec3(czm_luminance(color)), 0.4 * fade);
   color = mix(color, color * vec3(1.05, 0.95, 0.78) * 0.88 + vec3(0.09, 0.07, 0.05), fade);
   // halation: a warm glow bleeding around the highlights
-  float glow = smoothstep(0.45, 0.9, luminance(texture(blurTexture, uv).rgb));
+  float glow = smoothstep(0.45, 0.9, czm_luminance(texture(blurTexture, uv).rgb));
   color = 1.0 - (1.0 - color) * (1.0 - halation * glow * HALATION);
   // vignette
   color *= 1.0 - 0.6 * smoothstep(0.35, 0.85, length(inFrame));
@@ -87,7 +83,7 @@ void main() {
   float mono = gradientNoise(grainAt, z);
   vec3 layers = vec3(gradientNoise(grainAt, z + 101.0), gradientNoise(grainAt, z + 211.0), gradientNoise(grainAt, z + 307.0));
   vec3 noise = mix(vec3(mono), layers, GRAIN_COLOR);
-  float y = clamp(luminance(color), 0.0, 1.0);
+  float y = clamp(czm_luminance(color), 0.0, 1.0);
   color += grain * 1.4 * noise * 2.0 * (1.0 - y) * (0.5 + y);
 
   out_FragColor = vec4(clamp(color, 0.0, 1.0) * gate, 1.0);

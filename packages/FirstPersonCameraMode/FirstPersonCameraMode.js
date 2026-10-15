@@ -33,10 +33,10 @@ export default class FirstPersonCameraMode {
 
   /**
    * @param {import('@cesium/engine').CesiumWidget} viewer
-   * @param {number} [zoomFactor=Math.PI / 36]
+   * @param {number} [zoomFactor=CesiumMath.toRadians(5)]
    * @param {number} [movementFactor=0.003]
    */
-  constructor(viewer, zoomFactor = Math.PI / 36, movementFactor = 0.003) {
+  constructor(viewer, zoomFactor = CesiumMath.toRadians(5), movementFactor = 0.003) {
     this.viewer_ = viewer;
     this.scene_ = viewer.scene;
 

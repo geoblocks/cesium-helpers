@@ -1,4 +1,4 @@
-import {Cartesian3, Cartographic, Ellipsoid, IntersectionTests, Math as CesiumMath, Matrix3, Matrix4, Ray} from "@cesium/core";
+import {Cartesian3, Cartographic, Ellipsoid, IntersectionTests, Matrix4, Ray} from "@cesium/core";
 import {Axis, Transforms} from "@cesium/engine";
 import {gltfTriangles} from "./gltf-mesh.js";
 
@@ -61,13 +61,8 @@ export function createTriangleMesh(groups, modelMatrix) {
  * @return {TriangleMesh}
  */
 export function createTriangleMeshFromGltf(gltf, modelMatrix, {buffers, collide = () => true, forwardAxis = Axis.Z} = {}) {
-  const primitives = gltfTriangles(gltf, buffers).filter(primitive => collide(primitive));
-  // Cesium turns a z forward model's +z to +x before its y up to z up: in the triangles' frame, z up, a quarter
-  // turn round z, (x, y, z) to (-y, x, z)
-  const matrix = forwardAxis === Axis.Z ?
-    Matrix4.multiply(modelMatrix, Matrix4.fromRotation(Matrix3.fromRotationZ(CesiumMath.PI_OVER_TWO)), new Matrix4()) :
-    modelMatrix;
-  return collisionMesh(primitives, matrix);
+  const primitives = gltfTriangles(gltf, buffers, forwardAxis).filter(primitive => collide(primitive));
+  return collisionMesh(primitives, modelMatrix);
 }
 
 /**
@@ -91,8 +86,7 @@ function collisionMesh(colliding, modelMatrix) {
     triangleOffset += group.triangles.length;
   }
   const toLocal = Matrix4.inverse(modelMatrix, new Matrix4());
-  // the normals' matrix, the inverse transpose
-  const toNormal = Matrix4.transpose(toLocal, new Matrix4());
+  const toNormal = Matrix4.inverseTranspose(modelMatrix, new Matrix4());
 
   // the triangles, and the floors among them, by the cells they overlap
   /** @type {Map<string, number[]>} */
@@ -228,7 +222,7 @@ function collisionMesh(colliding, modelMatrix) {
       if (!hit) {
         return undefined;
       }
-      const position = Matrix4.multiplyByPoint(modelMatrix, Cartesian3.add(o, Cartesian3.multiplyByScalar(d, hit.distance, rayScratch), rayScratch), new Cartesian3());
+      const position = Matrix4.multiplyByPoint(modelMatrix, Ray.getPoint(triangleRay, hit.distance, rayScratch), new Cartesian3());
       const i = hit.triangle;
       const [p0, p1, p2] = corners(i);
       const cross = Cartesian3.cross(Cartesian3.subtract(p1, p0, edgeScratch[0]), Cartesian3.subtract(p2, p0, edgeScratch[1]), normalScratch);

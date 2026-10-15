@@ -10,7 +10,7 @@ const MAX_ZOOM = 3;
 const WHEEL_STEP = 1.1;
 const DAMP_TAU = 0.15;
 const RETURN_SECONDS = 1.5;
-const EPSILON = 1e-4;
+const EPSILON = CesiumMath.EPSILON4;
 
 /**
  * @typedef {Object} View

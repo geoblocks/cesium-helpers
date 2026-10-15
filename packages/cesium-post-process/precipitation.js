@@ -1,4 +1,4 @@
-import {Cartesian3, Cartesian4} from '@cesium/core';
+import {Cartesian3, Cartesian4, Math as CesiumMath} from '@cesium/core';
 import {PostProcessStage, PostProcessStageComposite} from '@cesium/engine';
 // @ts-expect-error the engine exports its textures, framebuffers and render states, but does not type them
 import {Framebuffer, RenderState, Texture} from '@cesium/engine';
@@ -45,7 +45,7 @@ const RAIN_EXPOSURE = 1 / 30;
 const SNOW_EXPOSURE = 1 / 90;
 // the longest trail, in cells: Precipitation.glsl looks one cell above each pixel's for it
 const MAX_TRAIL = 1;
-const TWO_PI = 2 * Math.PI;
+const TWO_PI = CesiumMath.TWO_PI;
 // the layers of drops, 2 to 16 m away, a drop every 0.05 rad around at the horizon in the nearest
 // one, and the radius of its flakes in pixels, halved in each further layer (Precipitation.glsl's
 // LAYERS, NEAREST, and the rest of its drops)
@@ -74,7 +74,7 @@ const CLOUD_BASE_FADE = 50;
  * @param {number} x
  */
 function smoothstep(edge0, edge1, x) {
-  const t = Math.min(Math.max((x - edge0) / (edge1 - edge0), 0), 1);
+  const t = CesiumMath.clamp((x - edge0) / (edge1 - edge0), 0, 1);
   return t * t * (3 - 2 * t);
 }
 

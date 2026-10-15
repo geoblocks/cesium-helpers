@@ -1,8 +1,8 @@
-import {Cartesian4} from '@cesium/core';
+import {Cartesian4, Math as CesiumMath} from '@cesium/core';
 // @ts-expect-error the engine exports its textures, but does not type them
 import {Texture} from '@cesium/engine';
 
-const TWO_PI = 2 * Math.PI;
+const TWO_PI = CesiumMath.TWO_PI;
 // the max map's texels are blocks of this many pixels of the map across
 const POOL = 4;
 
@@ -154,9 +154,9 @@ export default class WeatherMap {
       this.data_ = imageData(image);
       Cartesian4.fromElements(
         rectangle.west / TWO_PI + 0.5,
-        rectangle.south / Math.PI + 0.5,
+        rectangle.south / CesiumMath.PI + 0.5,
         TWO_PI / (rectangle.east - rectangle.west),
-        Math.PI / (rectangle.north - rectangle.south),
+        CesiumMath.PI / (rectangle.north - rectangle.south),
         this.bounds,
       );
     }
@@ -233,8 +233,8 @@ export default class WeatherMap {
   sample_(image, u, v) {
     const {width, height, data} = image;
     // the image's rows go down from the north
-    const x = Math.min(Math.max(u * width - 0.5, 0), width - 1);
-    const y = Math.min(Math.max((1 - v) * height - 0.5, 0), height - 1);
+    const x = CesiumMath.clamp(u * width - 0.5, 0, width - 1);
+    const y = CesiumMath.clamp((1 - v) * height - 0.5, 0, height - 1);
     const x0 = Math.floor(x);
     const y0 = Math.floor(y);
     const x1 = Math.min(x0 + 1, width - 1);

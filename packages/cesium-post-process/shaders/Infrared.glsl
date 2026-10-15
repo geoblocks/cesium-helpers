@@ -30,7 +30,7 @@ float hueWeight(float hue, float center) {
 
 void main() {
   vec4 sceneColor = texture(colorTexture, v_textureCoordinates);
-  vec3 hsl = rgbToHsl(clamp(sceneColor.rgb, 0.0, 1.0));
+  vec3 hsl = czm_RGBToHSL(clamp(sceneColor.rgb, 0.0, 1.0));
   float h = hsl.x;
   float weight = RED * (hueWeight(h, 0.0) + hueWeight(h, 1.0))
     + YELLOW * hueWeight(h, 1.0 / 6.0)

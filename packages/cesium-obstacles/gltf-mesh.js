@@ -2,7 +2,8 @@ import {Cartesian3, ComponentDatatype, Matrix4, PrimitiveType, Quaternion} from 
 import {Axis} from "@cesium/engine";
 
 // The triangles of a glTF's meshes, in a triangle mesh's frame: glTF's y up turned z up by Cesium's own matrix
-// (Axis.Y_UP_TO_Z_UP), its glTF (x, y, z) at (x, -z, y), as Cesium loads a model with forwardAxis X.
+// (Axis.Y_UP_TO_Z_UP), its glTF (x, y, z) at (x, -z, y), as Cesium loads a model with forwardAxis X; with forwardAxis Z,
+// Cesium's default, also turned by Axis.Z_UP_TO_X_UP, as Cesium's ModelUtility does.
 
 // the extensions that change where the vertices are, which are not read
 const UNSUPPORTED = ['KHR_draco_mesh_compression', 'EXT_meshopt_compression', 'KHR_meshopt_compression', 'EXT_mesh_gpu_instancing'];
@@ -21,6 +22,7 @@ const TYPES = {
 
 // in Cesium, not in its typings
 const yUpToZUp = /** @type {Matrix4} */ (/** @type {any} */ (Axis).Y_UP_TO_Z_UP);
+const zUpToXUp = /** @type {Matrix4} */ (/** @type {any} */ (Axis).Z_UP_TO_X_UP);
 const pointScratch = new Cartesian3();
 
 /**
@@ -144,9 +146,11 @@ function toTriangles(mode, indices) {
  * @param {ArrayBuffer | Uint8Array | object} gltf A binary glTF, or a glTF's JSON.
  * @param {ArrayBuffer | Uint8Array | (ArrayBuffer | Uint8Array)[]} [buffers] With a glTF's JSON, its binary
  *     buffer, or its buffers in order.
+ * @param {Axis} [forwardAxis] The one a Model is loaded with: Axis.X, as here, or Cesium's default Axis.Z, which
+ *     turns the triangles a quarter round z, (x, y, z) to (-y, x, z).
  * @return {GltfTriangles[]}
  */
-export function gltfTriangles(gltf, buffers) {
+export function gltfTriangles(gltf, buffers, forwardAxis = Axis.X) {
   /** @type {any} */
   let json;
   /** @type {(Uint8Array | undefined)[]} */
@@ -165,6 +169,7 @@ export function gltfTriangles(gltf, buffers) {
     throw new Error(`The glTF requires ${unsupported.join(', ')}, which is not read`);
   }
 
+  const correction = forwardAxis === Axis.Z ? Matrix4.multiplyTransformation(yUpToZUp, zUpToXUp, new Matrix4()) : yUpToZUp;
   const nodes = json.nodes ?? [];
   /** @type {number[]} */
   let roots;
@@ -233,7 +238,7 @@ export function gltfTriangles(gltf, buffers) {
     }
   };
   for (const root of roots) {
-    visit(root, yUpToZUp);
+    visit(root, correction);
   }
   return result;
 }
