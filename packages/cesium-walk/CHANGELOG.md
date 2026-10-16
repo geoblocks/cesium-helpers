@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.3.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-walk%400.2.2...%40geoblocks%2Fcesium-walk%400.3.0) (2026-10-16)
+
+### Features
+
+* **walk:** give the walker a body, kept clear of the walls beside it ([93d89cb](https://github.com/geoblocks/cesium-helpers/commit/93d89cb1a15539e58a52c4bb271623b41abd250a))
+
+
 ## [0.2.2](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-walk%400.2.1...%40geoblocks%2Fcesium-walk%400.2.2) (2026-10-15)
 
 ### Bug Fixes
