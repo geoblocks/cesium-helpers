@@ -146,3 +146,33 @@ test("the ground is the highest floor below a point under the mover", () => {
   assert.equal(meshGroundHeight(mesh, {below: 2})(position), undefined);
   assert.equal(meshGroundHeight(mesh)(Cartographic.fromCartesian(mesh.position(5, 5, 1))), undefined);
 });
+
+test("the nearest surface within a radius of a point, the walls only skipping the floor", () => {
+  const mesh = createTriangleMesh([floorAndWall], Matrix4.IDENTITY);
+  const near = mesh.nearest(new Cartesian3(1.7, 0.5, 1), 0.5, {walls: true});
+  assert.ok(near && Math.abs(near.distance - 0.3) < 1e-6);
+  assert.ok(Cartesian3.distance(near.position, new Cartesian3(2, 0.5, 1)) < 1e-6);
+  assert.ok(Math.abs(near.normal.x + 1) < 1e-6);
+  assert.equal(mesh.nearest(new Cartesian3(1.4, 0.5, 1), 0.5, {walls: true}), undefined);
+  // the floor, 0.2 m under the point, nearer than the wall
+  const floor = mesh.nearest(new Cartesian3(1.7, 0.5, 0.2), 0.5);
+  assert.ok(floor && Math.abs(floor.distance - 0.2) < 1e-6 && Math.abs(floor.normal.z - 1) < 1e-6);
+});
+
+test("the nearest surface past a wall's edge is on the edge", () => {
+  const mesh = createTriangleMesh([floorAndWall], Matrix4.IDENTITY);
+  // beyond the wall's north end, y 2, by 0.3, and 0.4 east of it
+  const near = mesh.nearest(new Cartesian3(1.6, 2.3, 1), 1, {walls: true});
+  assert.ok(near && Math.abs(near.distance - 0.5) < 1e-6);
+  assert.ok(Cartesian3.distance(near.position, new Cartesian3(2, 2, 1)) < 1e-6);
+});
+
+test("a scaled frame's nearest surface, in meters", () => {
+  const modelMatrix = Matrix4.multiply(Transforms.eastNorthUpToFixedFrame(Cartesian3.fromDegrees(0, 0)), Matrix4.fromUniformScale(2), new Matrix4());
+  const mesh = createTriangleMesh([floorAndWall], modelMatrix);
+  // the wall 4 m east; the point 0.6 m from it
+  const near = mesh.nearest(mesh.position(1.7, 0, 0.5), 1, {walls: true});
+  assert.ok(near && Math.abs(near.distance - 0.6) < 1e-6);
+  assert.ok(Cartesian3.distance(near.position, mesh.position(2, 0, 0.5)) < 1e-6);
+  assert.equal(mesh.nearest(mesh.position(1.7, 0, 0.5), 0.5, {walls: true}), undefined);
+});

@@ -1,4 +1,4 @@
-import {Cartesian3, Math as CesiumMath} from "@cesium/core";
+import {Cartesian3, Ellipsoid, FixedFrameTransforms, Math as CesiumMath, Matrix4} from "@cesium/core";
 import Controls from "@geoblocks/cesium-input";
 import {ObstacleProbe, blockedStep, meshGroundHeight, meshObstacleAhead} from "@geoblocks/cesium-obstacles";
 
@@ -15,6 +15,8 @@ const SETTLED = 1e-3;
 // at a concave corner the slide along one wall heads into the other: a step is checked again along its slide, this
 // many times at most, before it is taken
 const SLIDE_PASSES = 3;
+// in a corner, pushed out of one wall, the body may be in the other: it is pushed again, this many times at most
+const CLEAR_PASSES = 3;
 
 // the default bindings: W, A, S, D or the arrows to walk, Shift to sprint and Space to jump; on a gamepad, the
 // left stick, at any speed and in any direction, Cross to sprint and Square to jump, as in GTA 5. Keys by
@@ -37,6 +39,10 @@ const normalScratch = new Cartesian3();
 const forwardScratch = new Cartesian3();
 const stepScratch = new Cartesian3();
 const allowedScratch = new Cartesian3();
+const awayScratch = new Cartesian3();
+const frameScratch = new Matrix4();
+const bodyScratch = new Cartesian3();
+const upScratch = new Cartesian3();
 const targetScratch = new Cartesian3();
 const changeScratch = new Cartesian3();
 
@@ -172,6 +178,21 @@ export default class CesiumWalk {
      * @type {(toward: Cartesian3, key: string) => import('@geoblocks/cesium-obstacles').Obstacle | undefined}
      */
     this.obstacleAhead = (toward, key) => this.obstacleProbe_.ahead(toward, key);
+
+    /**
+     * The walker's body: how far from the walls it keeps, in meters, pushed out of any it walks past, sideways
+     * or at a corner, where no ray ahead meets it; 0 by default, a walker without a body.
+     * @type {number}
+     */
+    this.radius = 0;
+
+    /**
+     * The surface nearest the walker's body, within its radius: a point of it, the surface's normal toward the
+     * body, and the point of the body it is nearest, if any; asked after each step while collision is on. None by
+     * default, as the obstacles in view tell nothing about what is beside the walker; walkOn gives the mesh's.
+     * @type {() => {point: Cartesian3, normal: Cartesian3, origin: Cartesian3} | undefined}
+     */
+    this.surfaceNear = () => undefined;
 
     /**
      * The height of the ground under a position, in meters above the ellipsoid, or undefined when unknown
@@ -349,6 +370,40 @@ export default class CesiumWalk {
     if (length > 0) {
       camera.move(toward, length);
     }
+    if (this.collision) {
+      this.keepClear_();
+    }
+  }
+
+  /**
+   * Pushes the camera level out of the walls the walker's body is in, each in turn.
+   */
+  keepClear_() {
+    const camera = this.viewer.camera;
+    for (let pass = 0; pass < CLEAR_PASSES; pass++) {
+      const surface = this.surfaceNear();
+      if (!surface) {
+        return;
+      }
+      const up = this.surfaceNormal_();
+      // level, from the surface to the body; a surface straight above or below it is left to the walker's ground
+      const away = Cartesian3.subtract(surface.origin, surface.point, awayScratch);
+      Cartesian3.subtract(away, Cartesian3.projectVector(away, up, stepScratch), away);
+      const distance = Cartesian3.magnitude(away);
+      if (distance >= this.radius) {
+        return;
+      }
+      if (distance > CesiumMath.EPSILON6) {
+        Cartesian3.divideByScalar(away, distance, away);
+      } else {
+        Cartesian3.subtract(surface.normal, Cartesian3.projectVector(surface.normal, up, stepScratch), away);
+        if (Cartesian3.magnitude(away) < CesiumMath.EPSILON6) {
+          return;
+        }
+        Cartesian3.normalize(away, away);
+      }
+      camera.move(away, this.radius - distance);
+    }
   }
 
   clampCameraToTerrain_() {
@@ -409,17 +464,40 @@ export function rayHeights(eye, step) {
 /**
  * Walks a CesiumWalk on a triangle mesh of cesium-obstacles: it stands on the highest floor below its knees, up
  * the stairs, under the arches, else on what it stood on before (the terrain); the walls ahead stop it, from rays
- * cast at the knees, the waist and the eyes, the floors and stairs left to the ground below, in every direction.
+ * cast at the knees, the waist and the eyes, the floors and stairs left to the ground below, in every direction;
+ * with a radius, its body at those heights is kept that far from the walls beside it too, a step's riser under
+ * the knees excepted.
  * @param {CesiumWalk} walk
  * @param {import("@geoblocks/cesium-obstacles").TriangleMesh} mesh
- * @param {{eye: number, step: number, reach: number}} options In meters: the eyes above the floor, the
- *     highest step, how far ahead the walls are looked for.
+ * @param {{eye: number, step: number, reach: number, radius?: number}} options In meters: the eyes above the
+ *     floor, the highest step, how far ahead the walls are looked for, the body's radius (none by default).
  */
-export function walkOn(walk, mesh, {eye, step, reach}) {
+export function walkOn(walk, mesh, {eye, step, reach, radius = 0}) {
   const camera = walk.viewer.scene.camera;
   const fallback = walk.groundHeight;
   const offsets = rayHeights(eye, step).map(height => new Cartesian3(0, 0, height - eye));
   walk.obstacleAhead = meshObstacleAhead(mesh, () => camera.positionWC, {offsets, reach});
+  walk.radius = radius;
+  if (radius > 0) {
+    walk.surfaceNear = () => {
+      const position = camera.positionWC;
+      const frame = FixedFrameTransforms.eastNorthUpToFixedFrame(position, Ellipsoid.WGS84, frameScratch);
+      const up = Ellipsoid.WGS84.geodeticSurfaceNormal(position, upScratch);
+      let nearest;
+      for (const [k, offset] of offsets.entries()) {
+        const origin = Matrix4.multiplyByPoint(frame, offset, bodyScratch);
+        const hit = mesh.nearest(origin, radius, {walls: true});
+        // under the knees, a step's riser: climbed, not kept from
+        if (!hit || (k === 0 && Cartesian3.dot(Cartesian3.subtract(hit.position, origin, awayScratch), up) < 0)) {
+          continue;
+        }
+        if (!nearest || hit.distance < nearest.distance) {
+          nearest = {point: hit.position, normal: hit.normal, origin: Cartesian3.clone(origin), distance: hit.distance};
+        }
+      }
+      return nearest;
+    };
+  }
   const ground = meshGroundHeight(mesh, {below: eye - step});
   walk.groundHeight = cartographic => ground(cartographic) ?? fallback(cartographic);
 }
