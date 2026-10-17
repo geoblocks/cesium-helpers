@@ -1,5 +1,6 @@
-import {Cartesian3, Cartographic, Ellipsoid, FixedFrameTransforms, IntersectionTests, Matrix4, Ray} from "@cesium/core";
+import {Cartesian3, Cartographic, Ellipsoid, FixedFrameTransforms, Matrix4} from "@cesium/core";
 import {Axis} from "@cesium/engine";
+import {buildBvh, bvhQueries, refitBvh, trianglesOf} from "@geoblocks/cesium-bvh";
 import {gltfTriangles} from "./gltf-mesh.js";
 
 /** @typedef {import("./gltf-mesh.js").GltfTriangles} GltfTriangles */
@@ -8,8 +9,6 @@ import {gltfTriangles} from "./gltf-mesh.js";
 // Triangles known on the CPU, in meters, z up, in the frame of a model matrix: the floors under a mover and the
 // walls ahead of it, in any direction, without reading the depth, which waits for the GPU.
 
-// the ground's cells, in meters
-const CELL = 2;
 // the faces flatter than this, of the cosine of their slope, are floors, stairs and ramps
 const FLOOR = 0.5;
 
@@ -18,14 +17,10 @@ const directionScratch = new Cartesian3();
 const rayScratch = new Cartesian3();
 const rayOriginScratch = new Cartesian3();
 const frameScratch = new Matrix4();
-const cornerScratch = [new Cartesian3(), new Cartesian3(), new Cartesian3()];
 const edgeScratch = [new Cartesian3(), new Cartesian3()];
 const normalScratch = new Cartesian3();
 const toPointScratch = new Cartesian3();
-const closestScratch = new Cartesian3();
 const nearestScratch = new Cartesian3();
-const triangleRay = new Ray();
-const downRay = new Ray(Cartesian3.ZERO, Cartesian3.negate(Cartesian3.UNIT_Z, new Cartesian3()));
 const belowScratch = new Cartographic();
 const floorScratch = new Cartesian3();
 const floorCartographicScratch = new Cartographic();
@@ -43,6 +38,9 @@ const floorCartographicScratch = new Cartographic();
  * @property {(x: number, y: number, z: number, result?: Cartesian3) => Cartesian3} position A position of the
  *     frame on the globe.
  * @property {(position: Cartesian3, result?: Cartesian3) => Cartesian3} local A position on the globe in the frame.
+ * @property {() => void} refit The triangles' places read again from the groups' vertices, which moved in place (a piece dragged,
+ *     a door opened), their triangles the same: a few milliseconds, where a new mesh takes a tenth of a second. The floors stay floors
+ *     and the walls walls, whatever the new slopes; the more triangles go far the slower the queries, so make a new mesh then.
  */
 
 /**
@@ -72,206 +70,84 @@ export function createTriangleMeshFromGltf(gltf, modelMatrix, {buffers, collide 
 }
 
 /**
- * The point of a triangle nearest a point: Ericson's (Real-Time Collision Detection, 5.1.5), by the point's
- * barycentric region; Cesium has no point and triangle test.
- * @param {Cartesian3} p
- * @param {Cartesian3} a
- * @param {Cartesian3} b
- * @param {Cartesian3} c
- * @param {Cartesian3} result
- * @return {Cartesian3}
- */
-function closestPointOnTriangle(p, a, b, c, result) {
-  const ab = Cartesian3.subtract(b, a, edgeScratch[0]);
-  const ac = Cartesian3.subtract(c, a, edgeScratch[1]);
-  const ap = Cartesian3.subtract(p, a, toPointScratch);
-  const d1 = Cartesian3.dot(ab, ap);
-  const d2 = Cartesian3.dot(ac, ap);
-  if (d1 <= 0 && d2 <= 0) {
-    return Cartesian3.clone(a, result);
-  }
-  const bp = Cartesian3.subtract(p, b, toPointScratch);
-  const d3 = Cartesian3.dot(ab, bp);
-  const d4 = Cartesian3.dot(ac, bp);
-  if (d3 >= 0 && d4 <= d3) {
-    return Cartesian3.clone(b, result);
-  }
-  const vc = d1 * d4 - d3 * d2;
-  if (vc <= 0 && d1 >= 0 && d3 <= 0) {
-    return Cartesian3.add(a, Cartesian3.multiplyByScalar(ab, d1 / (d1 - d3), result), result);
-  }
-  const cp = Cartesian3.subtract(p, c, toPointScratch);
-  const d5 = Cartesian3.dot(ab, cp);
-  const d6 = Cartesian3.dot(ac, cp);
-  if (d6 >= 0 && d5 <= d6) {
-    return Cartesian3.clone(c, result);
-  }
-  const vb = d5 * d2 - d1 * d6;
-  if (vb <= 0 && d2 >= 0 && d6 <= 0) {
-    return Cartesian3.add(a, Cartesian3.multiplyByScalar(ac, d2 / (d2 - d6), result), result);
-  }
-  const va = d3 * d6 - d5 * d4;
-  if (va <= 0 && d4 - d3 >= 0 && d5 - d6 >= 0) {
-    const w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
-    return Cartesian3.add(b, Cartesian3.multiplyByScalar(Cartesian3.subtract(c, b, result), w, result), result);
-  }
-  const denominator = 1 / (va + vb + vc);
-  Cartesian3.add(a, Cartesian3.multiplyByScalar(ab, vb * denominator, result), result);
-  return Cartesian3.add(result, Cartesian3.multiplyByScalar(ac, vc * denominator, toPointScratch), result);
-}
-
-/**
  * The floors and walls of triangles.
  * @param {{vertices: Float32Array, triangles: Uint32Array}[]} colliding
  * @param {Matrix4} modelMatrix From the triangles' frame to the globe.
  * @return {TriangleMesh}
  */
 function collisionMesh(colliding, modelMatrix) {
-  // the groups walked on as one: their vertices one after the other, their triangles renumbered
-  const vertices = new Float32Array(colliding.reduce((n, group) => n + group.vertices.length, 0));
-  const triangles = new Uint32Array(colliding.reduce((n, group) => n + group.triangles.length, 0));
-  let vertexOffset = 0;
-  let triangleOffset = 0;
-  for (const group of colliding) {
-    vertices.set(group.vertices, vertexOffset);
-    for (let k = 0; k < group.triangles.length; k++) {
-      triangles[triangleOffset + k] = group.triangles[k] + vertexOffset / 3;
-    }
-    vertexOffset += group.vertices.length;
-    triangleOffset += group.triangles.length;
-  }
   const toLocal = Matrix4.inverse(modelMatrix, new Matrix4());
   const toNormal = Matrix4.inverseTranspose(modelMatrix, new Matrix4());
 
-  // the triangles, and the floors among them, by the cells they overlap
-  /** @type {Map<string, number[]>} */
-  const cells = new Map();
-  /** @type {Map<string, number[]>} */
-  const allCells = new Map();
-  const isFloor = new Uint8Array(triangles.length / 3);
-  const vertex = (/** @type {number} */ index) => vertices.subarray(index * 3, index * 3 + 3);
-  // a triangle's corners as Cartesian3, in scratch
-  const corners = (/** @type {number} */ i) => cornerScratch.map((corner, k) => Cartesian3.unpack(/** @type {any} */ (vertices), triangles[i + k] * 3, corner));
-  const add = (/** @type {Map<string, number[]>} */ map, /** @type {string} */ key, /** @type {number} */ i) => {
-    const list = map.get(key);
-    if (list) {
-      list.push(i);
-    } else {
-      map.set(key, [i]);
-    }
-  };
-  for (let i = 0; i < triangles.length; i += 3) {
-    const [a, b, c] = [vertex(triangles[i]), vertex(triangles[i + 1]), vertex(triangles[i + 2])];
-    const [p0, p1, p2] = corners(i);
-    const normal = Cartesian3.cross(Cartesian3.subtract(p1, p0, edgeScratch[0]), Cartesian3.subtract(p2, p0, edgeScratch[1]), normalScratch);
-    isFloor[i / 3] = Math.abs(normal.z) >= FLOOR * Cartesian3.magnitude(normal) ? 1 : 0;
-    for (let x = Math.floor(Math.min(a[0], b[0], c[0]) / CELL); x <= Math.floor(Math.max(a[0], b[0], c[0]) / CELL); x++) {
-      for (let y = Math.floor(Math.min(a[1], b[1], c[1]) / CELL); y <= Math.floor(Math.max(a[1], b[1], c[1]) / CELL); y++) {
-        const key = `${x},${y}`;
-        add(allCells, key, i);
-        if (isFloor[i / 3]) {
-          add(cells, key, i);
-        }
-      }
-    }
+  // the triangles as the trees take them (a corner, then its two edges), the groups' one after the other: the floors in a tree, the
+  // walls in another
+  const tris = trianglesOf(colliding);
+  /**
+   * A triangle's normal, not a unit one: the cross of its edges, in scratch.
+   * @param {number} triangle
+   * @return {Cartesian3}
+   */
+  const crossOf = triangle => Cartesian3.cross(Cartesian3.unpack(/** @type {any} */ (tris), triangle * 9 + 3, edgeScratch[0]),
+    Cartesian3.unpack(/** @type {any} */ (tris), triangle * 9 + 6, edgeScratch[1]), normalScratch);
+  /** @type {number[]} */
+  const floorIds = [];
+  /** @type {number[]} */
+  const wallIds = [];
+  for (let k = 0; k < tris.length / 9; k++) {
+    const normal = crossOf(k);
+    (Math.abs(normal.z) >= FLOOR * Cartesian3.magnitude(normal) ? floorIds : wallIds).push(k);
   }
+  const floorTree = buildBvh(tris, floorIds);
+  const wallTree = buildBvh(tris, wallIds);
+  // a hit at the ray's start counts (the tree's `min` leaves it out by default): a mover stands on a floor at its feet
+  const floorQueries = bvhQueries(floorTree, {min: -Infinity});
+  const wallQueries = bvhQueries(wallTree, {min: -Infinity});
 
   /**
-   * The highest floor at a position of the frame, not above it.
+   * The highest floor at a position of the frame, not above it: the nearest along a ray straight down.
    * @param {number} x
    * @param {number} y
    * @param {number} z
    * @return {number | undefined} Its height, in meters.
    */
   const floorBelow = (x, y, z) => {
-    Cartesian3.fromElements(x, y, z, downRay.origin);
-    let highest;
-    for (const i of cells.get(`${Math.floor(x / CELL)},${Math.floor(y / CELL)}`) ?? []) {
-      const [p0, p1, p2] = corners(i);
-      // a ray straight down meets the highest floor first
-      const t = IntersectionTests.rayTriangleParametric(downRay, p0, p1, p2);
-      if (t !== undefined && t >= 0 && (highest === undefined || z - t > highest)) {
-        highest = z - t;
-      }
-    }
-    return highest;
+    const distance = floorQueries.nearest(x, y, z, 0, 0, -1, Infinity);
+    return distance === Infinity ? undefined : z - distance;
   };
 
-  // the ray each triangle was last tested against, so that a triangle over several cells is tested once
-  const tested = new Uint32Array(triangles.length / 3);
-  let ray = 0;
   /**
-   * The nearest triangle along a ray, in meters, by Cesium's ray and triangle test, through the cells the
-   * ray crosses, nearest first.
+   * The nearest triangle along a ray, in meters.
    * @param {Cartesian3} o The origin.
    * @param {Cartesian3} d The unit direction.
    * @param {number} far The longest distance.
-   * @param {boolean} walls Whether to skip the floors.
+   * @param {boolean} wallsOnly Whether to skip the floors.
    * @return {{distance: number, triangle: number} | undefined}
    */
-  const nearestHit = (o, d, far, walls) => {
-    ray++;
-    Cartesian3.clone(o, triangleRay.origin);
-    Cartesian3.clone(d, triangleRay.direction);
-    let best;
-    let x = Math.floor(o.x / CELL);
-    let y = Math.floor(o.y / CELL);
-    const stepX = Math.sign(d.x);
-    const stepY = Math.sign(d.y);
-    // the distances along the ray to the next cell borders, and between borders
-    let nextX = stepX === 0 ? Infinity : ((x + (stepX > 0 ? 1 : 0)) * CELL - o.x) / d.x;
-    let nextY = stepY === 0 ? Infinity : ((y + (stepY > 0 ? 1 : 0)) * CELL - o.y) / d.y;
-    const deltaX = stepX === 0 ? Infinity : CELL / Math.abs(d.x);
-    const deltaY = stepY === 0 ? Infinity : CELL / Math.abs(d.y);
-    let entry = 0;
-    while (entry <= far) {
-      const exit = Math.min(nextX, nextY, far);
-      for (const i of allCells.get(`${x},${y}`) ?? []) {
-        if (tested[i / 3] === ray || (walls && isFloor[i / 3])) {
-          continue;
-        }
-        tested[i / 3] = ray;
-        const [p0, p1, p2] = corners(i);
-        const t = IntersectionTests.rayTriangleParametric(triangleRay, p0, p1, p2);
-        if (t !== undefined && t >= 0 && t <= far && (!best || t < best.distance)) {
-          best = {distance: t, triangle: i};
-        }
-      }
-      // a hit within this cell is the nearest; one beyond it may still be beaten in the next cells
-      if (best && best.distance <= exit) {
-        return best;
-      }
-      if (exit >= far) {
-        return best;
-      }
-      entry = exit;
-      if (nextX < nextY) {
-        x += stepX;
-        nextX += deltaX;
-      } else {
-        y += stepY;
-        nextY += deltaY;
-      }
-    }
-    return best;
+  const nearestHit = (o, d, far, wallsOnly) => {
+    const wall = wallQueries.nearestHit(o.x, o.y, o.z, d.x, d.y, d.z, far);
+    const floor = wallsOnly ? undefined : floorQueries.nearestHit(o.x, o.y, o.z, d.x, d.y, d.z, far);
+    return !floor || (wall && wall.distance <= floor.distance) ? wall : floor;
   };
 
   /**
    * A triangle's unit normal on the globe, pointing the way of a vector.
-   * @param {number} i The triangle.
+   * @param {number} triangle The triangle's number.
    * @param {Cartesian3} toward
    * @return {Cartesian3}
    */
-  const normalToward = (i, toward) => {
-    const [p0, p1, p2] = corners(i);
-    const cross = Cartesian3.cross(Cartesian3.subtract(p1, p0, edgeScratch[0]), Cartesian3.subtract(p2, p0, edgeScratch[1]), normalScratch);
-    const normal = Matrix4.multiplyByPointAsVector(toNormal, cross, new Cartesian3());
+  const normalToward = (triangle, toward) => {
+    const normal = Matrix4.multiplyByPointAsVector(toNormal, crossOf(triangle), new Cartesian3());
     Cartesian3.normalize(normal, normal);
     return Cartesian3.dot(normal, toward) < 0 ? Cartesian3.negate(normal, normal) : normal;
   };
 
   return {
     floorBelow,
+    refit: () => {
+      trianglesOf(colliding, tris);
+      refitBvh(floorTree, tris);
+      refitBvh(wallTree, tris);
+    },
     /**
      * The first surface along a ray on the globe.
      * @param {Cartesian3} origin
@@ -291,7 +167,8 @@ function collisionMesh(colliding, modelMatrix) {
       if (!hit) {
         return undefined;
       }
-      const position = Matrix4.multiplyByPoint(modelMatrix, Ray.getPoint(triangleRay, hit.distance, rayScratch), new Cartesian3());
+      const point = Cartesian3.add(o, Cartesian3.multiplyByScalar(d, hit.distance, rayScratch), rayScratch);
+      const position = Matrix4.multiplyByPoint(modelMatrix, point, new Cartesian3());
       const normal = normalToward(hit.triangle, Cartesian3.negate(direction, toPointScratch));
       return {position, normal, distance: Cartesian3.distance(origin, position)};
     },
@@ -307,28 +184,13 @@ function collisionMesh(colliding, modelMatrix) {
     nearest: (point, radius, {walls = false} = {}) => {
       const p = Matrix4.multiplyByPoint(toLocal, point, originScratch);
       const r = radius * Matrix4.getMaximumScale(toLocal);
-      ray++;
-      let best;
-      for (let x = Math.floor((p.x - r) / CELL); x <= Math.floor((p.x + r) / CELL); x++) {
-        for (let y = Math.floor((p.y - r) / CELL); y <= Math.floor((p.y + r) / CELL); y++) {
-          for (const i of allCells.get(`${x},${y}`) ?? []) {
-            if (tested[i / 3] === ray || (walls && isFloor[i / 3])) {
-              continue;
-            }
-            tested[i / 3] = ray;
-            const [p0, p1, p2] = corners(i);
-            const closest = closestPointOnTriangle(p, p0, p1, p2, closestScratch);
-            const distance = Cartesian3.distance(closest, p);
-            if (distance <= r && (!best || distance < best.distance)) {
-              best = {distance, triangle: i, position: Cartesian3.clone(closest, nearestScratch)};
-            }
-          }
-        }
-      }
+      const wall = wallQueries.closest(p.x, p.y, p.z, r);
+      const floor = walls ? undefined : floorQueries.closest(p.x, p.y, p.z, r);
+      const best = !floor || (wall && wall.distance <= floor.distance) ? wall : floor;
       if (!best) {
         return undefined;
       }
-      const position = Matrix4.multiplyByPoint(modelMatrix, best.position, new Cartesian3());
+      const position = Matrix4.multiplyByPoint(modelMatrix, Cartesian3.unpack(best.point, 0, nearestScratch), new Cartesian3());
       const normal = normalToward(best.triangle, Cartesian3.subtract(point, position, toPointScratch));
       return {position, normal, distance: Cartesian3.distance(point, position)};
     },
