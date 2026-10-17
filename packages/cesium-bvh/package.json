@@ -1,0 +1,23 @@
+{
+  "name": "@geoblocks/cesium-bvh",
+  "version": "0.1.0",
+  "license": "BSD-3-Clause",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/geoblocks/cesium-helpers/",
+    "directory": "packages/cesium-bvh"
+  },
+  "main": "cesium-bvh.js",
+  "module": "cesium-bvh.js",
+  "sideEffects": false,
+  "exports": {
+    ".": "./cesium-bvh.js"
+  },
+  "files": [
+    "cesium-bvh.js"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}
