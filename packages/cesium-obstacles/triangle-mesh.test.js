@@ -176,3 +176,31 @@ test("a scaled frame's nearest surface, in meters", () => {
   assert.ok(Cartesian3.distance(near.position, mesh.position(2, 0, 0.5)) < 1e-6);
   assert.equal(mesh.nearest(mesh.position(1.7, 0, 0.5), 0.5, {walls: true}), undefined);
 });
+
+test("a refitted mesh follows its groups' vertices moved in place: the wall's new place, the floor's new height", () => {
+  const group = {vertices: Float32Array.from(floorAndWall.vertices), triangles: floorAndWall.triangles};
+  const mesh = createTriangleMesh([group], Matrix4.IDENTITY);
+  const ahead = () => mesh.raycast(new Cartesian3(0, 0, 1), new Cartesian3(1, 0, 0), 10, {walls: true});
+  assert.ok(Math.abs(ahead().distance - 2) < 1e-6);
+  assert.ok(Math.abs(mesh.floorBelow(0, 0, 5) - 0) < 1e-6);
+  // the wall (the last two triangles' vertices, 8 to 23) a meter on, the floor (vertices 0 to 11) a meter up
+  for (let i = 12; i < 24; i += 3) {
+    group.vertices[i] += 1;
+  }
+  for (let i = 2; i < 12; i += 3) {
+    group.vertices[i] += 1;
+  }
+  mesh.refit();
+  assert.ok(Math.abs(ahead().distance - 3) < 1e-6);
+  assert.ok(Math.abs(ahead().normal.x + 1) < 1e-6);
+  assert.ok(Math.abs(mesh.floorBelow(0, 0, 5) - 1) < 1e-6);
+  const near = mesh.nearest(new Cartesian3(2.8, 0.5, 1.5), 0.5, {walls: true});
+  assert.ok(near && Math.abs(near.distance - 0.2) < 1e-6);
+});
+
+test("a surface at the start counts: the floor under a mover standing on it, the wall a ray starts on", () => {
+  const mesh = createTriangleMesh([floorAndWall], Matrix4.IDENTITY);
+  assert.equal(mesh.floorBelow(0, 0, 0), 0);
+  const hit = mesh.raycast(new Cartesian3(2, 0, 1), new Cartesian3(1, 0, 0), 5, {walls: true});
+  assert.ok(hit && hit.distance < 1e-9);
+});

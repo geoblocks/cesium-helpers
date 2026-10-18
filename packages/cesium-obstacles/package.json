@@ -27,6 +27,9 @@
   "publishConfig": {
     "access": "public"
   },
+  "dependencies": {
+    "@geoblocks/cesium-bvh": "^0.1.0"
+  },
   "peerDependencies": {
     "@cesium/core": ">=0.1.0",
     "@cesium/engine": ">=10"

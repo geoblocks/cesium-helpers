@@ -83,7 +83,9 @@ than 60° are floors, the others walls. `Group` builds the groups face by face: 
 face, to lay them out in an atlas. `mesh.floorBelow(x, y, z)` answers in the mesh's frame, `mesh.raycast(origin,
 direction, maxDistance, {walls})` and `mesh.nearest(point, radius, {walls})`, the surface nearest a point within a
 radius, a mover's body kept clear of what no ray ahead meets, on the globe; `mesh.position` and `mesh.local` go
-from one frame to the other.
+from one frame to the other. The floors and the walls are each a bounding volume hierarchy
+([cesium-bvh](../cesium-bvh)). When the groups' vertices have moved in place (a piece dragged, a door opened), their
+triangles the same, `mesh.refit()` reads them again in a few milliseconds, where a new mesh takes a tenth of a second.
 
 From a glTF, drawn by Cesium as usual: the same floors and walls, from the meshes of its default scene, each
 node's transform applied, glTF's y up turned z up. Load the model and read the same bytes:
