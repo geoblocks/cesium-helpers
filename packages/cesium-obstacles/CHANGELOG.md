@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.4.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-obstacles%400.3.0...%40geoblocks%2Fcesium-obstacles%400.4.0) (2026-10-18)
+
+### Features
+
+* **obstacles:** build the triangle mesh on cesium-bvh, add mesh.refit ([f041c1d](https://github.com/geoblocks/cesium-helpers/commit/f041c1d3ca137354bdb7e699574aec925f328a2e))
+
+
 # [0.3.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-obstacles%400.2.2...%40geoblocks%2Fcesium-obstacles%400.3.0) (2026-10-16)
 
 ### Features
