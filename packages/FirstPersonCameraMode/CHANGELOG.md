@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.4.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-first-person-mode%400.3.2...%40geoblocks%2Fcesium-first-person-mode%400.4.0) (2026-10-19)
+
+### Features
+
+* **input:** read the actions from sources besides the devices ([12ff24f](https://github.com/geoblocks/cesium-helpers/commit/12ff24ffe72cb34505a56688eecdea846731283b))
+
+
 ## [0.3.2](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-first-person-mode%400.3.1...%40geoblocks%2Fcesium-first-person-mode%400.3.2) (2026-10-15)
 
 ### Bug Fixes
