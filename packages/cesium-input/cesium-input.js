@@ -15,10 +15,20 @@ const TEXT_FIELDS = ":read-write, select";
 /** @typedef {ButtonBinding | AxisBinding | VectorBinding} Binding */
 /** @typedef {{x: number, y: number}} Vector */
 /**
+ * Another place the actions come from, touch controls, an AI or a replay: what it reads by the name of a binding, as
+ * that binding's type, the names it leaves out ignored. A plain read of its state, called on every read of the controls,
+ * and its own to hold what must not be lost between two reads (a tap): only the devices' keys are latched.
+ * @template {Record<string, Binding>} [B=Record<string, Binding>]
+ * @typedef {{read(): Partial<Actions<B>>}} Source
+ */
+/**
  * What each binding reads: a button true or false, an axis from -1 to 1, a vector x and y.
  * @template {Record<string, Binding>} B
  * @typedef {{[K in keyof B]: B[K] extends ButtonBinding ? boolean : B[K] extends AxisBinding ? number : Vector}} Actions
  */
+
+/** @type {Record<string, any>[]} */
+const NO_SOURCES = [];
 
 /** @type {Gamepad | undefined} */
 let gamepad;
@@ -69,7 +79,7 @@ export function deadZone(x, y, size = DEAD_ZONE) {
 export default class Controls {
   /**
    * @param {B} bindings
-   * @param {{deadZone?: number}} [options]
+   * @param {{deadZone?: number, sources?: Source<B>[]}} [options]
    */
   constructor(bindings, options = {}) {
     /**
@@ -82,6 +92,12 @@ export default class Controls {
      * @type {number}
      */
     this.deadZone = options.deadZone ?? DEAD_ZONE;
+
+    /**
+     * What is read besides the devices, added up with them. Its owner turns it on and off, not `active`.
+     * @type {Source<B>[]}
+     */
+    this.sources = [...options.sources ?? []];
 
     this.active_ = false;
     // the keys, by event.code, and the mouse buttons, as mouse0 to mouse4: held, and pressed since the last read
@@ -219,18 +235,24 @@ export default class Controls {
    */
   read() {
     const pad = standardGamepad();
+    /** @type {Record<string, any>[]} */
+    const sources = this.sources.length ? this.sources.map(source => source.read()) : NO_SOURCES;
     /** @type {Record<string, boolean | number | Vector>} */
     const actions = {};
     for (const [name, binding] of Object.entries(this.bindings)) {
       if (binding.type === "button") {
         actions[name] = this.down_(binding.keys) ||
           this.down_(binding.mouse?.map(button => `mouse${button}`)) ||
-          (binding.buttons?.some(index => pad?.buttons[index]?.pressed) ?? false);
+          (binding.buttons?.some(index => pad?.buttons[index]?.pressed) ?? false) ||
+          sources.some(source => source[name] === true);
       } else if (binding.type === "axis") {
         const value = (/** @type {number[] | undefined} */ indices) =>
           indices?.reduce((sum, index) => sum + (pad?.buttons[index]?.value ?? 0), 0) ?? 0;
         let axis = Number(this.down_(binding.keys?.positive)) - Number(this.down_(binding.keys?.negative)) +
           value(binding.buttons?.positive) - value(binding.buttons?.negative);
+        for (const source of sources) {
+          axis += Number(source[name]) || 0;
+        }
         if (binding.stick) {
           axis += this.stickAxis_(pad, binding.stick, binding.along ?? "x") * (binding.invert ? -1 : 1);
         }
@@ -242,6 +264,11 @@ export default class Controls {
           const [right, up] = this.stick_(pad, binding.stick);
           x += right;
           y += binding.invertY ? -up : up;
+        }
+        for (const source of sources) {
+          const vector = /** @type {Vector | undefined} */ (source[name]);
+          x += vector?.x ?? 0;
+          y += vector?.y ?? 0;
         }
         // diagonally no longer than straight
         const length = Math.hypot(x, y);

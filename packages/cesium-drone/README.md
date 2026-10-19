@@ -34,6 +34,8 @@ import CesiumDrone, {DRONE_BINDINGS} from '@geoblocks/cesium-drone';
 
 // the camera tilted with T and G instead of R and F
 drone.input = new Controls({...DRONE_BINDINGS.game, tilt: {type: 'axis', keys: {negative: ['KeyT'], positive: ['KeyG']}, stick: 'right', along: 'y'}});
+// touch controls besides the keyboard and the gamepad: a source, added up with them
+drone.input = new Controls(DRONE_BINDINGS.game, {sources: [{read: () => ({move: touchStick.vector})}]});
 ```
 
 ## Installation
