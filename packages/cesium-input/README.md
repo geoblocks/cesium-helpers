@@ -41,6 +41,17 @@ The gamepad is the first one of the standard mapping, read once per task, so tha
 on the same clock tick shares one read. A stick read as a vector has a round dead zone, 0.15 by default
 (`new Controls(bindings, {deadZone})`), so that a slight diagonal does not snap to an axis.
 
+Other places the actions come from, touch controls, an AI or a replay, are `sources`: objects with a `read()`
+returning, by the name of a binding, a boolean, a number or a vector as its type, added up with the devices the same
+way (`new Controls(bindings, {sources})`, or `controls.sources`). The names it leaves out, and those not bound, are
+ignored. A source is not a device: `active` does not turn it on, its owner does. It is read on every read of the
+controls, so it is a plain read of its state, and what must not be lost between two reads, a tap, it holds itself:
+only the devices' keys are latched.
+
+```javascript
+const controls = new Controls(bindings, {sources: [{read: () => ({move: {x: 0, y: stickAhead}})}]});
+```
+
 The bound keys do not scroll the page or activate the focused control. The shortcuts, with Ctrl, Cmd
 or Alt, and the typing in text fields are left alone, and everything is released when the window loses
 the focus.

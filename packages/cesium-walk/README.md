@@ -24,8 +24,10 @@ import CesiumWalk, {WALK_BINDINGS} from '@geoblocks/cesium-walk';
 
 // J jumps instead of Space
 walkMode.input = new Controls({...WALK_BINDINGS, jump: {type: 'button', keys: ['KeyJ'], buttons: [2]}});
-// touch controls, an AI, a replay: `move` no longer than 1, x right and y forward
-walkMode.input = {read: () => ({move: touchStick.vector, sprint: false, jump: touchButton.tapped})};
+// touch controls besides the keyboard and the gamepad: a source, added up with them
+walkMode.input = new Controls(WALK_BINDINGS, {sources: [{read: () => ({move: touchStick.vector})}]});
+// instead of them, an AI, a replay: `move` no longer than 1, x right and y forward
+walkMode.input = {read: () => ({move: aiMove, sprint: false, jump: false})};
 ```
 
 ## Installation

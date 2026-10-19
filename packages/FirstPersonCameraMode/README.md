@@ -39,7 +39,8 @@ The mode starts with a click or a key press, as the Pointer Lock API requires.
 The stick and the zoom are the default bindings, `LOOK_BINDINGS`, read with
 [cesium-input](../cesium-input). The mode reads its intent from `mode.input` on each tick,
 `{look: {x, y}, zoom}`, `look` the turn rate from -1 to 1, so the controls can be remapped, or come from
-anywhere else, touch controls for instance, while the mode is not active. The mouse's movement turns the
+anywhere else while the mode is not active: touch controls for instance, besides the stick and the mouse, as a
+`sources` option of the `Controls` (`mode.input = new Controls(LOOK_BINDINGS, {sources: [touchLook]})`). The mouse's movement turns the
 view as well.
 
 While the mode is active it owns the camera's field of view: `mode.fovOffset` (radians, default 0)
