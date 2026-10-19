@@ -87,6 +87,10 @@ from one frame to the other. The floors and the walls are each a bounding volume
 ([cesium-bvh](../cesium-bvh)). When the groups' vertices have moved in place (a piece dragged, a door opened), their
 triangles the same, `mesh.refit()` reads them again in a few milliseconds, where a new mesh takes a tenth of a second.
 
+For a large mesh the trees can be built in a worker: `triangleTrees(groups)` (from `@geoblocks/cesium-obstacles/triangle-trees.js`, which
+imports no Cesium) returns plain typed arrays, `{tris, floorTree, wallTree}`, that a worker transfers; the page then makes the mesh with
+`createTriangleMesh(groups, modelMatrix, {trees})`, given the groups that collide, in the same order, and does not wait for them.
+
 From a glTF, drawn by Cesium as usual: the same floors and walls, from the meshes of its default scene, each
 node's transform applied, glTF's y up turned z up. Load the model and read the same bytes:
 

@@ -15,12 +15,14 @@
     ".": "./cesium-obstacles.js",
     "./cesium-obstacles.js": "./cesium-obstacles.js",
     "./triangle-mesh.js": "./triangle-mesh.js",
+    "./triangle-trees.js": "./triangle-trees.js",
     "./gltf-mesh.js": "./gltf-mesh.js",
     "./mesh-builder.js": "./mesh-builder.js"
   },
   "files": [
     "cesium-obstacles.js",
     "triangle-mesh.js",
+    "triangle-trees.js",
     "gltf-mesh.js",
     "mesh-builder.js"
   ],
