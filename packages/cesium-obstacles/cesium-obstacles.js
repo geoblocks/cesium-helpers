@@ -1,6 +1,7 @@
 import {Cartesian2, Cartesian3, Math as CesiumMath, Ray} from "@cesium/core";
 
 export {createTriangleMesh, createTriangleMeshFromGltf, meshGroundHeight, meshObstacleAhead} from "./triangle-mesh.js";
+export {triangleTrees} from "./triangle-trees.js";
 export {gltfTriangles} from "./gltf-mesh.js";
 export {Group} from "./mesh-builder.js";
 

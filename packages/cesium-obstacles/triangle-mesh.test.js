@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {Cartesian3, Cartographic, Matrix4} from "@cesium/core";
 import {Axis, Transforms} from "@cesium/engine";
 import {createTriangleMesh, createTriangleMeshFromGltf, meshGroundHeight, meshObstacleAhead} from "./triangle-mesh.js";
+import {triangleTrees} from "./triangle-trees.js";
 
 // a 4 m square floor at z 0 and a wall along x = 2, 3 m high
 const floorAndWall = {
@@ -203,4 +204,23 @@ test("a surface at the start counts: the floor under a mover standing on it, the
   assert.equal(mesh.floorBelow(0, 0, 0), 0);
   const hit = mesh.raycast(new Cartesian3(2, 0, 1), new Cartesian3(1, 0, 0), 5, {walls: true});
   assert.ok(hit && hit.distance < 1e-9);
+});
+
+test("a mesh made from trees built apart answers as one that builds its own, and refits", () => {
+  const groups = [{vertices: Float32Array.from(floorAndWall.vertices), triangles: floorAndWall.triangles}];
+  // the trees are plain typed arrays: they survive a trip through a worker's structured clone
+  const trees = structuredClone(triangleTrees(groups));
+  const own = createTriangleMesh(groups, Matrix4.IDENTITY);
+  const given = createTriangleMesh(groups, Matrix4.IDENTITY, {trees});
+  for (const x of [-1.5, 0, 1.9]) {
+    assert.equal(given.floorBelow(x, 0, 5), own.floorBelow(x, 0, 5));
+  }
+  const origin = new Cartesian3(0, 0, 1);
+  const direction = new Cartesian3(1, 0, 0);
+  assert.equal(given.raycast(origin, direction, 10).distance, own.raycast(origin, direction, 10).distance);
+  for (let i = 2; i < groups[0].vertices.length; i += 3) {
+    groups[0].vertices[i] += 1;
+  }
+  given.refit();
+  assert.equal(given.floorBelow(0, 0, 5), 1);
 });

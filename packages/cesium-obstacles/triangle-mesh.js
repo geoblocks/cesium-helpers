@@ -1,16 +1,14 @@
 import {Cartesian3, Cartographic, Ellipsoid, FixedFrameTransforms, Matrix4} from "@cesium/core";
 import {Axis} from "@cesium/engine";
-import {buildBvh, bvhQueries, refitBvh, trianglesOf} from "@geoblocks/cesium-bvh";
+import {bvhQueries, refitBvh, trianglesOf} from "@geoblocks/cesium-bvh";
 import {gltfTriangles} from "./gltf-mesh.js";
+import {triangleTrees} from "./triangle-trees.js";
 
 /** @typedef {import("./gltf-mesh.js").GltfTriangles} GltfTriangles */
 /** @typedef {import("./cesium-obstacles.js").Obstacle} Obstacle */
 
 // Triangles known on the CPU, in meters, z up, in the frame of a model matrix: the floors under a mover and the
 // walls ahead of it, in any direction, without reading the depth, which waits for the GPU.
-
-// the faces flatter than this, of the cosine of their slope, are floors, stairs and ramps
-const FLOOR = 0.5;
 
 const originScratch = new Cartesian3();
 const directionScratch = new Cartesian3();
@@ -47,10 +45,12 @@ const floorCartographicScratch = new Cartographic();
  * The floors and walls of groups of triangles; a group with `collide: false` is left out.
  * @param {{vertices: Float32Array, triangles: Uint32Array, collide?: boolean}[]} groups x, y, z, in meters, z up.
  * @param {Matrix4} modelMatrix From the triangles' frame to the globe.
+ * @param {{trees?: import("./triangle-trees.js").TriangleTrees}} [options] trees: `triangleTrees` of the groups that collide, in this
+ *     order, made apart (in a worker, say) so that a page does not wait for them; the groups themselves stay the mesh's to refit.
  * @return {TriangleMesh}
  */
-export function createTriangleMesh(groups, modelMatrix) {
-  return collisionMesh(groups.filter(group => group.collide !== false), modelMatrix);
+export function createTriangleMesh(groups, modelMatrix, {trees} = {}) {
+  return collisionMesh(groups.filter(group => group.collide !== false), modelMatrix, trees);
 }
 
 /**
@@ -73,15 +73,16 @@ export function createTriangleMeshFromGltf(gltf, modelMatrix, {buffers, collide 
  * The floors and walls of triangles.
  * @param {{vertices: Float32Array, triangles: Uint32Array}[]} colliding
  * @param {Matrix4} modelMatrix From the triangles' frame to the globe.
+ * @param {import("./triangle-trees.js").TriangleTrees} [trees] The trees of these triangles, if made already.
  * @return {TriangleMesh}
  */
-function collisionMesh(colliding, modelMatrix) {
+function collisionMesh(colliding, modelMatrix, trees) {
   const toLocal = Matrix4.inverse(modelMatrix, new Matrix4());
   const toNormal = Matrix4.inverseTranspose(modelMatrix, new Matrix4());
 
   // the triangles as the trees take them (a corner, then its two edges), the groups' one after the other: the floors in a tree, the
-  // walls in another
-  const tris = trianglesOf(colliding);
+  // walls in another, made here or given
+  const {tris, floorTree, wallTree} = trees ?? triangleTrees(colliding);
   /**
    * A triangle's normal, not a unit one: the cross of its edges, in scratch.
    * @param {number} triangle
@@ -89,16 +90,6 @@ function collisionMesh(colliding, modelMatrix) {
    */
   const crossOf = triangle => Cartesian3.cross(Cartesian3.unpack(/** @type {any} */ (tris), triangle * 9 + 3, edgeScratch[0]),
     Cartesian3.unpack(/** @type {any} */ (tris), triangle * 9 + 6, edgeScratch[1]), normalScratch);
-  /** @type {number[]} */
-  const floorIds = [];
-  /** @type {number[]} */
-  const wallIds = [];
-  for (let k = 0; k < tris.length / 9; k++) {
-    const normal = crossOf(k);
-    (Math.abs(normal.z) >= FLOOR * Cartesian3.magnitude(normal) ? floorIds : wallIds).push(k);
-  }
-  const floorTree = buildBvh(tris, floorIds);
-  const wallTree = buildBvh(tris, wallIds);
   // a hit at the ray's start counts (the tree's `min` leaves it out by default): a mover stands on a floor at its feet
   const floorQueries = bvhQueries(floorTree, {min: -Infinity});
   const wallQueries = bvhQueries(wallTree, {min: -Infinity});
