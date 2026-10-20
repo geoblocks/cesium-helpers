@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.5.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-obstacles%400.4.0...%40geoblocks%2Fcesium-obstacles%400.5.0) (2026-10-20)
+
+### Features
+
+* **obstacles:** build a triangle mesh's trees apart, take them given ([55fa737](https://github.com/geoblocks/cesium-helpers/commit/55fa737aaa9e69beeb1c2282f4053e475a5200e1))
+
+
 # [0.4.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-obstacles%400.3.0...%40geoblocks%2Fcesium-obstacles%400.4.0) (2026-10-18)
 
 ### Features
