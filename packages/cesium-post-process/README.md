@@ -18,7 +18,7 @@ Each effect is inactive after construction. Every option is also a property, app
 
 ```javascript
 import {Color, Rectangle} from '@cesium/engine';
-import {AnalogVideo, Clouds, ColorIsolation, DigitalVideo, DroneDisplay, Infrared, Jello, LensDistortion, Lightning, MotionBlur, Precipitation, SnowLine, SpeedLines, Spotlight, Super8, Technicolor, TiltShift, Toy, ValleyFog, WhiteModel} from '@geoblocks/cesium-post-process';
+import {AnalogVideo, Clouds, ColorIsolation, DigitalVideo, DroneDisplay, Dufour, Infrared, Jello, LensDistortion, Lightning, MotionBlur, Precipitation, SnowLine, SpeedLines, Spotlight, Super8, Technicolor, TiltShift, Toy, ValleyFog, WhiteModel} from '@geoblocks/cesium-post-process';
 
 const snowLine = new SnowLine(viewer, {
   altitude: 2000,  // meters above the ellipsoid where the snow is half covering
@@ -112,6 +112,17 @@ const whiteModel = new WhiteModel(viewer, {
 });
 whiteModel.active = true;
 
+// or, in Toy's place, the Dufour map's hachures
+const dufour = new Dufour(viewer, {
+  spacing: 3.5,       // the strokes' spacing on the screen, in pixels
+  strokeLength: 14,   // a stroke's length between its breaks, in spacings, on average
+  weight: 1,          // 1 for Lehmann's scale stretched for the Alps: the ink's share grows with the slope, all of it at 60 degrees
+  oblique: 0.8,       // how much thinner the strokes facing the north-west light, and thicker away from it, 0 to 1
+  flatSlope: 4,       // the slope under which the ground is left blank, in degrees
+  outline: 0.8,       // how dark the silhouettes' outline; 0 for none
+});
+dufour.active = true;
+
 const tiltShift = new TiltShift(viewer, {
   focus,
   range: 0.3,      // width of the sharp band, in factors of two of the focal distance (an orthographic camera: shares of the view's height)
@@ -203,11 +214,13 @@ super8.destroy();
 
 ### Order of the effects
 
-Cesium runs the stages in the order they are added and cannot insert one elsewhere. Activate the effects in this order: `SnowLine`, `ValleyFog`, `Spotlight`, `Clouds`, `Precipitation`, `Lightning`, `Toy` or `WhiteModel`, `TiltShift`, `MotionBlur`, `SpeedLines`, `ColorIsolation`, `Infrared`, `Technicolor`, `Super8`, `LensDistortion`, `Jello`, `DroneDisplay`, `AnalogVideo` or `DigitalVideo`. The snow is then under the fog, the clouds behind the rain and the lightning in front of them, the rain or the falling snow in the scene, the lens effects apply to the whole scene, and the film looks apply to everything, their black bars included. The drone camera comes last, in the order of a real one: its lens bends the picture, its sensor reads it with the jello of its shake, its display is drawn over the picture and stays straight, and the video signal, analog or digital, disturbs both. To activate an effect later, deactivate and activate again the active effects that come after it.
+Cesium runs the stages in the order they are added and cannot insert one elsewhere. Activate the effects in this order: `SnowLine`, `ValleyFog`, `Spotlight`, `Clouds`, `Precipitation`, `Lightning`, `Toy`, `WhiteModel` or `Dufour`, `TiltShift`, `MotionBlur`, `SpeedLines`, `ColorIsolation`, `Infrared`, `Technicolor`, `Super8`, `LensDistortion`, `Jello`, `DroneDisplay`, `AnalogVideo` or `DigitalVideo`. The snow is then under the fog, the clouds behind the rain and the lightning in front of them, the rain or the falling snow in the scene, the lens effects apply to the whole scene, and the film looks apply to everything, their black bars included. The drone camera comes last, in the order of a real one: its lens bends the picture, its sensor reads it with the jello of its shake, its display is drawn over the picture and stays straight, and the video signal, analog or digital, disturbs both. To activate an effect later, deactivate and activate again the active effects that come after it.
 
 ### Notes
 
 `WhiteModel` is the look of an architect's plaster model or white render: the colors turned to their value and pressed into a narrow range of whites, so the light and the shapes alone tell the surfaces apart; lower `values` for more contrast, a `saturation` above 0 to keep an accent (the project in a color, the context white). The darkest colors, under `poche` (a tenth by default), keep their value, fading into the whites about it: a section's poché stays solid black; give 0 if deep shadows or a dusk scene should stay gray. An accent's hue is scaled down rather than clipped where a channel would pass 1. It is a `Toy` with another grading and shares its edges, found in the depth (`DepthEdges`, a shader chunk both prepend): the creases lit and shaded, the outline on the near side of a jump. Where surfaces meet it adds an occlusion, the Alchemy ambient obscurance ("The Alchemy Screen-Space Ambient Obscurance Algorithm", McGuire et al., HPG 2011): each pixel's normal from the depth's slopes, then the share of 12 samples on a spiral in a disc of `radius` meters that rise above its surface, each the more as it rises steeper and none beyond the radius, the spiral turned from pixel to pixel. A corner's foot gets about a half, a flat floor none. Zoomed out, when the disc is under a few pixels wide, the occlusion fades out: its samples would fall within the depth's noise. Each pixel then reads the depth about 20 times. For the whitest model, give the scene's materials light colors too: the grading keeps their differences in value.
+
+`Dufour` draws the terrain as the hachures of the Dufour map (1845-1864), black ink on white paper: strokes down the steepest slope, each a straight line broken every `strokeLength` spacings or so, its breaks staggered from the next stroke's, so that no line runs across them. A stroke covers more of the spacing as the slope is steeper, on Lehmann's scale (1799) stretched for the Alps, the ink's share growing from none on the flat to all of it at 60 degrees rather than his 45, but never more than 45 % of the spacing, so that the paper shows between the strokes, and more on the slopes away from a light from the north-west, as Dufour's: the steep ground and the slopes in the shade are darker, the flat ground under `flatSlope` is blank, the strokes fading in over 2 degrees above it, so that the terrain's slightly tilted triangles do not show as patches. The slope comes from the depth's normals, averaged over 4, 12 and 24 pixels, and the way down from one averaged wider, over 32 pixels, snapped to one of 12 directions, the two nearest blended over a narrow band: the strokes are straight and parallel on a slope rather than turning with each pixel's normal, which drew swirls close up. The strokes are fixed to the ground, in a frame of east and north on the ground below the camera, which follows it once it has moved 20 km, where the strokes jump. Their spacing is a power of two of meters, chosen for each direction from the ground a pixel covers across its strokes, far more than its width where a slope is seen at a grazing angle, the next power faded in as they grow closer than `spacing` pixels: they stay about as far apart on the screen at any distance and angle; where they still grow too close to tell apart, they fade to the share of the paper they cover. The lakes, flat, are left blank.
 
 `ColorIsolation`, `Infrared`, `Technicolor` and `Super8` work on display colors, after Cesium's tone mapping. `ColorIsolation`, `Infrared` and `Technicolor` follow prod80's [ReShade shaders](https://github.com/prod80/prod80-ReShade-Repository) (MIT). `Technicolor` imitates the three-strip process: the scene is split into red, green and blue records, each printed with its complementary dye, which gives its dense, saturated primaries. `Super8` blurs the highlights into a red-orange halation, as light scattered back through the film base, draws its grain as clumps a few pixels wide that differ slightly between the dye layers, and moves at 18 frames per second (grain, weave and flicker change with each film frame, light leaks drift slowly), so while it is active the scene renders 18 times per second, also with `requestRenderMode`.
 
@@ -231,7 +244,7 @@ Its `snow`, from 0 to 1, turns the rain to snow in one population, so that nothi
 
 `SnowLine` and `ValleyFog` compute each pixel's height relative to the camera, in double precision on the CPU for the camera, so they stay accurate far from the origin. The snow's slope comes from the normal rebuilt from the neighboring pixels. The fog is lit by the sun like Cesium's own fog: its color during the day, a moonlit blue at night, as bright as `scene.fog.minimumBrightness`. Both work in 3D only.
 
-`SnowLine`, `ValleyFog`, `Precipitation`, `Clouds`, `Lightning`, `Toy`, `WhiteModel`, `TiltShift`, `Spotlight` and `MotionBlur` read the depth buffer. The post-process stages only get the terrain's depth when it is depth tested, so `globe.depthTestAgainstTerrain` is on while any of them is active and restored when the last one is deactivated: billboards and labels that show through the terrain can be hidden by it meanwhile.
+`SnowLine`, `ValleyFog`, `Precipitation`, `Clouds`, `Lightning`, `Toy`, `WhiteModel`, `Dufour`, `TiltShift`, `Spotlight` and `MotionBlur` read the depth buffer. The post-process stages only get the terrain's depth when it is depth tested, so `globe.depthTestAgainstTerrain` is on while any of them is active and restored when the last one is deactivated: billboards and labels that show through the terrain can be hidden by it meanwhile.
 
 The depth they read is the nearest of Cesium's frustums': with `scene.logarithmicDepthBuffer` off, Cesium splits the view into frustums of `farToNearRatio` (1000 by default) from the near plane, and only the nearest one's depth reaches the stages. What lies past the split has no depth there: `Toy` and `WhiteModel` paint their sky over it and draw no edge on it, `TiltShift` blurs it as the far background, `SnowLine` and `ValleyFog` take it for sky. Keep the logarithmic depth buffer on, or set `camera.frustum.near` so that one frustum holds the scene (a near plane of 0.3 m reaches 300 m).
 
