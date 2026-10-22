@@ -19,5 +19,8 @@ export {default as Toy} from './toy.js';
 export {default as ValleyFog} from './valley-fog.js';
 export {default as WhiteModel} from './white-model.js';
 
-// the shader chunk the depth-based effects share, for effects of your own
+// the shader chunks the depth-based effects share, and the uniforms of Height, for effects of your own
 export {default as EyeFromDepth} from './shaders/EyeFromDepth.js';
+export {default as Height} from './shaders/Height.js';
+export {heightUniforms} from './height.js';
+export {default as Normal} from './shaders/Normal.js';

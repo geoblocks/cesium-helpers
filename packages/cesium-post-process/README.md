@@ -197,9 +197,22 @@ super8.grain = 0.3;
 super8.destroy();
 ```
 
-### Shader chunk
+### Shader chunks
 
 `EyeFromDepth` is the GLSL chunk the depth-based effects prepend to their fragment shaders: `vec4 eyeAt(sampler2D depthTexture, vec2 uv)` gives a pixel's eye coordinates from the depth texture, with `w` 0 for the sky, with or without a logarithmic depth buffer. It is exported for effects of your own, and for `@geoblocks/cesium-flyto`'s depth of field.
+
+`Height`, prepended after it, gives heights above the ellipsoid: `float heightAt(vec3 eye)` of a point in eye coordinates, relative to the camera so that single precision keeps it to the centimeter, and `vec2 belowHeight(vec3 rayEnd, float height)`, the part of the ray from the camera to a point below a height, as shares of it. Its uniforms, the camera's height, the local up direction and the Earth's radius, come from `heightUniforms(scene)` in double precision:
+
+```js
+import {EyeFromDepth, Height, heightUniforms} from '@geoblocks/cesium-post-process';
+
+const stage = new PostProcessStage({
+  fragmentShader: EyeFromDepth + Height + myShader, // myShader calls eyeAt and heightAt
+  uniforms: {...heightUniforms(scene), myUniform: () => value},
+});
+```
+
+`Normal`, also prepended after `EyeFromDepth`, gives a pixel's normal in eye coordinates from the depth of its neighbors, facing the camera: `vec3 normalAt(sampler2D depthTexture, vec2 uv, vec3 center, float distance)`, with `center` the pixel's eye coordinates and the neighbors `distance` pixels away, on each axis the nearer side so that the scene's edges do not bend it; and `vec3 smoothNormalAt(sampler2D depthTexture, vec2 uv, vec3 center)`, averaged over two distances so that the terrain's flat triangles blend into a smoother surface. It needs no uniforms.
 
 ### Order of the effects
 
