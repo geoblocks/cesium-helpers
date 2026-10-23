@@ -15,6 +15,7 @@ A collection of helpers and web component for working with [CesiumJS](https://ce
 * [cesium-walk](packages/cesium-walk): a camera mode that allows the user to walk around the scene with the keyboard
 * [cesium-obstacles](packages/cesium-obstacles): collision with the obstacles in view, for camera modes
 * [cesium-bvh](packages/cesium-bvh): a bounding volume hierarchy over triangles: rays and the nearest triangle to a point, in flat typed arrays, with no dependency
+* [cesium-overlay](packages/cesium-overlay): an HTML layer over the scene, and pins: elements kept on a point of the world as the camera moves
 * [cesium-input](packages/cesium-input): the keyboard, the mouse buttons and the gamepad read into named actions, for camera modes
 * [cesium-drone](packages/cesium-drone): an arcade drone flown with the keyboard or a gamepad
 * [cesium-audio](packages/cesium-audio): a spatialized sound located on the globe, using the Web Audio API
