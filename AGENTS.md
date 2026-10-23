@@ -56,6 +56,13 @@ Use the language's newer built-ins over the older idioms:
 - A package with a `files` list in its `package.json` must list every file its listed files import
   (`packages/package-files.test.js` checks it).
 
+## Test pages
+
+- `demos/cesium-overlay.html` tests and benchmarks cesium-overlay's lines: a grid of boxes, nothing to load but Cesium, lines
+  of each kind (`occlude: 'depth'`, a caller's test, a fill, strokes). In the browser, `await bench.measure({view})` (`view`
+  one of `bench.views`) gives the renders' times, when the hidden parts first change and settle after a stop, the depth reads
+  and long tasks; `?continuous` renders every frame. Run it before and after a change to the lines and compare.
+
 ## Before finishing a change
 
 Run `npm test`, `npm run typecheck` and `npm run build-demos`. For a shader change, load the demo (`npm run dev`) and

@@ -15,7 +15,8 @@
     ".": "./cesium-overlay.js"
   },
   "files": [
-    "cesium-overlay.js"
+    "cesium-overlay.js",
+    "overlay-lines.js"
   ],
   "publishConfig": {
     "access": "public"

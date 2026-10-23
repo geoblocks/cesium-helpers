@@ -36,6 +36,7 @@ export default defineConfig({
         'cesium-first-person-mode': resolve(__dirname, 'demos/cesium-first-person-mode.html'),
         'cesium-flyto': resolve(__dirname, 'demos/cesium-flyto.html'),
         'cesium-iso': resolve(__dirname, 'demos/cesium-iso.html'),
+        'cesium-overlay': resolve(__dirname, 'demos/cesium-overlay.html'),
         'cesium-path-flyover': resolve(__dirname, 'demos/cesium-path-flyover.html'),
         'cesium-post-process': resolve(__dirname, 'demos/cesium-post-process.html'),
         'cesium-sphere-camera': resolve(__dirname, 'demos/cesium-sphere-camera.html'),
