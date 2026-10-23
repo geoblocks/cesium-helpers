@@ -22,9 +22,9 @@
     "gh-pages": "6.3.0",
     "jsfive": "0.4.2",
     "lerna": "10.1.1",
-    "mediabunny": "1.61.6",
+    "mediabunny": "1.62.1",
     "ol": "10.11.0",
     "typescript": "7.0.2",
-    "vite": "8.3.4"
+    "vite": "8.3.5"
   }
 }
