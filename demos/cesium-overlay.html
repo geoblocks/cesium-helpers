@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>cesium-overlay: lines</title>
+  <script src="https://cdn.jsdelivr.net/npm/cesium@1.146.0/Build/Cesium/Cesium.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/cesium@1.146.0/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  <style>
+    html, body, #cesiumContainer {
+      height: 100%;
+      margin: 0;
+    }
+
+    #panel {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      padding: 8px 12px;
+      background: #303336e0;
+      color: #fff;
+      font: 12px/1.5 system-ui, sans-serif;
+      border-radius: 4px;
+    }
+
+    #panel pre {
+      margin: 6px 0 0;
+      font: 11px/1.4 ui-monospace, monospace;
+    }
+
+    .frame.cesium-overlay-seen, .frame.cesium-overlay-hidden {
+      stroke: #ffd23f;
+    }
+
+    .plane.cesium-overlay-fill {
+      fill: #fff;
+    }
+
+    .plane.edge {
+      stroke: #000;
+      stroke-opacity: .5;
+      stroke-width: 4;
+    }
+
+    .plane.core {
+      stroke: #fff;
+      stroke-width: 2;
+    }
+
+    .measure.cesium-overlay-seen, .measure.cesium-overlay-hidden {
+      stroke: #3cf;
+      stroke-width: 2;
+    }
+
+    .ring.cesium-overlay-seen, .ring.cesium-overlay-hidden {
+      stroke: #f6c;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="cesiumContainer"></div>
+  <div id="panel">
+    View
+    <button type="button" data-view="above">Above</button>
+    <button type="button" data-view="side">Side</button>
+    <button type="button" data-view="inside">Inside</button>
+    <button type="button" id="measure">Measure</button>
+    <pre id="result">?continuous renders every frame</pre>
+  </div>
+  <script type="module">
+    // A test page and a benchmark for cesium-overlay's lines, mainly for an agent driving a browser: a grid of boxes, no
+    // imagery, no terrain (nothing to load but Cesium), lines of each kind over them, and `window.bench`:
+    //   bench.views                the preset views' names
+    //   await bench.view(name)     the camera there, rendered
+    //   await bench.measure({view, moves}) a move of `moves` renders, then a stop: the renders' times, when the hidden parts
+    //                              first change and when they settle after the stop, when the depth reads end, how many and
+    //                              their time, long tasks
+    // `?continuous` renders every frame (Cesium's default) instead of on request.
+    import {overlayOf} from '../packages/cesium-overlay/cesium-overlay.js';
+
+    const continuous = new URLSearchParams(location.search).has('continuous');
+    const viewer = new Cesium.Viewer('cesiumContainer', {
+      globe: false,
+      skyBox: false,
+      skyAtmosphere: false,
+      baseLayerPicker: false,
+      geocoder: false,
+      homeButton: false,
+      sceneModePicker: false,
+      navigationHelpButton: false,
+      animation: false,
+      timeline: false,
+      fullscreenButton: false,
+      infoBox: false,
+      selectionIndicator: false,
+      scene3DOnly: true,
+      msaaSamples: 1,
+      requestRenderMode: !continuous,
+      maximumRenderTimeChange: Infinity,
+    });
+    window.viewer = viewer;
+    const {scene} = viewer;
+    scene.backgroundColor = Cesium.Color.fromCssColorString('#5b6168');
+
+    // a grid of boxes, 60 m apart, 40 m wide, of various heights, in an east-north-up frame
+    const frame = Cesium.Transforms.eastNorthUpToFixedFrame(Cesium.Cartesian3.fromDegrees(6.63, 46.52, 0));
+    const local = (x, y, z) => Cesium.Matrix4.multiplyByPoint(frame, new Cesium.Cartesian3(x, y, z), new Cesium.Cartesian3());
+    const N = 6;
+    const SPACING = 60;
+    const HALF = (N - 1) * SPACING / 2;
+    const instances = [];
+    for (let i = 0; i < N; i++) {
+      for (let j = 0; j < N; j++) {
+        const height = 20 + ((i * 7 + j * 13) % 9) * 15;
+        instances.push(new Cesium.GeometryInstance({
+          geometry: Cesium.BoxGeometry.fromDimensions({dimensions: new Cesium.Cartesian3(40, 40, height)}),
+          modelMatrix: Cesium.Matrix4.multiplyByTranslation(frame, new Cesium.Cartesian3(i * SPACING - HALF, j * SPACING - HALF, height / 2), new Cesium.Matrix4()),
+          attributes: {color: Cesium.ColorGeometryInstanceAttribute.fromColor(Cesium.Color.fromHsl(0.55 + 0.1 * ((i + j) % 3), 0.35, 0.55))},
+        }));
+      }
+    }
+    scene.primitives.add(new Cesium.Primitive({
+      geometryInstances: instances,
+      appearance: new Cesium.PerInstanceColorAppearance({translucent: false, closed: true}),
+      asynchronous: false,
+    }));
+
+    // the lines: a frame around the grid, a plane through it, a measure's line, a ring hidden by a test of its own
+    const overlay = overlayOf(viewer);
+    const [W, TOP] = [HALF + 40, 160];
+    const corner = ([x, y], z) => local(x, y, z);
+    const square = [[-W, -W], [W, -W], [W, W], [-W, W]];
+    const lines = {
+      frame: [
+        overlay.line(square.map(xy => corner(xy, 0)), {closed: true, occlude: 'depth', className: 'frame'}),
+        overlay.line(square.map(xy => corner(xy, TOP)), {closed: true, occlude: 'depth', className: 'frame'}),
+        ...square.map(xy => overlay.line([corner(xy, 0), corner(xy, TOP)], {occlude: 'depth', className: 'frame'})),
+      ],
+      plane: overlay.line([local(-W, -W / 3, TOP), local(W, W / 3, TOP), local(W, W / 3, 0), local(-W, -W / 3, 0)],
+        {closed: true, fill: true, occlude: 'depth', className: 'plane', strokes: ['edge', 'core']}),
+      measure: overlay.line([local(-HALF, HALF + 30, 10), local(HALF, -HALF - 30, 120)], {occlude: 'depth', className: 'measure'}),
+      // hidden on the left half of the canvas: a caller's test, run in the render, on an outline of many points (as
+      // cesium-arrange's ring)
+      ring: overlay.line(Array.from({length: 48}, (_, k) => local(W * 0.6 * Math.cos(k * Math.PI / 24), W * 0.6 * Math.sin(k * Math.PI / 24), 200)), {closed: true, className: 'ring',
+        occlude: (point, at) => at.x < scene.canvas.clientWidth / 2}),
+    };
+
+    const VIEWS = {
+      above: {destination: local(-700, -700, 600), orientation: {heading: Cesium.Math.toRadians(45), pitch: Cesium.Math.toRadians(-30), roll: 0}},
+      side: {destination: local(0, -650, 60), orientation: {heading: 0, pitch: Cesium.Math.toRadians(-3), roll: 0}},
+      inside: {destination: local(-HALF + 30, -HALF - 10, 40), orientation: {heading: Cesium.Math.toRadians(30), pitch: Cesium.Math.toRadians(-5), roll: 0}},
+    };
+    const paths = () => [...overlay.element.querySelectorAll('path')].map(path => path.getAttribute('d')).join('|');
+    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const median = values => values.toSorted((a, b) => a - b)[values.length >> 1];
+    const view = async name => {
+      scene.camera.setView(VIEWS[name]);
+      scene.requestRender();
+      await wait(1000);
+    };
+    const measure = async ({view: name = 'above', moves = 20} = {}) => {
+      await view(name);
+      const pick = scene.pickPosition;
+      const reads = [];
+      let lastRead = 0;
+      scene.pickPosition = function (...args) {
+        const start = performance.now();
+        const found = pick.apply(this, args);
+        reads.push(performance.now() - start);
+        lastRead = performance.now();
+        return found;
+      };
+      const longTasks = [];
+      const observer = new PerformanceObserver(list => list.getEntries().forEach(entry => longTasks.push(Math.round(entry.duration))));
+      observer.observe({entryTypes: ['longtask']});
+      const renders = [];
+      for (let k = 0; k < moves; k++) {
+        scene.camera.lookRight(k % 2 ? 0.004 : -0.004);
+        const start = performance.now();
+        scene.render();
+        renders.push(performance.now() - start);
+        await new Promise(requestAnimationFrame);
+      }
+      reads.length = 0;
+      scene.camera.lookRight(0.03);
+      scene.render();
+      const stopped = performance.now();
+      let [last, first, settled] = [paths(), undefined, stopped];
+      while (performance.now() - stopped < 1500) {
+        await wait(2);
+        const now = paths();
+        if (now !== last) {
+          first ??= performance.now();
+          [last, settled] = [now, performance.now()];
+        }
+      }
+      observer.disconnect();
+      scene.pickPosition = pick;
+      const result = {
+        view: name, continuous, canvas: [scene.drawingBufferWidth, scene.drawingBufferHeight],
+        renderMs: {median: +median(renders).toFixed(2), max: +Math.max(...renders).toFixed(2)},
+        // the last change of a path may be a later render of the same view, its lines a rounding apart: when the reads end
+        // is when the work is done
+        firstChangeMs: first && Math.round(first - stopped), settledMs: Math.round(settled - stopped),
+        readsDoneMs: lastRead > stopped ? Math.round(lastRead - stopped) : undefined,
+        reads: reads.length, readMs: Math.round(reads.reduce((sum, each) => sum + each, 0)), longTasks,
+      };
+      document.getElementById('result').textContent = JSON.stringify(result, null, 1);
+      return result;
+    };
+    window.bench = {views: Object.keys(VIEWS), view, measure, lines, overlay};
+
+    document.getElementById('panel').addEventListener('click', ({target}) => {
+      if (target.dataset.view) {
+        view(target.dataset.view);
+      } else if (target.id === 'measure') {
+        measure({view: 'above'});
+      }
+    });
+    view('above');
+  </script>
+</body>
+
+</html>
