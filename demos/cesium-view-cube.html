@@ -13,27 +13,44 @@
 
     cesium-view-cube {
       position: absolute;
-      right: 30px;
       top: 30px;
-      font-family: monospace;
-      font-weight: bold;
-      --cesium-view-cube-stroke-color:rgba(0, 0, 0, 0.6);
-      --cesium-view-cube-fill-color: rgb(224, 225, 226);
+      font-family: sans-serif;
     }
 
+    /* the cube, as by default */
+    #cube {
+      right: 30px;
+    }
+
+    /* the triad: the faces hidden, the axes shown, ParaView's orientation axes */
+    #triad {
+      right: 160px;
+    }
+
+    #triad::part(face),
+    #triad::part(face-label) {
+      display: none;
+    }
+
+    #triad::part(axis),
+    #triad::part(axis-label) {
+      display: inline;
+    }
   </style>
 </head>
 
 <body>
   <div id="cesiumContainer"></div>
-  <cesium-view-cube></cesium-view-cube>
+  <cesium-view-cube id="cube"></cesium-view-cube>
+  <cesium-view-cube id="triad"></cesium-view-cube>
   <script type="module">
     import {createViewer} from './setup.js';
     import '../packages/cesium-view-cube/cesium-view-cube.js';
 
     createViewer('cesiumContainer').then(viewer => {
-      const compass = document.querySelector('cesium-view-cube');
-      compass.scene = viewer.scene;
+      for (const element of document.querySelectorAll('cesium-view-cube')) {
+        element.scene = viewer.scene;
+      }
     });
   </script>
 </body>
