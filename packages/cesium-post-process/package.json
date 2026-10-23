@@ -22,6 +22,7 @@
     "color-isolation.js",
     "depth-test.js",
     "digital-video.js",
+    "dufour.js",
     "drone-display.js",
     "effect.js",
     "focus.js",
