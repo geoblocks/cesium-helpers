@@ -12,12 +12,10 @@
   "module": "cesium-overlay.js",
   "sideEffects": false,
   "exports": {
-    ".": "./cesium-overlay.js",
-    "./install-style.js": "./install-style.js"
+    ".": "./cesium-overlay.js"
   },
   "files": [
-    "cesium-overlay.js",
-    "install-style.js"
+    "cesium-overlay.js"
   ],
   "publishConfig": {
     "access": "public"

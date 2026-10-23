@@ -88,12 +88,44 @@ What is in the layer, a page's pins included, reads the palette resolved, the pa
 declared on `.cesium-overlay`: `--overlay-core`, `--overlay-edge`, `--overlay-glow`, `--overlay-label-background`,
 `--overlay-label-color`, `--overlay-hint-background`, `--overlay-hint-color`, `--overlay-font`. Read them, never set them.
 
-The layer takes no pointer; give `pointer-events: auto` to what in it should. The styles are installed by the first `overlayOf`,
-first in the head: a page's rule of the same specificity wins.
+The layer takes no pointer; give `pointer-events: auto` to what in it should. Its styles are in a `<style>` in the layer, not
+in the head: scoped to the layer (`@scope`) and in a cascade layer (`@layer cesium-overlay`), so that a page's rule in no
+cascade layer wins whatever its specificity, but for `[hidden]`'s `display: none`, which is `!important`. A page's own cascade
+layers, declared in the head, come before the overlay's and lose to it: declare it first (`@layer cesium-overlay;` before the
+page's layers) for them to win.
 
-`installStyle(document, id, css)` (`@geoblocks/cesium-overlay/install-style.js`, or the main export) puts a stylesheet in a
-document once, first in the head: for a package that draws over the overlay and ships its styles in its module, as
-`@geoblocks/cesium-measure` does.
+### Custom styles
+
+A page styles the layer and its pins from its own stylesheet, as anything else: its rules, in no cascade layer, win over the
+overlay's.
+
+```css
+.cesium-overlay-label { font-size: 14px; }
+.depth { color: var(--overlay-edge); }
+```
+
+A package that draws over the overlay and ships its styles in its module puts them where it draws, the same way: a `<style>`
+in its own element in the layer, which takes it away with it, its rules in a cascade layer, so that a page's still win, and in
+`@scope`, which keeps them to that element. In `@scope`, a selector without `:scope` matches only what is inside the element:
+the element's own rule is `:scope`.
+
+```js
+const STYLE = `
+@layer my-tool {
+  @scope {
+    :scope { position: absolute; inset: 0; }
+    .my-tool-label { background: var(--overlay-label-background); color: var(--overlay-label-color); }
+  }
+}
+`;
+
+const element = document.createElement('div');
+element.className = 'my-tool';
+const style = document.createElement('style');
+style.textContent = STYLE;
+element.append(style);
+overlayOf(viewer).element.append(element);
+```
 
 ## Limits
 

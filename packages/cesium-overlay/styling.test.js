@@ -17,7 +17,7 @@ test('the palette resolved: every --overlay-* the layer declares and every class
   const readme = read('./README.md');
   const declared = [...css.matchAll(/(--overlay-[a-z-]+):/g)].map(m => m[1]);
   assert.ok(declared.length > 0);
-  for (const name of [...declared, ...css.matchAll(/^\.(cesium-overlay-[a-z-]+)/gm).map(m => m[1])]) {
+  for (const name of [...declared, ...css.matchAll(/^\s*\.(cesium-overlay-[a-z-]+)/gm).map(m => m[1])]) {
     assert.ok(readme.includes(name), `${name} is not in the README`);
   }
 });
