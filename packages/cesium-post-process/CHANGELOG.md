@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.2.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-post-process%400.1.3...%40geoblocks%2Fcesium-post-process%400.2.0) (2026-10-23)
+
+### Features
+
+* **post-process:** add the Dufour map look ([1061f7a](https://github.com/geoblocks/cesium-helpers/commit/1061f7a885f3d42b4c58913832821cdcdcaa9349))
+* **post-process:** export the Height and Normal chunks and heightUniforms ([31f990a](https://github.com/geoblocks/cesium-helpers/commit/31f990a0920d5e30a2ff6eee21d6a36e8bdf7eb5))
+
+
 ## [0.1.3](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-post-process%400.1.2...%40geoblocks%2Fcesium-post-process%400.1.3) (2026-10-15)
 
 ### Bug Fixes
