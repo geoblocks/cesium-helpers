@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.4.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-overlay%400.3.0...%40geoblocks%2Fcesium-overlay%400.4.0) (2026-10-23)
+
+### Features
+
+* **overlay:** add lines, SVG over the scene, hidden where the scene is nearer ([f472c0d](https://github.com/geoblocks/cesium-helpers/commit/f472c0d1594f3cdc523cf9fcf5425454850e25e4))
+* **overlay:** lines of several polylines, joined runs, no needless render ([ad79ae7](https://github.com/geoblocks/cesium-helpers/commit/ad79ae798d6119e0ee92ab6c4500c69a115f49ac))
+
+
 # [0.3.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-overlay%400.2.0...%40geoblocks%2Fcesium-overlay%400.3.0) (2026-10-23)
 
 * feat(overlay)!: keep the overlay's stylesheet in its layer, not in the head ([764bbd7](https://github.com/geoblocks/cesium-helpers/commit/764bbd736bcb9b6ea542f28c439725d61ccae0d7))
