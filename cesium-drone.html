@@ -6,7 +6,7 @@
   <script src="https://cdn.jsdelivr.net/npm/cesium@1.146.0/Build/Cesium/Cesium.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/cesium@1.146.0/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
   <style>html,body,#cesiumContainer{height:100%;margin:0}#controls{--spacing:var(--wa-space-s);max-inline-size:32ch;position:absolute;inset-block-start:var(--wa-space-xl);inset-inline-start:var(--wa-space-xl)}#lost{color:#fff;text-shadow:0 0 4px #000;pointer-events:none;place-items:center;font:700 3rem monospace;display:grid;position:absolute;inset:0}#lost[hidden]{display:none}</style>
-  <script type="module" crossorigin src="./assets/cesium-drone-CrUoQfyW.js"></script>
+  <script type="module" crossorigin src="./assets/cesium-drone-BGknKh2n.js"></script>
   <link rel="modulepreload" crossorigin href="./assets/lit-BFn1CURT.js">
   <link rel="modulepreload" crossorigin href="./assets/directive-BSZPiF1A.js">
   <link rel="modulepreload" crossorigin href="./assets/card-AeaRol_r.js">
@@ -34,19 +34,16 @@
   <div id="cesiumContainer"></div>
   <div id="lost" hidden>SIGNAL LOST</div>
   <wa-card id="controls">
+    <p>
+      Fly a drone through its camera. Hitting the ground or the orange blocks too fast crashes it, and the red
+      jammer zones scramble the video and cut the control link.
+    </p>
     <p class="wa-caption-m">
-      W / S climb, A / D turn, the arrows fly forward and sideways, Shift boosts, R / F tilt the camera.
-      A gamepad works too. Take off with W; land by touching the ground gently; fly fast into a slope and you crash.
-      Hidden jammers turn the picture to snow; close to one, the control link is lost too: turn back or hide behind a ridge.
-      With collision on, the drone crashes into the orange block ahead at any speed, and into the slab on the left
-      when climbing into it, but flies under it; the translucent block on the right is not an obstacle.
+      W / S climb, A / D turn, arrows move, Shift boosts, R / F tilt the camera. Gamepad works too.
     </p>
     <div class="wa-stack">
-      <wa-switch id="fly" size="s">Fly</wa-switch>
       <wa-switch id="collision" size="s" checked>Collision</wa-switch>
       <wa-switch id="rain" size="s">Rain</wa-switch>
-      <wa-switch id="jammers" size="s" checked>Jammers</wa-switch>
-      <wa-switch id="show-jammers" size="s">Show jammers</wa-switch>
       <wa-select id="layout" size="s" label="Controller" value="game">
         <wa-option value="game">Game: left stick moves, triggers climb</wa-option>
         <wa-option value="mode2">Drone radio (Mode 2)</wa-option>
