@@ -10,9 +10,6 @@
 
 import {Cartesian3, EllipsoidalOccluder} from '@cesium/core';
 import {SceneTransforms} from '@cesium/engine';
-import {installStyle} from './install-style.js';
-
-export {installStyle};
 
 /**
  * Where a pin stands: a point, a function read on every render (a thing that moves), or none (hidden).
@@ -40,26 +37,32 @@ export {installStyle};
  * @property {(element: HTMLElement, position?: Position, options?: PinOptions) => Pin} pin
  */
 
+// in the layer, scoped to it, and in a cascade layer: a page's rule wins whatever its specificity
 const STYLE = `
-.cesium-overlay {
-  position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 5;
-  /* the tools' palette, theirs to read (--overlay-*), a page's to set (--cesium-overlay-*) */
-  --overlay-core: var(--cesium-overlay-core, #fffaf3);
-  --overlay-edge: var(--cesium-overlay-edge, #2b1d10);
-  --overlay-glow: var(--cesium-overlay-glow, #ff9a3c);
-  --overlay-label-background: var(--cesium-overlay-label-background, color-mix(in srgb, var(--overlay-core) 93%, transparent));
-  --overlay-label-color: var(--cesium-overlay-label-color, var(--overlay-edge));
-  --overlay-hint-background: var(--cesium-overlay-hint-background, #333e);
-  --overlay-hint-color: var(--cesium-overlay-hint-color, #fff);
-  --overlay-font: var(--cesium-overlay-font, 12px/1.3 system-ui, sans-serif);
+@layer cesium-overlay {
+  @scope {
+    :scope {
+      position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 5;
+      /* the tools' palette, theirs to read (--overlay-*), a page's to set (--cesium-overlay-*) */
+      --overlay-core: var(--cesium-overlay-core, #fffaf3);
+      --overlay-edge: var(--cesium-overlay-edge, #2b1d10);
+      --overlay-glow: var(--cesium-overlay-glow, #ff9a3c);
+      --overlay-label-background: var(--cesium-overlay-label-background, color-mix(in srgb, var(--overlay-core) 93%, transparent));
+      --overlay-label-color: var(--cesium-overlay-label-color, var(--overlay-edge));
+      --overlay-hint-background: var(--cesium-overlay-hint-background, #333e);
+      --overlay-hint-color: var(--cesium-overlay-hint-color, #fff);
+      --overlay-font: var(--cesium-overlay-font, 12px/1.3 system-ui, sans-serif);
+    }
+    .cesium-overlay-pins { position: absolute; inset: 0; isolation: isolate; }
+    .cesium-overlay-pin { position: absolute; inset: 0; display: flex; align-items: flex-start; }
+    /* important: a layer's normal rule loses to any of a page's, its display among them */
+    [hidden] { display: none !important; }
+    /* the palette's two pills, for a page's pins: a value (a length, a depth) and a hint (what to do) */
+    .cesium-overlay-label, .cesium-overlay-hint { padding: 3px 8px; border-radius: 8px; white-space: nowrap; font: var(--overlay-font); }
+    .cesium-overlay-label { background: var(--overlay-label-background); color: var(--overlay-label-color); box-shadow: 0 1px 6px #0003; }
+    .cesium-overlay-hint { background: var(--overlay-hint-background); color: var(--overlay-hint-color); }
+  }
 }
-.cesium-overlay-pins { position: absolute; inset: 0; isolation: isolate; }
-.cesium-overlay-pin { position: absolute; inset: 0; display: flex; align-items: flex-start; }
-.cesium-overlay [hidden] { display: none; }
-/* the palette's two pills, for a page's pins: a value (a length, a depth) and a hint (what to do) */
-.cesium-overlay-label, .cesium-overlay-hint { padding: 3px 8px; border-radius: 8px; white-space: nowrap; font: var(--overlay-font); }
-.cesium-overlay-label { background: var(--overlay-label-background); color: var(--overlay-label-color); box-shadow: 0 1px 6px #0003; }
-.cesium-overlay-hint { background: var(--overlay-hint-background); color: var(--overlay-hint-color); }
 `;
 // in meters: how much nearer than a pin's point what the scene shows there may be, still taken for the pinned thing itself
 const DEPTH_TOLERANCE = 0.5;
@@ -82,7 +85,6 @@ export function overlayOf(target) {
   }
   const {canvas, camera} = scene;
   const doc = canvas.ownerDocument;
-  installStyle(doc, 'cesium-overlay-style', STYLE);
   // the layer is placed in its parent's box: a parent left static (Cesium's stylesheet not loaded) made relative
   const parent = canvas.parentElement ?? doc.body;
   if (getComputedStyle(parent).position === 'static') {
@@ -90,9 +92,11 @@ export function overlayOf(target) {
   }
   const element = doc.createElement('div');
   element.className = 'cesium-overlay';
+  const style = doc.createElement('style');
+  style.textContent = STYLE;
   const layer = doc.createElement('div');
   layer.className = 'cesium-overlay-pins';
-  element.append(layer);
+  element.append(layer, style);
   parent.append(element);
   /** @type {Set<{anchor: HTMLDivElement, at: () => Cartesian3 | undefined, hidden: boolean, offset: [number, number], occlude: boolean | 'depth', live: boolean, shown: string}>} */
   const pins = new Set();
