@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {Cartesian3} from '@cesium/core';
-import {alongSegment, clipPolygon, insideRange, nearRange, runsAlong} from './overlay-lines.js';
+import {alongSegment, clipPolygon, insideRange, nearRange, pathOf, polylinesOf, runsAlong, samePoints} from './overlay-lines.js';
 
 const near = (a, b, tolerance, message) => assert.ok(Math.abs(a - b) <= tolerance, `${message ?? ''} ${a} is not ${b}`);
 // in front of the plane x = 1: what is ahead of it, in meters
@@ -65,4 +65,31 @@ test('a polygon is cut to what is inside the planes, a corner where it crosses e
   assert.deepEqual(half.map(({x, y}) => [x, y]), [[1, 0], [2, 0], [2, 2], [1, 2]]);
   assert.deepEqual(clipPolygon(square, [point => -1 - point.x]), [], 'all outside');
   assert.deepEqual(clipPolygon(square, []), square, 'no plane');
+});
+
+test('a line of points is one polyline; a list of lists, each', () => {
+  const [a, b, c] = [new Cartesian3(0, 0, 0), new Cartesian3(1, 0, 0), new Cartesian3(1, 1, 0)];
+  assert.deepEqual(polylinesOf([a, b]), [[a, b]]);
+  assert.deepEqual(polylinesOf([[a, b], [b, c]]), [[a, b], [b, c]]);
+  assert.deepEqual(polylinesOf([]), [[]]);
+});
+
+test('points are the same polyline by polyline, by value', () => {
+  const at = (x, y) => new Cartesian3(x, y, 0);
+  assert.ok(samePoints([at(0, 0), at(1, 0)], [at(0, 0), at(1, 0)]));
+  assert.ok(samePoints([], []));
+  assert.ok(!samePoints([at(0, 0), at(1, 0)], [at(0, 0), at(1, 1e-9)]), 'moved');
+  assert.ok(!samePoints([at(0, 0), at(1, 0)], [[at(0, 0), at(1, 0)], [at(2, 0), at(3, 0)]]), 'a polyline more');
+  assert.ok(!samePoints([at(0, 0)], [at(0, 0), at(1, 0)]), 'a point more');
+});
+
+test('pieces meeting go on in one path, a closed polyline drawn whole closed', () => {
+  const xy = (x, y) => ({x, y});
+  assert.equal(pathOf([[xy(0, 0), xy(10, 0)], [xy(10, 0), xy(10, 10)]], false), 'M0.0 0.0L10.0 0.0L10.0 10.0');
+  assert.equal(pathOf([[xy(0, 0), xy(10, 0)], [xy(20, 0), xy(30, 0)]], false), 'M0.0 0.0L10.0 0.0M20.0 0.0L30.0 0.0', 'apart');
+  const square = [[xy(0, 0), xy(10, 0)], [xy(10, 0), xy(10, 10)], [xy(10, 10), xy(0, 0)]];
+  assert.equal(pathOf(square, true), 'M0.0 0.0L10.0 0.0L10.0 10.0L0.0 0.0Z');
+  assert.equal(pathOf(square, false), 'M0.0 0.0L10.0 0.0L10.0 10.0L0.0 0.0', 'not closed');
+  assert.equal(pathOf([square[0], square[2]], true), 'M0.0 0.0L10.0 0.0M10.0 10.0L0.0 0.0', 'broken: not closed');
+  assert.equal(pathOf([], true), '');
 });

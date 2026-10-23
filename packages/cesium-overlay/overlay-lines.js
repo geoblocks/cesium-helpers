@@ -1,5 +1,5 @@
-// The overlay's lines, apart from the scene: the part of a segment or a polygon in view, and a line split into the runs a test
-// sees and hides, found by samples and halving where the test changes between two of them.
+// The overlay's lines, apart from the scene: the part of a segment or a polygon in view, a line split into the runs a test
+// sees and hides, found by samples and halving where the test changes between two of them, and the paths drawing them.
 
 import {Cartesian3} from '@cesium/core';
 
@@ -98,4 +98,45 @@ export function runsAlong(test, count, refine) {
   }
   runs.push([from, 1, before]);
   return runs;
+}
+
+/**
+ * A line's points as polylines: a few points, one; a list of lists, each.
+ * @param {Cartesian3[] | Cartesian3[][]} points
+ * @return {Cartesian3[][]}
+ */
+export function polylinesOf(points) {
+  return Array.isArray(points[0]) ? /** @type {Cartesian3[][]} */ (points) : [/** @type {Cartesian3[]} */ (points)];
+}
+
+/**
+ * Whether two lines' points are the same, polyline by polyline, point by point.
+ * @param {Cartesian3[] | Cartesian3[][]} a
+ * @param {Cartesian3[] | Cartesian3[][]} b
+ */
+export function samePoints(a, b) {
+  const [p, q] = [polylinesOf(a), polylinesOf(b)];
+  return p.length === q.length && p.every((each, k) => each.length === q[k].length && each.every((point, i) => Cartesian3.equals(point, q[k][i])));
+}
+
+/**
+ * An SVG path through pieces on the screen, in order: a piece starting where the one before ends goes on from it, so that their
+ * corner is joined (`stroke-linejoin`); a closed polyline drawn in one go, back to its start, is closed, its first corner joined too.
+ * @param {[{x: number, y: number}, {x: number, y: number}][]} pieces
+ * @param {boolean} closed
+ * @return {string}
+ */
+export function pathOf(pieces, closed) {
+  let d = '';
+  let [last, start, moves] = ['', '', 0];
+  for (const [p, q] of pieces) {
+    const [from, to] = [p, q].map(({x, y}) => `${x.toFixed(1)} ${y.toFixed(1)}`);
+    if (from !== last) {
+      d += `M${from}`;
+      [start, moves] = [from, moves + 1];
+    }
+    d += `L${to}`;
+    last = to;
+  }
+  return closed && moves === 1 && last === start ? `${d}Z` : d;
 }

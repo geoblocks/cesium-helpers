@@ -135,7 +135,8 @@
       frame: [
         overlay.line(square.map(xy => corner(xy, 0)), {closed: true, occlude: 'depth', className: 'frame'}),
         overlay.line(square.map(xy => corner(xy, TOP)), {closed: true, occlude: 'depth', className: 'frame'}),
-        ...square.map(xy => overlay.line([corner(xy, 0), corner(xy, TOP)], {occlude: 'depth', className: 'frame'})),
+        // the four uprights, one line of four polylines
+        overlay.line(square.map(xy => [corner(xy, 0), corner(xy, TOP)]), {occlude: 'depth', className: 'frame'}),
       ],
       plane: overlay.line([local(-W, -W / 3, TOP), local(W, W / 3, TOP), local(W, W / 3, 0), local(-W, -W / 3, 0)],
         {closed: true, fill: true, occlude: 'depth', className: 'plane', strokes: ['edge', 'core']}),

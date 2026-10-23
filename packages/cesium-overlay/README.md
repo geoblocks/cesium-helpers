@@ -62,12 +62,17 @@ puts the element back where it was taken from, or out of the document if it was 
 The pins are placed after every render: a scene rendering on request moves them when it renders.
 
 A line is `{element, move(points), hidden, remove()}`: `element` the SVG group of its paths, the seen ones over the hidden one;
-`move` gives it other points; `hidden` leaves it undrawn, its points kept. It is redrawn after every render, each segment cut to
+`move` gives it other points; `hidden` leaves it undrawn, its points kept. Its points are a few `Cartesian3`, joined in order, or
+several such polylines apart (`[[a, b], [c, d, e]]`: a few edges, one line to style), or a function giving them. `move` and
+`hidden` draw it again and ask for a render only when its points or `hidden` changed, so that a tool may set them as it renders.
+A tool whose points change as it renders (in its own `postRender`) does better to give a function that computes them: the overlay's
+lines are drawn after every render before the tool's own listener runs, a frame late for points it computes there. Seen runs that
+meet are one path, their corners joined (`stroke-linejoin`), a closed polyline seen all round closed. It is redrawn after every render, each segment cut to
 what is in view: in front of the camera (a meter beyond twice the near distance, where the projection holds) and within the view's
 sides, so that a camera standing among the lines draws only what is in front of it, and an edge passing beside it costs no more
 than what of it shows. Then, if it is tested, it is split where it goes from seen to hidden: tested every `step` pixels along it on
 the screen, and where two tests differ, the change found to about 2 pixels by halving (a part hidden shorter than `step` between
-two tests is missed). A segment is tested again when the view or the segment changes. A test of yours runs then, in the render.
+two tests is missed: a post a few pixels wide, unless the line's `step` is small; one or two lines can afford `step: 8`). A segment is tested again when the view or the segment changes. A test of yours runs then, in the render.
 The depth buffer is read between renders, once the GPU has drawn the last frame (a fence in the scene's WebGL 2 context, placed at
 each render while tests are pending; without one, 50 ms after the render): a read before it would wait for the GPU, tens of
 milliseconds. The reads go in tasks of 8 ms (counted from the end of a task's first test) until all the segments are tested, a
@@ -79,12 +84,12 @@ The element may be moved into a tool's own `<svg>`, where its stylesheet reaches
 
 | Option      | Default | Description
 | ----------- | ------- | -----------
-| `closed`    | `false` | The last point joined to the first
+| `closed`    | `false` | The last point joined to the first, of each polyline
 | `occlude`   | `false` | `true`, a pin's horizon test, means nothing for a line: taken as `false`. `false`: all seen, drawn over the scene; `'depth'`: hidden where the scene shows something nearer than the line, by reads of the depth buffer (a perspective view's), with a tolerance of 2 pixels' worth of meters at the line's distance, so that a line on a surface is seen; a function `(point, windowPosition) => boolean`: hidden where it returns true, a test of yours (a ray against what you know of the scene)
 | `step`      | `24`    | In pixels, how far apart along the line it is tested
-| `className` | `''`    | Classes of its paths, besides `cesium-overlay-seen` and `cesium-overlay-hidden`
+| `className` | `''`    | Classes of its paths, besides `cesium-overlay-seen` and `cesium-overlay-hidden`: the hidden path's only class besides its own, `.cesium-overlay-hidden.box` in a stylesheet
 | `fill`      | `false` | A closed line of three points or more filled too, under its lines: what of it is in view, never hidden (a translucent plane, a zone)
-| `strokes`   | `['']`  | A seen path for each class given, of that class too, all drawing the same: a halo, an edge and a core, `['halo', 'edge', 'core']`, the first under the others
+| `strokes`   | `['']`  | A seen path for each class given, of that class too, all drawing the same: a halo, an edge and a core, `['halo', 'edge', 'core']`, the first under the others; the hidden path is one, of none of them
 
 ## Styling
 

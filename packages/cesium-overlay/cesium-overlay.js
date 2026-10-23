@@ -13,7 +13,7 @@
 
 import {Cartesian2, Cartesian3, EllipsoidalOccluder, Matrix4, Plane} from '@cesium/core';
 import {SceneTransforms} from '@cesium/engine';
-import {alongSegment, clipPolygon, insideRange, runsAlong} from './overlay-lines.js';
+import {alongSegment, clipPolygon, insideRange, pathOf, polylinesOf, runsAlong, samePoints} from './overlay-lines.js';
 
 /**
  * Where a pin stands: a point, a function read on every render (a thing that moves), or none (hidden).
@@ -36,8 +36,9 @@ import {alongSegment, clipPolygon, insideRange, runsAlong} from './overlay-lines
  * @property {() => void} remove The pin taken away, its element put back where it was, if it was somewhere.
  */
 /**
- * A line's points: a few, joined in order, or a function read on every render.
- * @typedef {Cartesian3[] | (() => Cartesian3[])} Points
+ * A line's points: a few, joined in order, or several such polylines, apart (a list of lists); or a function giving them, read on
+ * every render.
+ * @typedef {Cartesian3[] | Cartesian3[][] | (() => Cartesian3[] | Cartesian3[][])} Points
  */
 /**
  * @typedef {object} LineOptions
@@ -46,16 +47,17 @@ import {alongSegment, clipPolygon, insideRange, runsAlong} from './overlay-lines
  *     default); hidden where the scene shows something in front of it ('depth': reads of the depth buffer, a perspective view's);
  *     or where a test of the caller's says so (a function: true for hidden).
  * @property {number} [step] In pixels, how far apart along the line it is tested: 24 by default.
- * @property {string} [className] Classes of its paths, besides `cesium-overlay-seen` and `cesium-overlay-hidden`.
+ * @property {string} [className] Classes of its paths, besides `cesium-overlay-seen` and `cesium-overlay-hidden`: the hidden path's
+ *     only one besides its own.
  * @property {string[]} [strokes] A seen path for each, of that class too, all of the same path: a halo, an edge and a core. One by
- *     default.
+ *     default; the hidden path is one, of none of them.
  * @property {boolean} [fill] A closed line of three points or more filled too, under its lines: what of it is in view, never
  *     hidden.
  */
 /**
  * @typedef {object} Line
  * @property {SVGGElement} element What holds its paths: it may be moved into a tool's own `<svg>` (its paths then need `fill: none`).
- * @property {(points: Points) => void} move
+ * @property {(points: Points) => void} move Other points: drawn again, and a render asked for, if they differ.
  * @property {boolean} hidden Not drawn, its points kept.
  * @property {() => void} remove
  */
@@ -158,7 +160,7 @@ export function overlayOf(target) {
   parent.append(element);
   /** @type {Set<{anchor: HTMLDivElement, at: () => Cartesian3 | undefined, hidden: boolean, offset: [number, number], occlude: boolean | 'depth', live: boolean, shown: string}>} */
   const pins = new Set();
-  /** @typedef {{seen: SVGPathElement[], hidden: SVGPathElement, fill: SVGPathElement | null, at: () => Cartesian3[], closed: boolean, occlude: LineOptions['occlude'],
+  /** @typedef {{seen: SVGPathElement[], hidden: SVGPathElement, fill: SVGPathElement | null, at: () => Cartesian3[] | Cartesian3[][], closed: boolean, occlude: LineOptions['occlude'],
    *   step: number, off: boolean, runs: {a: Cartesian3, b: Cartesian3, runs: [number, number, boolean][], view: number, pass: number,
    *   samples: Map<number, boolean>}[]}} Drawn */
   /** @typedef {{until: number, tested: boolean, pass: number}} Budget */
@@ -216,102 +218,112 @@ export function overlayOf(target) {
    */
   const draw = (line, budget) => {
     const late = () => budget.tested && performance.now() > budget.until;
-    const points = line.off ? [] : line.at();
+    const polylines = polylinesOf(line.off ? [] : line.at());
     const paths = {seen: '', hidden: ''};
-    const joined = line.closed && points.length > 2 ? points : points.slice(0, -1);
     const {occlude, step} = line;
     const perspective = 'fov' in camera.frustum;
     let left = false;
-    joined.forEach((a, k) => {
-      const b = points[(k + 1) % points.length];
-      const range = insideRange(a, b, inside);
-      /** @param {number} u */
-      const along = u => Cartesian3.lerp(a, b, u, new Cartesian3());
-      const ends = range?.map(u => SceneTransforms.worldToWindowCoordinates(scene, along(u)));
-      if (!range || !ends?.[0] || !ends[1]) {
-        return;
-      }
-      const [near, far] = range;
-      const kept = line.runs[k];
-      const same = kept && Cartesian3.equals(kept.a, a) && Cartesian3.equals(kept.b, b);
-      /** @type {[number, number, boolean][]} */
-      let runs = same ? kept.runs : [[0, 1, false]];
-      const stale = !same || kept.view !== view || kept.pass < budget.pass;
-      const testing = occlude && stale && (typeof occlude === 'function' || !late());
-      left ||= Boolean(occlude && stale && !testing);
-      if (occlude && testing) try {
-        // places even on the screen between the part's two ends, as places along the whole segment
-        const [depthA, depthB] = perspective ? [depthOf(along(near)), depthOf(along(far))] : [1, 1];
-        /** @param {number} s */
-        const at = s => near + alongSegment(s, depthA, depthB) * (far - near);
-        const length = Cartesian2.distance(ends[0], ends[1]);
-        // a caller's test, cheap, fine at once
-        const pass = typeof occlude === 'function' ? 1 : budget.pass;
-        // the fine pass's samples COARSE times as many as the coarse pass's, which, halved to `step`, are among them: kept, not read
-        // again
-        const coarse = Math.max(1, Math.ceil(length / (COARSE * step)));
-        const fine = COARSE * coarse;
-        /** @type {Map<number, boolean>} */
-        const samples = new Map();
-        const known = same && kept.view === view ? kept.samples : undefined;
-        /** Whether the line is hidden at a place of its part in view, on the screen. @param {number} s */
-        const hiddenAt = s => {
-          const index = Math.round(s * fine);
-          const onGrid = Math.abs(s * fine - index) < 1e-9;
-          const seen = onGrid ? known?.get(index) : undefined;
-          if (seen !== undefined) {
-            samples.set(index, seen);
-            return seen;
+    // a segment's place among all the line's, its runs kept by it
+    let index = 0;
+    for (const points of polylines) {
+      const closed = line.closed && points.length > 2;
+      /** @type {{seen: [Cartesian2, Cartesian2][], hidden: [Cartesian2, Cartesian2][]}} */
+      const pieces = {seen: [], hidden: []};
+      (closed ? points : points.slice(0, -1)).forEach((a, j) => {
+        const k = index++;
+        const b = points[(j + 1) % points.length];
+        const range = insideRange(a, b, inside);
+        /** @param {number} u */
+        const along = u => Cartesian3.lerp(a, b, u, new Cartesian3());
+        const ends = range?.map(u => SceneTransforms.worldToWindowCoordinates(scene, along(u)));
+        if (!range || !ends?.[0] || !ends[1]) {
+          return;
+        }
+        const [near, far] = range;
+        const kept = line.runs[k];
+        const same = kept && Cartesian3.equals(kept.a, a) && Cartesian3.equals(kept.b, b);
+        /** @type {[number, number, boolean][]} */
+        let runs = same ? kept.runs : [[0, 1, false]];
+        const stale = !same || kept.view !== view || kept.pass < budget.pass;
+        const testing = occlude && stale && (typeof occlude === 'function' || !late());
+        left ||= Boolean(occlude && stale && !testing);
+        if (occlude && testing) try {
+          // places even on the screen between the part's two ends, as places along the whole segment
+          const [depthA, depthB] = perspective ? [depthOf(along(near)), depthOf(along(far))] : [1, 1];
+          /** @param {number} s */
+          const at = s => near + alongSegment(s, depthA, depthB) * (far - near);
+          const length = Cartesian2.distance(ends[0], ends[1]);
+          // a caller's test, cheap, fine at once
+          const pass = typeof occlude === 'function' ? 1 : budget.pass;
+          // the fine pass's samples COARSE times as many as the coarse pass's, which, halved to `step`, are among them: kept, not read
+          // again
+          const coarse = Math.max(1, Math.ceil(length / (COARSE * step)));
+          const fine = COARSE * coarse;
+          /** @type {Map<number, boolean>} */
+          const samples = new Map();
+          const known = same && kept.view === view ? kept.samples : undefined;
+          /** Whether the line is hidden at a place of its part in view, on the screen. @param {number} s */
+          const hiddenAt = s => {
+            const index = Math.round(s * fine);
+            const onGrid = Math.abs(s * fine - index) < 1e-9;
+            const seen = onGrid ? known?.get(index) : undefined;
+            if (seen !== undefined) {
+              samples.set(index, seen);
+              return seen;
+            }
+            const hidden = test(s);
+            if (onGrid) {
+              samples.set(index, hidden);
+            }
+            return hidden;
+          };
+          /** @param {number} s */
+          const test = s => {
+            const point = along(at(s));
+            const place = SceneTransforms.worldToWindowCoordinates(scene, point);
+            if (occlude === 'depth' && late()) {
+              throw OUT_OF_TIME;
+            }
+            return Boolean(place) && (occlude === 'depth' ? behindDepth(point, /** @type {Cartesian2} */ (place)) : occlude(point, /** @type {Cartesian2} */ (place)));
+          };
+          // a caller's test: every `step` pixels, two tests for a segment shorter than that (an outline of many points)
+          const gaps = typeof occlude === 'function' ? Math.max(1, Math.ceil(length / step)) : pass === 0 ? coarse : fine;
+          const found = runsAlong(hiddenAt, gaps, pass === 0 && occlude === 'depth' ? Math.ceil(Math.log2(COARSE))
+            : Math.max(0, Math.ceil(Math.log2(length / gaps / LINE_PRECISION))));
+          // along the whole segment: what is out of view, untested, seen
+          runs = [[0, near, false], ...found.map(([from, to, hidden]) => /** @type {[number, number, boolean]} */ ([at(from), at(to), hidden])), [far, 1, false]];
+          line.runs[k] = {a: Cartesian3.clone(a), b: Cartesian3.clone(b), runs, view, pass, samples};
+          if (!budget.tested && occlude === 'depth') {
+            budget.tested = true;
+            budget.until = performance.now() + budget.until;
           }
-          const hidden = test(s);
-          if (onGrid) {
-            samples.set(index, hidden);
+        } catch (error) {
+          if (error !== OUT_OF_TIME) {
+            throw error;
           }
-          return hidden;
-        };
-        /** @param {number} s */
-        const test = s => {
-          const point = along(at(s));
-          const place = SceneTransforms.worldToWindowCoordinates(scene, point);
-          if (occlude === 'depth' && late()) {
-            throw OUT_OF_TIME;
+          left = true;
+        }
+        for (const [from, to, hidden] of runs) {
+          const [start, end] = [Math.max(from, near), Math.min(to, far)];
+          if (start >= end) {
+            continue;
           }
-          return Boolean(place) && (occlude === 'depth' ? behindDepth(point, /** @type {Cartesian2} */ (place)) : occlude(point, /** @type {Cartesian2} */ (place)));
-        };
-        // a caller's test: every `step` pixels, two tests for a segment shorter than that (an outline of many points)
-        const gaps = typeof occlude === 'function' ? Math.max(1, Math.ceil(length / step)) : pass === 0 ? coarse : fine;
-        const found = runsAlong(hiddenAt, gaps, pass === 0 && occlude === 'depth' ? Math.ceil(Math.log2(COARSE))
-          : Math.max(0, Math.ceil(Math.log2(length / gaps / LINE_PRECISION))));
-        // along the whole segment: what is out of view, untested, seen
-        runs = [[0, near, false], ...found.map(([from, to, hidden]) => /** @type {[number, number, boolean]} */ ([at(from), at(to), hidden])), [far, 1, false]];
-        line.runs[k] = {a: Cartesian3.clone(a), b: Cartesian3.clone(b), runs, view, pass, samples};
-        if (!budget.tested && occlude === 'depth') {
-          budget.tested = true;
-          budget.until = performance.now() + budget.until;
+          const [p, q] = [start, end].map(u => (u === near ? ends[0] : u === far ? ends[1] : SceneTransforms.worldToWindowCoordinates(scene, along(u))));
+          if (p && q) {
+            pieces[hidden ? 'hidden' : 'seen'].push([p, q]);
+          }
         }
-      } catch (error) {
-        if (error !== OUT_OF_TIME) {
-          throw error;
-        }
-        left = true;
-      }
-      for (const [from, to, hidden] of runs) {
-        const [start, end] = [Math.max(from, near), Math.min(to, far)];
-        if (start >= end) {
-          continue;
-        }
-        const [p, q] = [start, end].map(u => (u === near ? ends[0] : u === far ? ends[1] : SceneTransforms.worldToWindowCoordinates(scene, along(u))));
-        if (p && q) {
-          paths[hidden ? 'hidden' : 'seen'] += `M${p.x.toFixed(1)} ${p.y.toFixed(1)}L${q.x.toFixed(1)} ${q.y.toFixed(1)}`;
-        }
-      }
-    });
+      });
+      paths.seen += pathOf(pieces.seen, closed);
+      paths.hidden += pathOf(pieces.hidden, closed);
+    }
     line.seen.forEach(path => setPath(path, paths.seen));
     setPath(line.hidden, paths.hidden);
     if (line.fill) {
-      const corners = line.closed && points.length > 2 ? clipPolygon(points, inside).map(point => SceneTransforms.worldToWindowCoordinates(scene, point)) : [];
-      setPath(line.fill, corners.length && corners.every(Boolean)
-        ? `M${corners.map(at => `${/** @type {Cartesian2} */ (at).x.toFixed(1)} ${/** @type {Cartesian2} */ (at).y.toFixed(1)}`).join('L')}Z` : '');
+      const shapes = line.closed ? polylines.filter(points => points.length > 2)
+        .map(points => clipPolygon(points, inside).map(point => SceneTransforms.worldToWindowCoordinates(scene, point))) : [];
+      setPath(line.fill, shapes.filter(corners => corners.length && corners.every(Boolean))
+        .map(corners => `M${corners.map(at => `${/** @type {Cartesian2} */ (at).x.toFixed(1)} ${/** @type {Cartesian2} */ (at).y.toFixed(1)}`).join('L')}Z`).join(''));
     }
     return left;
   };
@@ -522,12 +534,20 @@ export function overlayOf(target) {
       const line = {seen: strokes.map(stroke => path(`seen ${stroke}`.trim())), hidden, fill: filled, at: () => /** @type {Cartesian3[]} */ ([]), closed, occlude, step, off: false, runs: []};
       svg.append(group);
       lines.add(line);
-      /** @param {Points} to */
-      const move = to => {
-        line.at = typeof to === 'function' ? to : () => to;
+      const redraw = () => {
         updateInside();
         draw(line, {until: -Infinity, tested: true, pass: 1});
         scene.requestRender();
+      };
+      // drawn again and a render asked for only if the points changed: a tool moving its line as it renders (postRender) asks for
+      // no render more once they are still
+      /** @param {Points} to */
+      const move = to => {
+        const before = line.at();
+        line.at = typeof to === 'function' ? to : () => to;
+        if (!samePoints(before, line.at())) {
+          redraw();
+        }
       };
       move(points);
       return {
@@ -537,10 +557,10 @@ export function overlayOf(target) {
           return line.off;
         },
         set hidden(hidden) {
-          line.off = hidden;
-          updateInside();
-          draw(line, {until: -Infinity, tested: true, pass: 1});
-          scene.requestRender();
+          if (hidden !== line.off) {
+            line.off = hidden;
+            redraw();
+          }
         },
         remove() {
           lines.delete(line);
