@@ -1,4 +1,4 @@
-import"./lit-BFn1CURT.js";/* empty css                   */import"./card-AeaRol_r.js";import{t as e}from"./setup-DMh09s7J.js";import{O as t,S as n,a as r,c as i,k as a,w as o}from"./cesium-shim-CaB5chxw.js";import"./switch-C191omm4.js";import{i as s,n as c,r as l,t as u}from"./EyeFromDepth-DmDC5MHh.js";import{n as d,t as ee}from"./frame-clock-JIPNaZFQ.js";import{i as f,n as p,r as m,t as h}from"./jello-DRU50svm.js";import{t as g}from"./Hash-CBIEOLtO.js";import{l as _,n as v,o as y,s as b,t as x}from"./precipitation-_wsDY9cy.js";import{n as S,t as C}from"./focus-g1a6RmZZ.js";import{t as w}from"./lightning-CG9WpS8D.js";import{t as T}from"./motion-blur-B-Eiyx9W.js";import{t as E}from"./speed-lines-D0Pd8mob.js";import{n as D,t as O}from"./tilt-shift-BcpLNdv3.js";import"./option-CXgv_dG7.js";import"./button-C75z8WNE.js";import"./slider-BKt-Dcqc.js";import"./details-I4FTa3FB.js";var k=`// Color isolation: one hue keeps its color, the rest of the scene turns gray. After prod80's
+import"./lit-BFn1CURT.js";/* empty css                   */import"./card-AeaRol_r.js";import{A as e,C as t,J as n,S as r,T as i,a,c as o,i as s,k as c,p as ee,w as l}from"./cesium-shim-DLIYJZws.js";import"./switch-C191omm4.js";import{i as u,n as d,r as f,t as p}from"./EyeFromDepth-DmDC5MHh.js";import{n as te,t as ne}from"./frame-clock-JIPNaZFQ.js";import{i as m,n as h,r as re,t as ie}from"./jello-BGPeEGqO.js";import{t as g}from"./Hash-CBIEOLtO.js";import{l as _,n as v,o as y,s as b,t as x}from"./precipitation-oJAPLFJV.js";import{n as S,r as C,t as w}from"./tilt-shift-yUKgGE9O.js";import{n as T,t as E}from"./focus-DuNrGPG5.js";import{t as D}from"./lightning-D5yuAdqL.js";import{t as O}from"./motion-blur-Va0ouOUs.js";import{t as k}from"./speed-lines-ee279gLS.js";import"./option-CXgv_dG7.js";import"./button-C75z8WNE.js";import"./slider-BKt-Dcqc.js";import"./details-I4FTa3FB.js";var A=`// Color isolation: one hue keeps its color, the rest of the scene turns gray. After prod80's
 // ReShade Color Isolation (MIT), https://github.com/prod80/prod80-ReShade-Repository
 precision highp sampler2D;
 uniform sampler2D colorTexture;
@@ -24,7 +24,137 @@ void main() {
   vec3 isolated = mix(vec3(gray), color, keep);
   out_FragColor = vec4(mix(color, isolated, strength), sceneColor.a);
 }
-`,A=class extends s{constructor(e,t={}){super(e),this.hue_=t.hue??0,this.range_=t.range??60,this.strength_=t.strength??1}createStage_(){return new t({fragmentShader:k,uniforms:{hue:()=>this.hue_/360,range:()=>this.range_/360,strength:()=>this.strength_}})}get hue(){return this.hue_}set hue(e){this.hue_=e,this.viewer.scene.requestRender()}get range(){return this.range_}set range(e){this.range_=e,this.viewer.scene.requestRender()}get strength(){return this.strength_}set strength(e){this.strength_=e,this.viewer.scene.requestRender()}},j=`// Black and white infrared film: foliage, which reflects the near infrared, turns bright, the sky
+`,j=class extends u{constructor(e,t={}){super(e),this.hue_=t.hue??0,this.range_=t.range??60,this.strength_=t.strength??1}createStage_(){return new c({fragmentShader:A,uniforms:{hue:()=>this.hue_/360,range:()=>this.range_/360,strength:()=>this.strength_}})}get hue(){return this.hue_}set hue(e){this.hue_=e,this.viewer.scene.requestRender()}get range(){return this.range_}set range(e){this.range_=e,this.viewer.scene.requestRender()}get strength(){return this.strength_}set strength(e){this.strength_=e,this.viewer.scene.requestRender()}},M=`// The Dufour map's look, after EyeFromDepth, DepthEdges, Height, Normal and Hash: the slopes drawn in hachures, ink
+// strokes down the steepest slope, broken along their length, thicker where it is steeper and on the slopes away from a
+// light from the north-west, the flat ground left blank; the silhouettes outlined; black ink on white paper.
+precision highp sampler2D;
+uniform sampler2D colorTexture;
+// the strokes' spacing on the screen, in pixels, their length in spacings, the ink's weight
+uniform float spacing;
+uniform float strokeLength;
+uniform float weight;
+// how much thinner the strokes facing the light, and thicker away from it, 0 to 1
+uniform float oblique;
+// the slope under which the ground is left blank, radians
+uniform float flatSlope;
+uniform float outline;
+uniform vec3 paper;
+uniform vec3 ink;
+// the hachures' frame, in eye coordinates: its origin on the ground below the camera, east and north there (dufour.js)
+uniform vec3 originEC;
+uniform vec3 eastEC;
+uniform vec3 northEC;
+in vec2 v_textureCoordinates;
+
+// the strokes' finest spacing, in meters
+const float BASE = 1.0;
+// the strokes' directions: the way down the slope snapped to one of these many, the two nearest blended, so that the
+// strokes are straight lines, parallel on a slope, rather than turning with each pixel's normal
+const float DIRECTIONS = 12.0;
+// a stroke's breaks: its length in spacings, strokeLength long on average, and the share of it left blank
+const float BREAK = 0.08;
+// the light, from the north-west, in east and north
+const vec2 LIGHT = vec2(-0.7071, 0.7071);
+// the ink's share grows with the slope, none on the flat, all of it at 60 degrees (radians), Lehmann's scale
+// stretched for the Alps, whose slopes are mostly past his 45; the
+// widest share of the spacing a stroke covers, the paper showing between them, an engraving's
+const float LEHMANN = 1.047;
+const float MAX_COVER = 0.45;
+// the slopes over which the strokes fade in above the flat ground, radians (2 degrees): the terrain's triangles,
+// slightly tilted, would show as patches
+const float FLAT_RAMP = 0.035;
+
+// the strokes' ink at a point of the ground, en its east and north, s their spacing in meters, angle the direction
+// down the slope they run along, cover the share of the spacing they cover. Each stroke is a straight line along it,
+// broken every strokeLength spacings or so, its breaks staggered from the next stroke's: no line across the strokes
+float hachuresAt(vec2 en, float angle, vec2 across, float cover, float s) {
+  vec2 down = vec2(-across.y, across.x);
+  // a phase of each direction, so that two directions' strokes do not meet in a pattern
+  float u = dot(en, across) / s + hash(vec2(angle, s));
+  float stroke = floor(u);
+  float w = dot(en, down) / (strokeLength * s) + hash(vec2(stroke, s));
+  float dash = step(BREAK, fract(w * mix(0.8, 1.25, hash(vec2(s, stroke)))));
+  // antialiased, and its mean, the share it covers, where the strokes grow too close to tell apart (a slope seen
+  // edge on): no ink where it covers none
+  float halfWidth = 0.5 * cover;
+  float aa = fwidth(u);
+  float sharp = 1.0 - smoothstep(halfWidth - aa, halfWidth + aa, abs(fract(u) - 0.5));
+  return mix(sharp * dash, 2.0 * halfWidth * (1.0 - BREAK), smoothstep(0.2, 0.5, aa)) * step(1e-3, halfWidth);
+}
+
+// the strokes in one direction, their spacing a power of two of meters, crossfaded with the next, so that they stay at
+// least spacing pixels apart: taken from the ground a pixel covers across them, far more than its width where a slope
+// is seen at a grazing angle
+float directionAt(vec2 en, float angle, float cover) {
+  vec2 across = vec2(-sin(angle), cos(angle));
+  float lod = log2(max(spacing * fwidth(dot(en, across)), BASE) / BASE);
+  float s = BASE * exp2(floor(lod));
+  return mix(hachuresAt(en, angle, across, cover, s), hachuresAt(en, angle, across, cover, 2.0 * s), fract(lod));
+}
+
+// the strokes in both of the directions nearest the way down, blended
+float strokesAt(vec2 en, vec2 down, float cover) {
+  // the strokes are lines: a direction and its opposite are the same
+  float t = mod(atan(down.y, down.x), czm_pi) / czm_pi * DIRECTIONS;
+  float bin = floor(t);
+  float width = czm_pi / DIRECTIONS;
+  return mix(directionAt(en, bin * width, cover), directionAt(en, (bin + 1.0) * width, cover), smoothstep(0.4, 0.6, fract(t)));
+}
+
+void main() {
+  vec2 uv = v_textureCoordinates;
+  vec4 sceneColor = texture(colorTexture, uv);
+  vec4 eye = eyeAt(depthTexture, uv);
+  if (eye.w == 0.0) {
+    out_FragColor = vec4(paper, 1.0);
+    return;
+  }
+  float px = czm_pixelRatio;
+  // averaged wider than smoothNormalAt: the slopes of the terrain's triangles would set the strokes' width
+  vec3 normal = normalize(normalAt(depthTexture, uv, eye.xyz, 4.0 * px) + normalAt(depthTexture, uv, eye.xyz, 12.0 * px) + normalAt(depthTexture, uv, eye.xyz, 24.0 * px));
+  float rise = dot(normal, up);
+  float slope = acos(clamp(rise, -1.0, 1.0));
+  float c = depthAt(uv);
+
+  // the way down the slope, the horizontal part of a normal smoothed wider: the strokes' direction would wobble with
+  // the terrain's triangles
+  vec3 wide = normalize(normal + normalAt(depthTexture, uv, eye.xyz, 32.0 * px));
+  vec3 horizontal = wide - dot(wide, up) * up;
+  vec2 down = normalize(vec2(dot(horizontal, eastEC), dot(horizontal, northEC)) + 1e-6);
+  vec3 rel = eye.xyz - originEC;
+  vec2 en = vec2(dot(rel, eastEC), dot(rel, northEC));
+  float steep = smoothstep(flatSlope, flatSlope + FLAT_RAMP, slope) * clamp(slope / LEHMANN, 0.0, 1.0);
+  float cover = clamp(weight * steep * (1.0 - oblique * dot(down, LIGHT)), 0.0, MAX_COVER);
+  // read everywhere, outside any branch, for its derivatives
+  float amount = strokesAt(en, down, cover);
+
+  if (outline > 0.0) {
+    amount = max(amount, outline * outlineAt(uv, c, vec4(0.0), 1.0, pixelAt(c)));
+  }
+  out_FragColor = vec4(mix(paper, ink, amount), sceneColor.a);
+}
+`,N=`// normal at the pixel from its neighbors at this distance in pixels: on each axis the nearer
+// side, so that the edges of the scene do not bend it
+precision highp sampler2D;
+vec3 normalAt(sampler2D depthTexture, vec2 uv, vec3 center, float distance) {
+  vec2 step = distance / czm_viewport.zw;
+  vec3 right = eyeAt(depthTexture, uv + vec2(step.x, 0.0)).xyz - center;
+  vec3 left = center - eyeAt(depthTexture, uv - vec2(step.x, 0.0)).xyz;
+  vec3 above = eyeAt(depthTexture, uv + vec2(0.0, step.y)).xyz - center;
+  vec3 below = center - eyeAt(depthTexture, uv - vec2(0.0, step.y)).xyz;
+  vec3 dx = dot(right, right) < dot(left, left) ? right : left;
+  vec3 dy = dot(above, above) < dot(below, below) ? above : below;
+  vec3 normal = normalize(cross(dx, dy));
+  // toward the camera
+  return normal * sign(dot(normal, -center));
+}
+
+// the terrain mesh is made of flat triangles, and so are the normals from the depth buffer:
+// averaged over several distances, the facets blend into a smoother surface
+vec3 smoothNormalAt(sampler2D depthTexture, vec2 uv, vec3 center) {
+  return normalize(normalAt(depthTexture, uv, center, 2.0 * czm_pixelRatio) + normalAt(depthTexture, uv, center, 6.0 * czm_pixelRatio));
+}
+`,P=2e4,F=new s,I=new s,L=new s,R=new s,z=new l,B=new s,V=new s,H=class extends u{constructor(e,n={}){super(e),this.spacing_=n.spacing??3.5,this.strokeLength_=n.strokeLength??14,this.weight_=n.weight??1,this.oblique_=n.oblique??.8,this.flatSlope_=n.flatSlope??4,this.outline_=n.outline??.8,this.jump_=n.jump??20,this.paper_=n.paper??o.fromCssColorString(`#f7f3ea`),this.ink_=n.ink??o.fromCssColorString(`#1d1b19`),this.origin_=void 0,this.frame_=new t}createStage_(e){let n=(n,r)=>(this.follow_(e),t.getColumn(this.frame_,n,r),l.multiplyByPointAsVector(e.camera.viewMatrix,r,r));return new c({fragmentShader:p+C+y+N+g+M,uniforms:{..._(e),spacing:()=>this.spacing_,strokeLength:()=>this.strokeLength_,weight:()=>this.weight_,oblique:()=>this.oblique_,flatSlope:()=>r.toRadians(this.flatSlope_),outline:()=>this.outline_,jump:()=>this.jump_,paper:()=>s.fromElements(this.paper_.red,this.paper_.green,this.paper_.blue,B),ink:()=>s.fromElements(this.ink_.red,this.ink_.green,this.ink_.blue,V),originEC:()=>(this.follow_(e),l.multiplyByPoint(e.camera.viewMatrix,this.origin_,F)),eastEC:()=>n(0,I),northEC:()=>n(1,L)}})}follow_(e){let t=e.ellipsoid.scaleToGeodeticSurface(e.camera.positionWC,R);!t||this.origin_&&s.distance(t,this.origin_)<P||(this.origin_=s.clone(t,this.origin_),l.getMatrix3(ee.eastNorthUpToFixedFrame(this.origin_,e.ellipsoid,z),this.frame_))}activated_(e){d(e)}deactivating_(e){f(e)}get spacing(){return this.spacing_}set spacing(e){this.spacing_=e,this.viewer.scene.requestRender()}get strokeLength(){return this.strokeLength_}set strokeLength(e){this.strokeLength_=e,this.viewer.scene.requestRender()}get weight(){return this.weight_}set weight(e){this.weight_=e,this.viewer.scene.requestRender()}get oblique(){return this.oblique_}set oblique(e){this.oblique_=e,this.viewer.scene.requestRender()}get flatSlope(){return this.flatSlope_}set flatSlope(e){this.flatSlope_=e,this.viewer.scene.requestRender()}get outline(){return this.outline_}set outline(e){this.outline_=e,this.viewer.scene.requestRender()}get jump(){return this.jump_}set jump(e){this.jump_=e,this.viewer.scene.requestRender()}get paper(){return this.paper_}set paper(e){this.paper_=e,this.viewer.scene.requestRender()}get ink(){return this.ink_}set ink(e){this.ink_=e,this.viewer.scene.requestRender()}},ae=`// Black and white infrared film: foliage, which reflects the near infrared, turns bright, the sky
 // and water dark. The gray is the lightness raised or lowered by a weight per hue. After prod80's
 // ReShade Black & White (MIT), its Infrared preset, https://github.com/prod80/prod80-ReShade-Repository
 precision highp sampler2D;
@@ -68,28 +198,7 @@ void main() {
   float gray = clamp(hsl.z + hsl.z * weight * saturation * (1.0 - hsl.z), 0.0, 1.0);
   out_FragColor = vec4(mix(sceneColor.rgb, vec3(gray), strength), sceneColor.a);
 }
-`,M=class extends s{constructor(e,t={}){super(e),this.strength_=t.strength??1}createStage_(){return new t({fragmentShader:j,uniforms:{strength:()=>this.strength_}})}get strength(){return this.strength_}set strength(e){this.strength_=e,this.viewer.scene.requestRender()}},N=`// normal at the pixel from its neighbors at this distance in pixels: on each axis the nearer
-// side, so that the edges of the scene do not bend it
-precision highp sampler2D;
-vec3 normalAt(sampler2D depthTexture, vec2 uv, vec3 center, float distance) {
-  vec2 step = distance / czm_viewport.zw;
-  vec3 right = eyeAt(depthTexture, uv + vec2(step.x, 0.0)).xyz - center;
-  vec3 left = center - eyeAt(depthTexture, uv - vec2(step.x, 0.0)).xyz;
-  vec3 above = eyeAt(depthTexture, uv + vec2(0.0, step.y)).xyz - center;
-  vec3 below = center - eyeAt(depthTexture, uv - vec2(0.0, step.y)).xyz;
-  vec3 dx = dot(right, right) < dot(left, left) ? right : left;
-  vec3 dy = dot(above, above) < dot(below, below) ? above : below;
-  vec3 normal = normalize(cross(dx, dy));
-  // toward the camera
-  return normal * sign(dot(normal, -center));
-}
-
-// the terrain mesh is made of flat triangles, and so are the normals from the depth buffer:
-// averaged over several distances, the facets blend into a smoother surface
-vec3 smoothNormalAt(sampler2D depthTexture, vec2 uv, vec3 center) {
-  return normalize(normalAt(depthTexture, uv, center, 2.0 * czm_pixelRatio) + normalAt(depthTexture, uv, center, 6.0 * czm_pixelRatio));
-}
-`,P=`// Snow above an altitude, on slopes gentle enough to hold it, shaded by the sun and by the
+`,U=class extends u{constructor(e,t={}){super(e),this.strength_=t.strength??1}createStage_(){return new c({fragmentShader:ae,uniforms:{strength:()=>this.strength_}})}get strength(){return this.strength_}set strength(e){this.strength_=e,this.viewer.scene.requestRender()}},W=`// Snow above an altitude, on slopes gentle enough to hold it, shaded by the sun and by the
 // brightness of the scene so that the relief stays readable. The slope comes from a normal
 // rebuilt from the neighboring pixels and smoothed over the facets of the terrain. Noise anchored
 // to the ground breaks up the edge of the snow, which lasts lower on the slopes away from the sun.
@@ -162,7 +271,7 @@ void main() {
   vec3 lit = mix(SNOW_SHADE, SNOW_SUN, sun) * clamp(0.68 + 0.25 * sun + 0.1 * brightness, 0.0, 1.0);
   out_FragColor = vec4(mix(sceneColor.rgb, lit, snow), sceneColor.a);
 }
-`,te=class extends s{constructor(e,t={}){super(e),this.altitude_=t.altitude??2e3,this.transition_=t.transition??200,this.maxSlope_=t.maxSlope??50,this.coverage_=t.coverage??1}createStage_(e){return new t({fragmentShader:u+y+N+P,uniforms:{..._(e),altitude:()=>this.altitude_,transition:()=>this.transition_,maxSlope:()=>n.toRadians(this.maxSlope_),coverage:()=>this.coverage_}})}activated_(e){c(e)}deactivating_(e){l(e)}get altitude(){return this.altitude_}set altitude(e){this.altitude_=e,this.viewer.scene.requestRender()}get transition(){return this.transition_}set transition(e){this.transition_=e,this.viewer.scene.requestRender()}get maxSlope(){return this.maxSlope_}set maxSlope(e){this.maxSlope_=e,this.viewer.scene.requestRender()}get coverage(){return this.coverage_}set coverage(e){this.coverage_=e,this.viewer.scene.requestRender()}},F=`// The beam of a cone of light in the haze, for the spotlight and for lights of your own:
+`,G=class extends u{constructor(e,t={}){super(e),this.altitude_=t.altitude??2e3,this.transition_=t.transition??200,this.maxSlope_=t.maxSlope??50,this.coverage_=t.coverage??1}createStage_(e){return new c({fragmentShader:p+y+N+W,uniforms:{..._(e),altitude:()=>this.altitude_,transition:()=>this.transition_,maxSlope:()=>r.toRadians(this.maxSlope_),coverage:()=>this.coverage_}})}activated_(e){d(e)}deactivating_(e){f(e)}get altitude(){return this.altitude_}set altitude(e){this.altitude_=e,this.viewer.scene.requestRender()}get transition(){return this.transition_}set transition(e){this.transition_=e,this.viewer.scene.requestRender()}get maxSlope(){return this.maxSlope_}set maxSlope(e){this.maxSlope_=e,this.viewer.scene.requestRender()}get coverage(){return this.coverage_}set coverage(e){this.coverage_=e,this.viewer.scene.requestRender()}},K=`// The beam of a cone of light in the haze, for the spotlight and for lights of your own:
 // raymarched along the part of the view ray inside the cone, found analytically, so that no
 // sample is wasted and pixels next to each other see the same stretch of it. Needs Hash, and
 // Noise for the dust.
@@ -270,12 +379,12 @@ float beamAlong(vec3 ray, float sceneDistance, Beam beam) {
   }
   return scattered * henyeyGreenstein(dot(ray, beam.forward), beam.anisotropy);
 }
-`,I=`// a filmic roll-off (ACES, Narkowicz's fit) for the effects that add light to the picture: Cesium
+`,q=`// a filmic roll-off (ACES, Narkowicz's fit) for the effects that add light to the picture: Cesium
 // has already tone mapped it, so their light would clip to flat white without it
 vec3 filmic(vec3 x) {
   return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0);
 }
-`,L=`// A searchlight above the focus, pointing down: it throws a pool of warm light radius meters
+`,J=`// A searchlight above the focus, pointing down: it throws a pool of warm light radius meters
 // wide on flat ground, with a soft penumbra, shades the relief under it and lights up the haze
 // in its beam, from SpotlightBeam.glsl; the rest of the scene darkens and loses its color. The
 // cone and the falloff follow three.js's SpotLight. Needs EyeFromDepth, Normal, Filmic and
@@ -364,7 +473,7 @@ void main() {
   vec3 light = LIGHT_COLOR * (power * INTENSITY * spotAt(-toLight, up, spot.height, spot.coneCos, spot.penumbraCos) * lambert);
   out_FragColor = vec4(filmic(ambient + color * light + haze), sceneColor.a);
 }
-`,R=`// The haze lit by the searchlight's beam, at a fraction of the resolution, as in Killzone Shadow
+`,oe=`// The haze lit by the searchlight's beam, at a fraction of the resolution, as in Killzone Shadow
 // Fall's volumetrics (Valient, SIGGRAPH 2014): r is the light scattered along the view ray, g the
 // log2 of the scene distance for SpotlightBeamBlur.glsl and the upsampling: half floats hold it, and
 // distances compare as ratios. Needs EyeFromDepth, Hash, Noise, SpotlightCone and Beam.
@@ -413,7 +522,7 @@ void main() {
   float scattered = BEAM_DENSITY / spot.height * beamAlong(normalize(eye.xyz), sceneDistance, cone);
   out_FragColor = vec4(scattered, log2(sceneDistance), 0.0, 1.0);
 }
-`,z=`// The beam's haze, blurred over the neighboring texels at its own resolution, each weighted by how
+`,se=`// The beam's haze, blurred over the neighboring texels at its own resolution, each weighted by how
 // close its scene distance is to the texel's: the dither of the samples along the rays smooths
 // out, but the haze in front of a ridge does not spill onto the ridge.
 precision highp sampler2D;
@@ -440,7 +549,7 @@ void main() {
   }
   out_FragColor = vec4(sum / total, centerDepth, 0.0, 1.0);
 }
-`,B=`// The searchlight's cone, for its beam and for its pool of light: the light hangs above the focus,
+`,Y=`// The searchlight's cone, for its beam and for its pool of light: the light hangs above the focus,
 // pointing down. Needs EyeFromDepth.
 precision highp sampler2D;
 uniform sampler2D depthTexture;
@@ -477,7 +586,7 @@ bool spotlightCone(out Cone cone) {
   cone.penumbraCos = cone.height / sqrt(cone.height * cone.height + inner * inner);
   return true;
 }
-`,V=new r,H=class extends s{constructor(e,t={}){super(e),this.focus_=t.focus,this.power_=t.power??1,this.radius_=t.radius??200,this.softness_=t.softness??.5,this.darkness_=t.darkness??.8,this.beam_=t.beam??.25,this.beamAnisotropy_=t.beamAnisotropy??.4}createStage_(e){let n={focus:()=>C(e,this.focus_,V),up:_(e).up,radius:()=>this.radius_,softness:()=>this.softness_},r=new t({fragmentShader:u+g+v+B+F+R,uniforms:{...n,beam:()=>this.beam_,beamAnisotropy:()=>this.beamAnisotropy_},textureScale:.5,pixelDatatype:o.HALF_FLOAT}),i=new t({fragmentShader:z,uniforms:{beamTexture:r.name},textureScale:.5,pixelDatatype:o.HALF_FLOAT});return new a({stages:[r,i,new t({fragmentShader:u+N+I+B+L,uniforms:{...n,beamTexture:i.name,darkness:()=>this.darkness_,beam:()=>this.beam_,power:()=>this.power_}})],inputPreviousStageTexture:!1})}activated_(e){c(e)}deactivating_(e){l(e)}get focus(){return this.focus_}set focus(e){this.focus_=e,this.viewer.scene.requestRender()}get power(){return this.power_}set power(e){this.power_=e,this.viewer.scene.requestRender()}get radius(){return this.radius_}set radius(e){this.radius_=e,this.viewer.scene.requestRender()}get softness(){return this.softness_}set softness(e){this.softness_=e,this.viewer.scene.requestRender()}get darkness(){return this.darkness_}set darkness(e){this.darkness_=e,this.viewer.scene.requestRender()}get beam(){return this.beam_}set beam(e){this.beam_=e,this.viewer.scene.requestRender()}get beamAnisotropy(){return this.beamAnisotropy_}set beamAnisotropy(e){this.beamAnisotropy_=e,this.viewer.scene.requestRender()}},U=`// Size of the visible frame of the given width over height, centered in the canvas, in texture
+`,ce=new a,le=class extends u{constructor(e,t={}){super(e),this.focus_=t.focus,this.power_=t.power??1,this.radius_=t.radius??200,this.softness_=t.softness??.5,this.darkness_=t.darkness??.8,this.beam_=t.beam??.25,this.beamAnisotropy_=t.beamAnisotropy??.4}createStage_(t){let n={focus:()=>E(t,this.focus_,ce),up:_(t).up,radius:()=>this.radius_,softness:()=>this.softness_},r=new c({fragmentShader:p+g+v+Y+K+oe,uniforms:{...n,beam:()=>this.beam_,beamAnisotropy:()=>this.beamAnisotropy_},textureScale:.5,pixelDatatype:i.HALF_FLOAT}),a=new c({fragmentShader:se,uniforms:{beamTexture:r.name},textureScale:.5,pixelDatatype:i.HALF_FLOAT});return new e({stages:[r,a,new c({fragmentShader:p+N+q+Y+J,uniforms:{...n,beamTexture:a.name,darkness:()=>this.darkness_,beam:()=>this.beam_,power:()=>this.power_}})],inputPreviousStageTexture:!1})}activated_(e){d(e)}deactivating_(e){f(e)}get focus(){return this.focus_}set focus(e){this.focus_=e,this.viewer.scene.requestRender()}get power(){return this.power_}set power(e){this.power_=e,this.viewer.scene.requestRender()}get radius(){return this.radius_}set radius(e){this.radius_=e,this.viewer.scene.requestRender()}get softness(){return this.softness_}set softness(e){this.softness_=e,this.viewer.scene.requestRender()}get darkness(){return this.darkness_}set darkness(e){this.darkness_=e,this.viewer.scene.requestRender()}get beam(){return this.beam_}set beam(e){this.beam_=e,this.viewer.scene.requestRender()}get beamAnisotropy(){return this.beamAnisotropy_}set beamAnisotropy(e){this.beamAnisotropy_=e,this.viewer.scene.requestRender()}},X=`// Size of the visible frame of the given width over height, centered in the canvas, in texture
 // coordinates: bars above and below when the canvas is narrower than the ratio, on the sides when
 // it is wider; the whole canvas for a ratio of 0.
 vec2 frameSize(float aspectRatio) {
@@ -487,7 +596,7 @@ vec2 frameSize(float aspectRatio) {
   float canvas = czm_viewport.z / czm_viewport.w;
   return aspectRatio < canvas ? vec2(aspectRatio / canvas, 1.0) : vec2(1.0, canvas / aspectRatio);
 }
-`,W=`// A Super 8 home movie: faded warm colors, halation around the highlights, heavy grain, the frame
+`,ue=`// A Super 8 home movie: faded warm colors, halation around the highlights, heavy grain, the frame
 // drifting in the gate, flicker, light leaks, a strong vignette and the rounded corners of the
 // camera gate.
 precision highp sampler2D;
@@ -577,7 +686,7 @@ void main() {
 
   out_FragColor = vec4(clamp(color, 0.0, 1.0) * gate, 1.0);
 }
-`,G=6,K=1,q=.5,J=18,Y=class extends s{constructor(e,t={}){super(e),this.fade_=t.fade??.5,this.halation_=t.halation??.5,this.grain_=t.grain??.15,this.weave_=t.weave??1.5,this.flicker_=t.flicker??.08,this.lightLeaks_=t.lightLeaks??.5,this.aspectRatio_=t.aspectRatio??4/3}createStage_(){let e=D(`czm_super8_halation`,q),n=new a({stages:[e,new t({fragmentShader:U+v+W,uniforms:{blurTexture:e.name,time:()=>performance.now()/1e3,fade:()=>this.fade_,halation:()=>this.halation_,grain:()=>this.grain_,weave:()=>this.weave_,flicker:()=>this.flicker_,lightLeaks:()=>this.lightLeaks_,aspectRatio:()=>this.aspectRatio_}})],inputPreviousStageTexture:!1,uniforms:e.uniforms});return n.uniforms.sigma=G,n.uniforms.stepSize=K,n}activated_(e){ee(e,J)}deactivating_(e){d(e,J)}get fade(){return this.fade_}set fade(e){this.fade_=e}get halation(){return this.halation_}set halation(e){this.halation_=e}get grain(){return this.grain_}set grain(e){this.grain_=e}get weave(){return this.weave_}set weave(e){this.weave_=e}get flicker(){return this.flicker_}set flicker(e){this.flicker_=e}get lightLeaks(){return this.lightLeaks_}set lightLeaks(e){this.lightLeaks_=e}get aspectRatio(){return this.aspectRatio_}set aspectRatio(e){this.aspectRatio_=e}},X=`// Three-strip Technicolor: the camera split the scene into red, green and blue records, each
+`,de=6,fe=1,pe=.5,Z=18,me=class extends u{constructor(e,t={}){super(e),this.fade_=t.fade??.5,this.halation_=t.halation??.5,this.grain_=t.grain??.15,this.weave_=t.weave??1.5,this.flicker_=t.flicker??.08,this.lightLeaks_=t.lightLeaks??.5,this.aspectRatio_=t.aspectRatio??4/3}createStage_(){let t=S(`czm_super8_halation`,pe),n=new e({stages:[t,new c({fragmentShader:X+v+ue,uniforms:{blurTexture:t.name,time:()=>performance.now()/1e3,fade:()=>this.fade_,halation:()=>this.halation_,grain:()=>this.grain_,weave:()=>this.weave_,flicker:()=>this.flicker_,lightLeaks:()=>this.lightLeaks_,aspectRatio:()=>this.aspectRatio_}})],inputPreviousStageTexture:!1,uniforms:t.uniforms});return n.uniforms.sigma=de,n.uniforms.stepSize=fe,n}activated_(e){ne(e,Z)}deactivating_(e){te(e,Z)}get fade(){return this.fade_}set fade(e){this.fade_=e}get halation(){return this.halation_}set halation(e){this.halation_=e}get grain(){return this.grain_}set grain(e){this.grain_=e}get weave(){return this.weave_}set weave(e){this.weave_=e}get flicker(){return this.flicker_}set flicker(e){this.flicker_=e}get lightLeaks(){return this.lightLeaks_}set lightLeaks(e){this.lightLeaks_=e}get aspectRatio(){return this.aspectRatio_}set aspectRatio(e){this.aspectRatio_=e}},Q=`// Three-strip Technicolor: the camera split the scene into red, green and blue records, each
 // printed with its complementary dye, the three dyes over each other. Each color gains its purity,
 // what it has over the other two, and loses some of theirs: grays stay, primaries deepen. After
 // prod80's ReShade Technicolor (MIT), https://github.com/prod80/prod80-ReShade-Repository
@@ -607,7 +716,7 @@ void main() {
   vec3 printed = color + purity - taken.yxy - taken.zzx;
   out_FragColor = vec4(clamp(mix(color, printed, strength), 0.0, 1.0), sceneColor.a);
 }
-`,Z=class extends s{constructor(e,t={}){super(e),this.strength_=t.strength??1,this.aspectRatio_=t.aspectRatio??0}createStage_(){return new t({fragmentShader:U+X,uniforms:{strength:()=>this.strength_,aspectRatio:()=>this.aspectRatio_}})}get strength(){return this.strength_}set strength(e){this.strength_=e,this.viewer.scene.requestRender()}get aspectRatio(){return this.aspectRatio_}set aspectRatio(e){this.aspectRatio_=e,this.viewer.scene.requestRender()}},Q=`// Fog filling the valleys below an altitude: the fog along the ray from the camera to the pixel
+`,he=class extends u{constructor(e,t={}){super(e),this.strength_=t.strength??1,this.aspectRatio_=t.aspectRatio??0}createStage_(){return new c({fragmentShader:X+Q,uniforms:{strength:()=>this.strength_,aspectRatio:()=>this.aspectRatio_}})}get strength(){return this.strength_}set strength(e){this.strength_=e,this.viewer.scene.requestRender()}get aspectRatio(){return this.aspectRatio_}set aspectRatio(e){this.aspectRatio_=e,this.viewer.scene.requestRender()}},ge=`// Fog filling the valleys below an altitude: the fog along the ray from the camera to the pixel
 // is the part of the ray below the top, the density thinning over a soft band under the top. Needs
 // EyeFromDepth, Height and Fog.
 precision highp sampler2D;
@@ -647,4 +756,4 @@ void main() {
   vec3 fogColor = byDaylight(color.rgb, daylight());
   out_FragColor = vec4(mix(sceneColor.rgb, fogColor, amount * color.a), sceneColor.a);
 }
-`,ne=class extends s{constructor(e,t={}){super(e),this.top_=t.top??1500,this.density_=t.density??.005,this.softness_=t.softness??100,this.color_=t.color??new i(.85,.88,.92,1)}createStage_(e){return new t({fragmentShader:u+y+b+Q,uniforms:{..._(e),top:()=>this.top_,density:()=>this.density_,softness:()=>this.softness_,color:()=>this.color_}})}activated_(e){c(e)}deactivating_(e){l(e)}get top(){return this.top_}set top(e){this.top_=e,this.viewer.scene.requestRender()}get density(){return this.density_}set density(e){this.density_=e,this.viewer.scene.requestRender()}get softness(){return this.softness_}set softness(e){this.softness_=e,this.viewer.scene.requestRender()}get color(){return this.color_}set color(e){this.color_=e,this.viewer.scene.requestRender()}},re={m:e=>`${e} m`,deg:e=>`${e}°`,percent:e=>`${Math.round(e*100)} %`,shutter:e=>`1/${Math.round(1/e)} s`,px:e=>`${+e.toFixed(1)} px`,hz:e=>`${e} Hz`,"per-m":e=>`${+e.toFixed(4)} /m`};for(let e of document.querySelectorAll(`#controls wa-slider[data-unit]`))e.valueFormatter=re[e.dataset.unit];var $=[`snowLine`,`valleyFog`,`spotlight`,`precipitation`,`lightning`,`tiltShift`,`motionBlur`,`speedLines`,`colorIsolation`,`infrared`,`technicolor`,`super8`,`lensDistortion`,`jello`,`droneDisplay`,`analogVideo`,`digitalVideo`];e(`cesiumContainer`).then(e=>{e.clock.currentTime=Cesium.JulianDate.fromIso8601(`2026-09-25T14:00:00+02:00`),e.clock.shouldAnimate=!1;let t={snowLine:new te(e),valleyFog:new ne(e),tiltShift:new O(e),motionBlur:new T(e,{exposure:.04}),speedLines:new E(e),spotlight:new H(e),precipitation:new x(e),lightning:new w(e),colorIsolation:new A(e),infrared:new M(e),technicolor:new Z(e),super8:new Y(e),lensDistortion:new S(e),jello:new h(e),droneDisplay:new p(e),analogVideo:new f(e),digitalVideo:new m(e)},n=!1;document.querySelector(`#controls`).addEventListener(`input`,e=>{let{name:r,value:i,checked:a}=e.target,o=e.target.closest(`[data-effect]`).dataset.effect;if(r===`followCursor`)n=a;else if(r===`inFront`)t.lightning.inFront=a;else if(r!==`active`){let e=Number(i);t[o][r]=Number.isNaN(e)?i:e}else if(t[o].active=a,a){e.target.closest(`wa-details`).open=!0;for(let e of $.slice($.indexOf(o)+1))t[e].active&&(t[e].active=!1,t[e].active=!0)}});let r=e=>{t.tiltShift.focus=e,t.spotlight.focus=e,t.speedLines.focus=e};e.screenSpaceEventHandler.setInputAction(({position:t})=>{let n=e.scene.pickPosition(t);n&&r(n)},Cesium.ScreenSpaceEventType.LEFT_CLICK),e.screenSpaceEventHandler.setInputAction(({endPosition:r})=>{let i=n&&e.scene.pickPosition(r);i&&(t.spotlight.focus=i)},Cesium.ScreenSpaceEventType.MOUSE_MOVE),document.querySelector(`#center`).addEventListener(`click`,()=>r(void 0))});
+`,_e=class extends u{constructor(e,t={}){super(e),this.top_=t.top??1500,this.density_=t.density??.005,this.softness_=t.softness??100,this.color_=t.color??new o(.85,.88,.92,1)}createStage_(e){return new c({fragmentShader:p+y+b+ge,uniforms:{..._(e),top:()=>this.top_,density:()=>this.density_,softness:()=>this.softness_,color:()=>this.color_}})}activated_(e){d(e)}deactivating_(e){f(e)}get top(){return this.top_}set top(e){this.top_=e,this.viewer.scene.requestRender()}get density(){return this.density_}set density(e){this.density_=e,this.viewer.scene.requestRender()}get softness(){return this.softness_}set softness(e){this.softness_=e,this.viewer.scene.requestRender()}get color(){return this.color_}set color(e){this.color_=e,this.viewer.scene.requestRender()}},ve={m:e=>`${e} m`,deg:e=>`${e}°`,percent:e=>`${Math.round(e*100)} %`,shutter:e=>`1/${Math.round(1/e)} s`,px:e=>`${+e.toFixed(1)} px`,hz:e=>`${e} Hz`,"per-m":e=>`${+e.toFixed(4)} /m`};for(let e of document.querySelectorAll(`#controls wa-slider[data-unit]`))e.valueFormatter=ve[e.dataset.unit];var $=[`snowLine`,`valleyFog`,`spotlight`,`precipitation`,`lightning`,`dufour`,`tiltShift`,`motionBlur`,`speedLines`,`colorIsolation`,`infrared`,`technicolor`,`super8`,`lensDistortion`,`jello`,`droneDisplay`,`analogVideo`,`digitalVideo`];n(`cesiumContainer`).then(e=>{e.clock.currentTime=Cesium.JulianDate.fromIso8601(`2026-09-25T14:00:00+02:00`),e.clock.shouldAnimate=!1;let t={snowLine:new G(e),valleyFog:new _e(e),tiltShift:new w(e),motionBlur:new O(e,{exposure:.04}),speedLines:new k(e),spotlight:new le(e),precipitation:new x(e),lightning:new D(e),dufour:new H(e),colorIsolation:new j(e),infrared:new U(e),technicolor:new he(e),super8:new me(e),lensDistortion:new T(e),jello:new ie(e),droneDisplay:new h(e),analogVideo:new m(e),digitalVideo:new re(e)},n=!1;document.querySelector(`#controls`).addEventListener(`input`,e=>{let{name:r,value:i,checked:a}=e.target,o=e.target.closest(`[data-effect]`).dataset.effect;if(r===`followCursor`)n=a;else if(r===`inFront`)t.lightning.inFront=a;else if(r!==`active`){let e=Number(i);t[o][r]=Number.isNaN(e)?i:e}else if(t[o].active=a,a){e.target.closest(`wa-details`).open=!0;for(let e of $.slice($.indexOf(o)+1))t[e].active&&(t[e].active=!1,t[e].active=!0)}});let r=e=>{t.tiltShift.focus=e,t.spotlight.focus=e,t.speedLines.focus=e};e.screenSpaceEventHandler.setInputAction(({position:t})=>{let n=e.scene.pickPosition(t);n&&r(n)},Cesium.ScreenSpaceEventType.LEFT_CLICK),e.screenSpaceEventHandler.setInputAction(({endPosition:r})=>{let i=n&&e.scene.pickPosition(r);i&&(t.spotlight.focus=i)},Cesium.ScreenSpaceEventType.MOUSE_MOVE),document.querySelector(`#center`).addEventListener(`click`,()=>r(void 0))});

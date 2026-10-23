@@ -1,4 +1,4 @@
-import{O as e,a as t}from"./cesium-shim-CaB5chxw.js";import{i as n}from"./EyeFromDepth-DmDC5MHh.js";import{t as r}from"./Hash-CBIEOLtO.js";import{t as i}from"./focus-g1a6RmZZ.js";var a=`// Speed lines: the picture zooms toward the focus, more toward the edges of the screen, and thin
+import{a as e,k as t}from"./cesium-shim-DLIYJZws.js";import{i as n}from"./EyeFromDepth-DmDC5MHh.js";import{t as r}from"./Hash-CBIEOLtO.js";import{t as i}from"./focus-DuNrGPG5.js";var a=`// Speed lines: the picture zooms toward the focus, more toward the edges of the screen, and thin
 // streaks radiate from it, a new pattern many times a second, as in comics.
 precision highp sampler2D;
 uniform sampler2D colorTexture;
@@ -59,4 +59,4 @@ void main() {
   }
   out_FragColor = vec4(color, sceneColor.a);
 }
-`,o=new t,s=class extends n{constructor(e,t={}){super(e),this.focus_=t.focus,this.strength_=t.strength??1}createStage_(t){let n=new e({fragmentShader:r+a,uniforms:{focus:()=>i(t,this.focus_,o),strength:()=>this.strength_,time:()=>performance.now()/1e3}});return n.enabled=this.strength_>0,n}get focus(){return this.focus_}set focus(e){this.focus_=e,this.viewer.scene.requestRender()}get strength(){return this.strength_}set strength(e){this.strength_=e,this.stage_&&(this.stage_.enabled=e>0),this.viewer.scene.requestRender()}};export{s as t};
+`,o=new e,s=class extends n{constructor(e,t={}){super(e),this.focus_=t.focus,this.strength_=t.strength??1}createStage_(e){let n=new t({fragmentShader:r+a,uniforms:{focus:()=>i(e,this.focus_,o),strength:()=>this.strength_,time:()=>performance.now()/1e3}});return n.enabled=this.strength_>0,n}get focus(){return this.focus_}set focus(e){this.focus_=e,this.viewer.scene.requestRender()}get strength(){return this.strength_}set strength(e){this.strength_=e,this.stage_&&(this.stage_.enabled=e>0),this.viewer.scene.requestRender()}};export{s as t};
