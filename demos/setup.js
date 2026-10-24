@@ -1,6 +1,12 @@
 const SWITZERLAND_RECTANGLE = Cesium.Rectangle.fromDegrees(4, 45, 12, 48);
 
-export async function createViewer(container) {
+/**
+ * @param {string} container
+ * @param {{smooth?: boolean}} [options] `smooth`: the canvas scaled up to the screen smoothly, not as Cesium's
+ *   `pixelated`, which makes every edge a stair-step on a high-density screen; for scenes of hard edges (models,
+ *   outlines), at the cost of a softer aerial image
+ */
+export async function createViewer(container, {smooth = false} = {}) {
   Object.assign(Cesium.RequestScheduler.requestsByServer, {
     "wmts.geo.admin.ch:443": 28,
     "3d.geo.admin.ch:443": 28,
@@ -39,6 +45,9 @@ export async function createViewer(container) {
     ),
   });
 
+  if (smooth) {
+    viewer.canvas.style.imageRendering = 'auto';
+  }
   viewer.scene.requestRenderMode = true;
   viewer.scene.globe.showGroundAtmosphere = true;
   viewer.scene.globe.enableLighting = true;

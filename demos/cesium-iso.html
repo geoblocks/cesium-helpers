@@ -62,7 +62,7 @@
     // swisstopo's buildings, to see the view on something standing
     const BUILDINGS = 'https://3d.geo.admin.ch/ch.swisstopo.swissbuildings3d.3d/v1/tileset.json';
 
-    createViewer('cesiumContainer').then(async viewer => {
+    createViewer('cesiumContainer', {smooth: true}).then(async viewer => {
       viewer.scene.primitives.add(await Cesium.Cesium3DTileset.fromUrl(BUILDINGS, {maximumScreenSpaceError: 8}));
       // looking down at Bern's old town, the Federal Palace's dome in the view's middle
       viewer.camera.setView({
