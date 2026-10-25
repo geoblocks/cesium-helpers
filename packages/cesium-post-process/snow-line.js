@@ -1,4 +1,4 @@
-import {Math as CesiumMath} from '@cesium/core';
+import {Cartesian3, Math as CesiumMath, Matrix4} from '@cesium/core';
 import {PostProcessStage} from '@cesium/engine';
 import {acquireTerrainDepth, releaseTerrainDepth} from './depth-test.js';
 import Effect from './effect.js';
@@ -8,6 +8,11 @@ import Height from './shaders/Height.js';
 import Normal from './shaders/Normal.js';
 import SnowLineShader from './shaders/SnowLine.js';
 
+// the water's level when there is no water: far above everything
+const NO_WATER = 1e9;
+
+const sunScratch = new Cartesian3();
+
 /**
  * Snow above an altitude, on the slopes gentle enough to hold it, shaded by
  * the sun.
@@ -15,7 +20,8 @@ import SnowLineShader from './shaders/SnowLine.js';
 export default class SnowLine extends Effect {
   /**
    * @param {import('@cesium/engine').CesiumWidget} viewer
-   * @param {{altitude?: number, transition?: number, maxSlope?: number, coverage?: number}} [options]
+   * @param {{altitude?: number, transition?: number, maxSlope?: number, coverage?: number, patchiness?: number, waterLevel?: number,
+   *   sunDirection?: Cartesian3}} [options]
    */
   constructor(viewer, options = {}) {
     super(viewer);
@@ -23,6 +29,9 @@ export default class SnowLine extends Effect {
     this.transition_ = options.transition ?? 200;
     this.maxSlope_ = options.maxSlope ?? 50;
     this.coverage_ = options.coverage ?? 1;
+    this.patchiness_ = options.patchiness ?? 0;
+    this.waterLevel_ = options.waterLevel;
+    this.sunDirection_ = options.sunDirection && Cartesian3.normalize(options.sunDirection, new Cartesian3());
   }
 
   /**
@@ -38,6 +47,10 @@ export default class SnowLine extends Effect {
         transition: () => this.transition_,
         maxSlope: () => CesiumMath.toRadians(this.maxSlope_),
         coverage: () => this.coverage_,
+        patchiness: () => this.patchiness_,
+        waterLevel: () => this.waterLevel_ ?? NO_WATER,
+        sunEC: () => this.sunDirection_ ? Matrix4.multiplyByPointAsVector(scene.camera.viewMatrix, this.sunDirection_, sunScratch) : sunScratch,
+        ownSun: () => this.sunDirection_ ? 1 : 0,
       },
     });
   }
@@ -103,6 +116,45 @@ export default class SnowLine extends Effect {
 
   set coverage(value) {
     this.coverage_ = value;
+    this.viewer.scene.requestRender();
+  }
+
+  /**
+   * How far the coverage thins the snow into patches, 0 to 1: at 0 the coverage is the snow's opacity, at 1 the share of the ground it
+   * covers, the noise leaving the rest bare.
+   */
+  get patchiness() {
+    return this.patchiness_;
+  }
+
+  set patchiness(value) {
+    this.patchiness_ = value;
+    this.viewer.scene.requestRender();
+  }
+
+  /**
+   * The water's height above the ellipsoid, in meters, or undefined for none: what lies within a quarter meter of it holds no snow,
+   * so that a flat lake stays water.
+   */
+  get waterLevel() {
+    return this.waterLevel_;
+  }
+
+  set waterLevel(value) {
+    this.waterLevel_ = value;
+    this.viewer.scene.requestRender();
+  }
+
+  /**
+   * The direction toward the sun that the snow is shaded by, in world coordinates, or undefined for Cesium's own sun. For a scene lit by a
+   * light of its own: `scene.light.direction` is the way the light travels, so give its negation.
+   */
+  get sunDirection() {
+    return this.sunDirection_;
+  }
+
+  set sunDirection(value) {
+    this.sunDirection_ = value && Cartesian3.normalize(value, new Cartesian3());
     this.viewer.scene.requestRender();
   }
 }
