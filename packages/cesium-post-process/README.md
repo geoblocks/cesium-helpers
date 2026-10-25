@@ -25,6 +25,9 @@ const snowLine = new SnowLine(viewer, {
   transition: 200, // height of the band over which the snow thins out, in meters
   maxSlope: 50,    // steepest slope that holds snow, in degrees
   coverage: 1,     // opacity of the snow, 0 to 1
+  patchiness: 0,   // 0 to 1: at 1 the coverage is the share of the ground the snow covers, the noise leaving the rest bare
+  waterLevel: 564, // meters above the ellipsoid: what lies within a quarter meter of it holds no snow, so a flat lake stays water
+  sunDirection: sun, // the direction toward the sun the snow is shaded by, in world coordinates; Cesium's own sun if none
 });
 snowLine.active = true;
 
@@ -255,7 +258,7 @@ Its `snow`, from 0 to 1, turns the rain to snow in one population, so that nothi
 
 `Spotlight`'s beam in the air is raymarched, as Killzone Shadow Fall's volumetrics (Valient, SIGGRAPH 2014), in a pass at half the resolution: 8 samples along the part of each view ray inside the cone, found analytically, dithered per pixel, each weighted by the cone's penumbra, the dust, the inverse square from the light softened around it and the extinction of the haze so far, then scattered toward the camera with a Henyey-Greenstein phase of asymmetry `beamAnisotropy`. A 3 x 3 blur at that resolution, weighted by the scene distance, smooths the dither out, and the full resolution takes the four texels around each pixel, interpolated where they are at its distance, else the nearest in distance, so that the haze stops at the ridges in front of it rather than spilling onto them; the half-float texture holds the log2 of the distance. On an Intel UHD 630 at 1920 x 1080, the beam costs about 1.9 ms, from 5 ms at full resolution with 16 samples. It holds from any viewpoint, inside the cone included, where the former analytic beam, which took its penumbra where the ray passes closest to the axis, went dark; its dust streaks are noise sampled along the beam, radiating from the light. The light is added to a picture Cesium has already tone mapped, so the output goes through a filmic roll-off (ACES) rather than clipping to flat white.
 
-`SnowLine` and `ValleyFog` compute each pixel's height relative to the camera, in double precision on the CPU for the camera, so they stay accurate far from the origin. The snow's slope comes from the normal rebuilt from the neighboring pixels. The fog is lit by the sun like Cesium's own fog: its color during the day, a moonlit blue at night, as bright as `scene.fog.minimumBrightness`. Both work in 3D only.
+`SnowLine` and `ValleyFog` compute each pixel's height relative to the camera, in double precision on the CPU for the camera, so they stay accurate far from the origin. The snow's slope comes from the normal rebuilt from the neighboring pixels. The fog is lit by the sun like Cesium's own fog: its color during the day, a moonlit blue at night, as bright as `scene.fog.minimumBrightness`. Both work in 3D only. `SnowLine`'s `patchiness` turns the coverage from the snow's opacity into the share of the ground it covers: the same noise that breaks up the edge of the snow line thins it into patches. Its `sunDirection` is for a scene lit by a light of its own, where Cesium's sun would shade the snow the wrong way: `scene.light.direction` is the way a light travels, so give its negation.
 
 `SnowLine`, `ValleyFog`, `Precipitation`, `Clouds`, `Lightning`, `Toy`, `WhiteModel`, `Dufour`, `TiltShift`, `Spotlight` and `MotionBlur` read the depth buffer. The post-process stages only get the terrain's depth when it is depth tested, so `globe.depthTestAgainstTerrain` is on while any of them is active and restored when the last one is deactivated: billboards and labels that show through the terrain can be hidden by it meanwhile.
 
