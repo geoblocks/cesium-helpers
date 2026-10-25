@@ -10,22 +10,24 @@
   <link href="https://cdn.jsdelivr.net/npm/cesium@1.146.0/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>:root{--wa-font-family-body:Inter, system-ui, sans-serif;--wa-font-family-heading:Inter, system-ui, sans-serif}html,body,main,#cesiumContainer{height:100%;margin:0}[hidden]{display:none!important}h1,h2{font-size:var(--wa-font-size-l);margin:0}h1{font-size:var(--wa-font-size-xl)}#trackName:focus{outline:none}#intro{inline-size:min(48ch, calc(100% - 2 * var(--wa-space-l)));position:absolute;inset-block-start:50%;inset-inline-start:50%;transform:translate(-50%,-50%)}#dropzone{padding:var(--wa-space-xl);border:var(--wa-border-width-m) dashed var(--wa-color-neutral-border-normal);border-radius:var(--wa-border-radius-l);text-align:center}#dropzone.over{border-color:var(--wa-color-brand-border-loud);background:var(--wa-color-brand-fill-quiet)}#dropzone>wa-icon{font-size:var(--wa-font-size-3xl)}#dropOverlay{inset:var(--wa-space-l);border:var(--wa-border-width-l) dashed var(--wa-color-brand-border-loud);border-radius:var(--wa-border-radius-l);background:var(--wa-color-overlay-modal);color:var(--wa-color-neutral-on-loud);font-size:var(--wa-font-size-xl);font-weight:var(--wa-font-weight-semibold);pointer-events:none;position:absolute}#panel{inline-size:38ch;max-block-size:calc(100% - 2 * var(--wa-space-xl));--spacing:var(--wa-space-m);position:absolute;inset-block-start:var(--wa-space-xl);inset-inline-end:var(--wa-space-xl)}#panel::part(body){min-block-size:0;overflow:auto}#panel.collapsed::part(body){display:none}#changeFile::part(button){padding-inline-end:0}#collapse{display:none}#create,#stopRender,#share,#download,#makeAnother{inline-size:100%}body:not([data-state=empty]){background:var(--wa-color-surface-lowered);overflow:hidden}body:is([data-state=ready],[data-state=playing]) #cesiumContainer{inline-size:var(--preview-width);block-size:var(--preview-height);transform:translate(var(--stage-x), var(--stage-y));border-radius:var(--wa-border-radius-l);position:absolute;inset-block-start:0;inset-inline-start:0;overflow:hidden}body[data-state=rendering] #cesiumContainer{inline-size:var(--video-width);block-size:var(--video-height);transform-origin:0 0;transform:translate(var(--stage-x), var(--stage-y)) scale(var(--fit,1));position:absolute;inset-block-start:0;inset-inline-start:0}.cesium-credit-logoContainer{display:none!important}body[data-state=done] #cesiumContainer{visibility:hidden}#player{inline-size:var(--preview-width);margin-block-start:var(--wa-space-s);position:absolute;inset-block-start:calc(var(--stage-y) + var(--preview-height));inset-inline-start:var(--stage-x)}#progress{flex:1}#progress::part(label){display:none}#progress::part(slider){margin-block:calc((var(--thumb-height) - var(--track-size)) / 2)}#time{font-variant-numeric:tabular-nums}#result{inline-size:var(--region-width);block-size:var(--region-height);position:absolute;inset-block-start:var(--region-y);inset-inline-start:var(--region-x)}#resultVideo{border-radius:var(--wa-border-radius-l);max-block-size:100%;max-inline-size:100%}@media (width<=40em){#panel{max-block-size:60%;inline-size:auto;inset-block:auto 0;inset-inline:0}#collapse{display:inline-block}}</style>
-  <script type="module" crossorigin src="./assets/flyover-studio-BneBRA0d.js"></script>
-  <link rel="modulepreload" crossorigin href="./assets/lit-BFn1CURT.js">
+  <script type="module" crossorigin src="./assets/flyover-studio-Be07Jq7K.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/modulepreload-polyfill-P2Xu9kJm.js">
+  <link rel="modulepreload" crossorigin href="./assets/lit-D8AhzmO2.js">
   <link rel="modulepreload" crossorigin href="./assets/directive-BSZPiF1A.js">
-  <link rel="modulepreload" crossorigin href="./assets/card-AeaRol_r.js">
-  <link rel="modulepreload" crossorigin href="./assets/directive-helpers-BiOJKcbC.js">
-  <link rel="modulepreload" crossorigin href="./assets/cesium-shim-DLIYJZws.js">
-  <link rel="modulepreload" crossorigin href="./assets/switch-C191omm4.js">
+  <link rel="modulepreload" crossorigin href="./assets/card-vYdPa2Ii.js">
+  <link rel="modulepreload" crossorigin href="./assets/directive-helpers-BBsG2Hxb.js">
+  <link rel="modulepreload" crossorigin href="./assets/setup-COOW6wa2.js">
+  <link rel="modulepreload" crossorigin href="./assets/switch-CL249emi.js">
   <link rel="modulepreload" crossorigin href="./assets/chunk.GWSUX3V5-BJ2wQfMz.js">
-  <link rel="modulepreload" crossorigin href="./assets/chunk.JAAVYFGY-DnLsQWHm.js">
-  <link rel="modulepreload" crossorigin href="./assets/button-C75z8WNE.js">
-  <link rel="modulepreload" crossorigin href="./assets/icon-wq7GPeeB.js">
+  <link rel="modulepreload" crossorigin href="./assets/chunk.JAAVYFGY-BzZoRSSO.js">
+  <link rel="modulepreload" crossorigin href="./assets/button-pDufkfty.js">
+  <link rel="modulepreload" crossorigin href="./assets/icon-CetHcvIL.js">
   <link rel="modulepreload" crossorigin href="./assets/rolldown-runtime-WkwZ5CU-.js">
-  <link rel="modulepreload" crossorigin href="./assets/chunk.UEBQI7VV-up6OAE6C.js">
-  <link rel="modulepreload" crossorigin href="./assets/style-map-ly-_uhSr.js">
-  <link rel="modulepreload" crossorigin href="./assets/slider-BKt-Dcqc.js">
-  <link rel="modulepreload" crossorigin href="./assets/callout-OHdWffQV.js">
+  <link rel="modulepreload" crossorigin href="./assets/cesium-shim-BYdCjNyS.js">
+  <link rel="modulepreload" crossorigin href="./assets/chunk.UEBQI7VV-Cljs3Nge.js">
+  <link rel="modulepreload" crossorigin href="./assets/style-map-B-eALuVS.js">
+  <link rel="modulepreload" crossorigin href="./assets/slider-VyAt7X73.js">
+  <link rel="modulepreload" crossorigin href="./assets/callout-CgyaPu3u.js">
   <link rel="stylesheet" crossorigin href="./assets/flyover-studio-DfFS4Dmy.css">
 </head>
 

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>cesium-overlay: lines</title>
+  <script src="https://cdn.jsdelivr.net/npm/cesium@1.146.0/Build/Cesium/Cesium.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/cesium@1.146.0/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  <style>html,body,#cesiumContainer{height:100%;margin:0}#panel{color:#fff;background:#303336e0;border-radius:4px;padding:8px 12px;font:12px/1.5 system-ui,sans-serif;position:absolute;top:10px;left:10px}#panel pre{margin:6px 0 0;font:11px/1.4 ui-monospace,monospace}.frame.cesium-overlay-seen,.frame.cesium-overlay-hidden{stroke:#ffd23f}.plane.cesium-overlay-fill{fill:#fff}.plane.edge{stroke:#000;stroke-opacity:.5;stroke-width:4px}.plane.core{stroke:#fff;stroke-width:2px}.measure.cesium-overlay-seen,.measure.cesium-overlay-hidden{stroke:#3cf;stroke-width:2px}.ring.cesium-overlay-seen,.ring.cesium-overlay-hidden{stroke:#f6c}</style>
+  <script type="module" crossorigin src="./assets/cesium-overlay-Bpznk34I.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/modulepreload-polyfill-P2Xu9kJm.js">
+  <link rel="modulepreload" crossorigin href="./assets/cesium-shim-BYdCjNyS.js">
+</head>
+
+<body>
+  <div id="cesiumContainer"></div>
+  <div id="panel">
+    View
+    <button type="button" data-view="above">Above</button>
+    <button type="button" data-view="side">Side</button>
+    <button type="button" data-view="inside">Inside</button>
+    <button type="button" id="measure">Measure</button>
+    <pre id="result">?continuous renders every frame</pre>
+  </div>
+</body>
+
+</html>
