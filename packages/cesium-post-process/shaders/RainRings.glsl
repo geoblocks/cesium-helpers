@@ -57,7 +57,7 @@ void main() {
   float distance = length(local - centre);
   float width = max(LINE, 1.5 * fwidth(distance));
   float ring = (1.0 - smoothstep(0.0, width, abs(distance - grown))) * (1.0 - phase);
-  ring *= step(hash(id), intensity);
+  ring *= float(hash(id) < intensity);
   ring *= 1.0 - smoothstep(maxSlope - SLOPE_EDGE, maxSlope + SLOPE_EDGE, slope);
   ring *= 1.0 - smoothstep(SMALL.x, SMALL.y, length(fwidth(local)));
   out_FragColor = vec4(mix(sceneColor.rgb, color.rgb, ring * color.a), sceneColor.a);
