@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.4.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-post-process%400.3.0...%40geoblocks%2Fcesium-post-process%400.4.0) (2026-10-25)
+
+### Features
+
+* **post-process:** SnowLine's grain, scene light, steep cover and origin; RainRings' clock ([c52ceb5](https://github.com/geoblocks/cesium-helpers/commit/c52ceb5a4321e44820e89411ba62eada7e9d9d73))
+
+
 # [0.3.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-post-process%400.2.0...%40geoblocks%2Fcesium-post-process%400.3.0) (2026-10-25)
 
 ### Bug Fixes
