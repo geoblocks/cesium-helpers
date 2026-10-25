@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {Cartesian3, FixedFrameTransforms, Matrix3, Matrix4} from '@cesium/core';
-import {localFromEye} from './local-frame.js';
+import {LocalFrame, localFromEye} from './local-frame.js';
 
 // an east-north-up frame on the globe, and a camera 300 m up and 200 m back from it, turned about
 const frame = FixedFrameTransforms.eastNorthUpToFixedFrame(Cartesian3.fromDegrees(7.5, 46.9, 500));
@@ -21,4 +21,16 @@ test('a result given is the one returned', () => {
   const result = new Matrix4();
   assert.equal(localFromEye(frame, view, result), result);
   assert.ok(Matrix4.equals(result, localFromEye(frame, view)));
+});
+
+test('a local frame laid about an origin given, or about the camera where it stood when first anchored; a new origin, a new frame', () => {
+  const at = Cartesian3.fromDegrees(7.5, 46.9, 800);
+  const scene = {camera: {positionWC: at, viewMatrix: view}, ellipsoid: undefined};
+  const local = new LocalFrame();
+  local.anchor(scene);
+  scene.camera.positionWC = Cartesian3.fromDegrees(8, 47, 900);
+  assert.ok(Matrix4.equals(local.fromEye(scene), localFromEye(FixedFrameTransforms.eastNorthUpToFixedFrame(at), view)));
+  local.origin = Cartesian3.fromDegrees(7.6, 46.95, 450);
+  assert.ok(Matrix4.equals(local.fromEye(scene), localFromEye(FixedFrameTransforms.eastNorthUpToFixedFrame(local.origin), view)));
+  assert.ok(Matrix4.equals(new LocalFrame(at).fromEye(scene), localFromEye(FixedFrameTransforms.eastNorthUpToFixedFrame(at), view)));
 });

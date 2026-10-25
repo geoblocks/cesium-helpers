@@ -24,10 +24,14 @@ const snowLine = new SnowLine(viewer, {
   altitude: 2000,  // meters above the ellipsoid where the snow is half covering
   transition: 200, // height of the band over which the snow thins out, in meters
   maxSlope: 50,    // steepest slope that holds snow, in degrees
-  coverage: 1,     // opacity of the snow, 0 to 1
+  coverage: 1,     // opacity of the snow, 0 to 1; at 0 the stage is off
   patchiness: 0,   // 0 to 1: at 1 the coverage is the share of the ground the snow covers, the noise leaving the rest bare
   waterLevel: 564, // meters above the ellipsoid: what lies within a quarter meter of it holds no snow, so a flat lake stays water
   sunDirection: sun, // the direction toward the sun the snow is shaded by, in world coordinates; Cesium's own sun if none
+  grain: 90,       // the noise's largest scale, in meters, its finer ones a third and a ninth of it: a few meters for a garden
+  sceneLight: 0,   // 0 to 1: how far the snow's brightness is the scene's own, its shadows and its dusk kept; 0 the sun's shading alone
+  steepCover: 0.35, // the thin cover the steep slopes keep, as a fraction of the coverage; 0 for none on a building's walls
+  origin: position, // the point of the world the noise is laid about; the camera's position when activated if none
 });
 snowLine.active = true;
 
@@ -77,6 +81,7 @@ const rainRings = new RainRings(viewer, {
   maxSlope: 30,      // steepest slope that takes a ring, in degrees
   color: new Color(0.31, 0.39, 0.5, 0.6), // slate on a light ground, pale on a dark one; the alpha is how strongly it shows
   origin: position,  // the point of the world the cells are laid about; the camera's position when activated if none
+  clock: () => performance.now() / 1000, // the time the rings run by, in seconds; one that stands still keeps them still (less motion)
 });
 rainRings.active = true;
 

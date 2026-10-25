@@ -14,6 +14,14 @@ uniform float maxSlope;
 uniform float coverage;
 // 0 to 1: how far the coverage thins the snow into patches, where 0 fades it
 uniform float patchiness;
+// meters: the noise's largest scale, its finer ones a third and a ninth of it
+uniform float grain;
+// 0 to 1: how far the snow's brightness is the scene's own (its shadows, the dusk), where 0 is the sun's shading
+uniform float sceneLight;
+// 0 to 1: the part of the snow that still covers the steep slopes at the limit, as a fraction of the coverage
+uniform float steepCover;
+// the local frame's coordinates from the eye's, made in double precision on the CPU (local-frame.js): the noise's place
+uniform mat4 localFromEye;
 // meters above the ellipsoid, far above anything with no water: none lies within a quarter meter of it
 uniform float waterLevel;
 // the sun toward which the snow is shaded, in eye coordinates, when ownSun is 1; else Cesium's
@@ -27,8 +35,6 @@ const vec3 SNOW_SUN = vec3(1.0, 0.98, 0.94);
 const float ASPECT_SHIFT = 0.6;
 // meters the noise moves the snow line, as a fraction of the transition
 const float NOISE_SHIFT = 0.8;
-// part of the snow that still covers the steep slopes at the limit, as a fraction of the coverage
-const float STEEP_SNOW = 0.35;
 // half width of the slope limit, in radians (8 degrees), so that the snow thins out across the
 // facets of the terrain rather than stopping at their edges
 const float SLOPE_EDGE = 0.14;
@@ -54,9 +60,9 @@ float valueNoise(vec3 p) {
     f.z);
 }
 
-// 0 to 1, from a few octaves anchored to the ground
-float groundNoise(vec3 world) {
-  return 0.55 * valueNoise(world / 90.0) + 0.3 * valueNoise(world / 30.0) + 0.15 * valueNoise(world / 10.0);
+// 0 to 1, from a few octaves anchored to the ground, in the local frame: in world coordinates a float steps by half a meter
+float groundNoise(vec3 local) {
+  return 0.55 * valueNoise(local / grain) + 0.3 * valueNoise(3.0 * local / grain) + 0.15 * valueNoise(9.0 * local / grain);
 }
 
 void main() {
@@ -66,7 +72,7 @@ void main() {
   float slope = acos(clamp(dot(normal, up), -1.0, 1.0));
 
   float sun = max(dot(normal, ownSun > 0.5 ? sunEC : czm_sunDirectionEC), 0.0);
-  float noise = groundNoise((czm_inverseView * vec4(eye.xyz, 1.0)).xyz) - 0.5;
+  float noise = groundNoise((localFromEye * vec4(eye.xyz, 1.0)).xyz) - 0.5;
   // lower on the slopes away from the sun, irregular along the edge
   float shift = transition * (NOISE_SHIFT * noise + ASPECT_SHIFT * (0.5 - sun));
   float snowLine = altitude + shift;
@@ -75,14 +81,17 @@ void main() {
   snow = smoothstep(0.0, 0.7, snow);
   // the steep slopes keep a thin, patchy cover, and the rock shows through
   float steep = smoothstep(maxSlope - SLOPE_EDGE, maxSlope + SLOPE_EDGE, slope);
-  snow *= 1.0 - steep * (1.0 - STEEP_SNOW * smoothstep(0.35, 0.65, noise + 0.5));
+  snow *= 1.0 - steep * (1.0 - steepCover * smoothstep(0.35, 0.65, noise + 0.5));
   // the coverage an opacity, or, by the patchiness, the share of the ground the snow covers, the noise leaving it in patches
   float scattered = smoothstep(PATCH.x, PATCH.y, coverage + PATCH_NOISE * noise);
   // eye.w is 0 for the sky
   snow *= mix(coverage, scattered, patchiness) * eye.w;
   snow *= smoothstep(WET.x, WET.y, abs(heightAt(eye.xyz) - waterLevel));
   float brightness = czm_luminance(sceneColor.rgb);
-  // blue in the shade, warm in the sun, with the relief of the scene kept in the brightness
-  vec3 lit = mix(SNOW_SHADE, SNOW_SUN, sun) * clamp(0.68 + 0.25 * sun + 0.1 * brightness, 0.0, 1.0);
+  // blue in the shade, warm in the sun, with the relief of the scene kept in the brightness; or as bright as the scene, its shadows and its
+  // dusk kept on the snow
+  float shaded = clamp(0.68 + 0.25 * sun + 0.1 * brightness, 0.0, 1.0);
+  float scene = clamp(0.15 + 1.35 * brightness, 0.0, 1.0);
+  vec3 lit = mix(SNOW_SHADE, SNOW_SUN, sun) * mix(shaded, scene, sceneLight);
   out_FragColor = vec4(mix(sceneColor.rgb, lit, snow), sceneColor.a);
 }

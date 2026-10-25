@@ -104,3 +104,12 @@ test('with no intensity the stage is off and asks for no frames; with some, the 
     mock.timers.reset();
   }
 });
+
+test('the rings run by the clock given, in seconds, wrapped at an hour: a clock that stands still keeps them still', () => {
+  const viewer = fakeViewer();
+  let now = 3600 + 12.5;
+  const {uniforms} = new RainRings(viewer, {clock: () => now}).createStage_(viewer.scene);
+  assert.equal(uniforms.time(), 12.5);
+  now = 0;
+  assert.equal(uniforms.time(), 0);
+});
