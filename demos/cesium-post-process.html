@@ -215,7 +215,7 @@
     // the video signal, analog or digital
     const ORDER = ['snowLine', 'valleyFog', 'spotlight', 'precipitation', 'lightning', 'dufour', 'tiltShift', 'motionBlur', 'speedLines', 'colorIsolation', 'infrared', 'technicolor', 'super8', 'lensDistortion', 'jello', 'droneDisplay', 'analogVideo', 'digitalVideo'];
 
-    createViewer('cesiumContainer').then(viewer => {
+    createViewer('cesiumContainer', {smooth: true}).then(viewer => {
       // an early autumn afternoon, for the light
       viewer.clock.currentTime = Cesium.JulianDate.fromIso8601('2026-09-25T14:00:00+02:00');
       viewer.clock.shouldAnimate = false;
