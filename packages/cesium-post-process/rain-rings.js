@@ -1,10 +1,10 @@
-import {Cartesian3, Cartesian4, Color, FixedFrameTransforms, Matrix4, Math as CesiumMath} from '@cesium/core';
+import {Cartesian3, Cartesian4, Color, Math as CesiumMath} from '@cesium/core';
 import {PostProcessStage} from '@cesium/engine';
 import {acquireTerrainDepth, releaseTerrainDepth} from './depth-test.js';
 import Effect from './effect.js';
 import {acquireFrames, releaseFrames} from './frame-clock.js';
 import {heightUniforms} from './height.js';
-import {localFromEye} from './local-frame.js';
+import {LocalFrame} from './local-frame.js';
 import EyeFromDepth from './shaders/EyeFromDepth.js';
 import Hash from './shaders/Hash.js';
 import Height from './shaders/Height.js';
@@ -28,10 +28,11 @@ export default class RainRings extends Effect {
   /**
    * @param {import('@cesium/engine').CesiumWidget} viewer
    * @param {{intensity?: number, cell?: number, reach?: number, waterLevel?: number, maxSlope?: number, rate?: number,
-   *   color?: Color, origin?: Cartesian3}} [options] The share of the cells that have a drop, 0 to 1; the cell's size and the ring's growth
-   *   on the ground, in meters (the ring on water is clipped at 0.3 cell); the water's height above the ellipsoid, in meters, or undefined
-   *   for none; the steepest slope that takes a ring, in degrees; rings a second in a cell; the ring's color, its alpha how strongly it shows; the
-   *   point of the world the cells are laid about.
+   *   color?: Color, origin?: Cartesian3, clock?: () => number}} [options] The share of the cells that have a drop, 0 to 1; the cell's size
+   *   and the ring's growth on the ground, in meters (the ring on water is clipped at 0.3 cell); the water's height above the ellipsoid, in
+   *   meters, or undefined for none; the steepest slope that takes a ring, in degrees; rings a second in a cell; the ring's color, its alpha how
+   *   strongly it shows; the point of the world the cells are laid about; the time the rings run by, in seconds (the wall clock's by default;
+   *   one that stands still keeps them still, for a viewer who asks for less motion).
    */
   constructor(viewer, options = {}) {
     super(viewer);
@@ -42,23 +43,9 @@ export default class RainRings extends Effect {
     this.maxSlope_ = options.maxSlope ?? 30;
     this.rate_ = options.rate ?? 1.6;
     this.color_ = options.color ?? new Color(0.31, 0.39, 0.5, 0.6);
-    this.origin_ = options.origin && Cartesian3.clone(options.origin);
-    /** @type {Matrix4 | undefined} */
-    this.localFrame_ = undefined;
+    this.frame_ = new LocalFrame(options.origin);
+    this.clock_ = options.clock ?? (() => performance.now() / 1000);
     this.colorScratch_ = new Cartesian4();
-    this.localScratch_ = new Matrix4();
-  }
-
-  /**
-   * The local frame, east-north-up about the origin: the camera's position when the effect is activated, if none was given.
-   * @private
-   * @param {import('@cesium/engine').Scene} scene
-   */
-  frameAt_(scene) {
-    this.origin_ ??= Cartesian3.clone(scene.camera.positionWC);
-    const frame = this.localFrame_ ?? FixedFrameTransforms.eastNorthUpToFixedFrame(this.origin_, scene.ellipsoid, new Matrix4());
-    this.localFrame_ = frame;
-    return frame;
   }
 
   /**
@@ -70,14 +57,14 @@ export default class RainRings extends Effect {
       fragmentShader: EyeFromDepth + Height + Hash + Normal + RainRingsShader,
       uniforms: {
         ...heightUniforms(scene),
-        localFromEye: () => localFromEye(this.frameAt_(scene), scene.camera.viewMatrix, this.localScratch_),
+        localFromEye: () => this.frame_.fromEye(scene),
         intensity: () => this.intensity_,
         cell: () => this.cell_,
         reach: () => this.reach_,
         waterLevel: () => this.waterLevel_ ?? NO_WATER,
         maxSlope: () => CesiumMath.toRadians(this.maxSlope_),
         rate: () => this.rate_,
-        time: () => (performance.now() / 1000) % TIME_PERIOD,
+        time: () => this.clock_() % TIME_PERIOD,
         color: () => Cartesian4.fromColor(this.color_, this.colorScratch_),
       },
     });
@@ -91,7 +78,7 @@ export default class RainRings extends Effect {
    * @param {import('@cesium/engine').Scene} scene
    */
   activated_(scene) {
-    this.frameAt_(scene);
+    this.frame_.anchor(scene);
     acquireTerrainDepth(scene);
     if (this.intensity_ > 0) {
       acquireFrames(scene, FRAME_RATE);
@@ -204,12 +191,11 @@ export default class RainRings extends Effect {
    * the effect is activated if none is given. Keep it within a few kilometers of what is looked at.
    */
   get origin() {
-    return this.origin_;
+    return this.frame_.origin;
   }
 
   set origin(value) {
-    this.origin_ = value && Cartesian3.clone(value);
-    this.localFrame_ = undefined;
+    this.frame_.origin = value;
     this.viewer.scene.requestRender();
   }
 }
