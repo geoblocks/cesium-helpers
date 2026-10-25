@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.1.5](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-flyto%400.1.4...%40geoblocks%2Fcesium-flyto%400.1.5) (2026-10-25)
+
+**Note:** Version bump only for package @geoblocks/cesium-flyto
+
+
+
+
+
 ## [0.1.4](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-flyto%400.1.3...%40geoblocks%2Fcesium-flyto%400.1.4) (2026-10-23)
 
 **Note:** Version bump only for package @geoblocks/cesium-flyto

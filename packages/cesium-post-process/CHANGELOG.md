@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.3.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-post-process%400.2.0...%40geoblocks%2Fcesium-post-process%400.3.0) (2026-10-25)
+
+### Bug Fixes
+
+* **post-process:** a cell with a hash of 0 has no drop at no rain ([ceb4696](https://github.com/geoblocks/cesium-helpers/commit/ceb46962c7040a2d2c6614cddd7f2ce5aaa37ca9))
+
+### Features
+
+* **post-process:** RainRings, rings where the rain lands ([9b194d7](https://github.com/geoblocks/cesium-helpers/commit/9b194d73b69c7c7a8da3b2f76f6f202eb0deaf6a))
+* **post-process:** SnowLine's patchiness, water level and sun direction ([7410734](https://github.com/geoblocks/cesium-helpers/commit/74107340a34cf5efd0c5b9b7983600b565660b30))
+
+
 # [0.2.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-post-process%400.1.3...%40geoblocks%2Fcesium-post-process%400.2.0) (2026-10-23)
 
 ### Features
