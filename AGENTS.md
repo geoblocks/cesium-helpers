@@ -43,6 +43,15 @@ Use the language's newer built-ins over the older idioms:
   file's name is known only at run time or a test needs a fresh copy to change.
 - `Promise.try`, `RegExp.escape` and `Float16Array` where they fit.
 
+## Cesium behavior to design around
+
+- Moving a `PolylineCollection` by its `modelMatrix` rebuilds its vertices every frame: `PolylineCollection.update` sets `_createVertexArray`
+  when `modelMatrix` differs from the one the vertices were last built with (`Source/Scene/PolylineCollection.js`). Measured with 1400
+  polylines, two collections of 700 moved by one translation each frame: about 4 ms a frame (a desktop GPU, 9.9 ms against 6.0 with the matrix
+  frozen), the drawing itself 2 ms more. `BillboardCollection` and `PointPrimitiveCollection` move by their matrix for nothing measurable. For
+  many short marks that move together (rain streaks, flakes, sparks), use billboards (an upright streak is a billboard with an `alignedAxis`
+  and a thin image) or points; keep polylines for what is built once.
+
 ## Layout and commands
 
 - `npm test` runs `node --test "packages/**/*.test.js"`. `npm run typecheck` runs `tsc`. `npm run build-demos` runs
