@@ -1,9 +1,9 @@
-// Converts each packages/*/shaders/*.glsl file to a JavaScript module exporting its source, as
+// Converts each packages/*/src/shaders/*.glsl file to a JavaScript module exporting its source, as
 // CesiumJS does: the published packages are plain ES modules, without a bundler to load .glsl.
 import {glob, readFile, writeFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 
-const SHADERS = 'packages/*/shaders/*.glsl';
+const SHADERS = 'packages/*/src/shaders/*.glsl';
 
 /**
  * @param {string} glslFile

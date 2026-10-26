@@ -8,11 +8,11 @@
     "url": "https://github.com/geoblocks/cesium-helpers/",
     "directory": "packages/cesium-iso"
   },
-  "main": "cesium-iso.js",
-  "module": "cesium-iso.js",
+  "main": "src/cesium-iso.js",
+  "module": "src/cesium-iso.js",
   "sideEffects": false,
   "files": [
-    "cesium-iso.js"
+    "src/cesium-iso.js"
   ],
   "publishConfig": {
     "access": "public"

@@ -8,17 +8,17 @@
     "url": "https://github.com/geoblocks/cesium-helpers/",
     "directory": "packages/cesium-path-flyover"
   },
-  "main": "cesium-path-flyover.js",
-  "module": "cesium-path-flyover.js",
+  "main": "src/cesium-path-flyover.js",
+  "module": "src/cesium-path-flyover.js",
   "sideEffects": false,
   "files": [
-    "cesium-path-flyover.js",
-    "free-look.js",
-    "planner.js",
-    "run.js",
-    "shaders/*.js",
-    "terrain.js",
-    "track.js"
+    "src/cesium-path-flyover.js",
+    "src/free-look.js",
+    "src/planner.js",
+    "src/run.js",
+    "src/shaders/*.js",
+    "src/terrain.js",
+    "src/track.js"
   ],
   "publishConfig": {
     "access": "public"

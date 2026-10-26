@@ -77,7 +77,7 @@
     //                              first change and when they settle after the stop, when the depth reads end, how many and
     //                              their time, long tasks
     // `?continuous` renders every frame (Cesium's default) instead of on request.
-    import {overlayOf} from '../packages/cesium-overlay/cesium-overlay.js';
+    import {overlayOf} from '../packages/cesium-overlay/src/cesium-overlay.js';
 
     const continuous = new URLSearchParams(location.search).has('continuous');
     const viewer = new Cesium.Viewer('cesiumContainer', {

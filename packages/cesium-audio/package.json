@@ -8,8 +8,8 @@
     "url": "https://github.com/geoblocks/cesium-helpers/",
     "directory": "packages/cesium-audio"
   },
-  "main": "cesium-audio.js",
-  "module": "cesium-audio.js",
+  "main": "src/cesium-audio.js",
+  "module": "src/cesium-audio.js",
   "sideEffects": false,
   "publishConfig": {
     "access": "public"

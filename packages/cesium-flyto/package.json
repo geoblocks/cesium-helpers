@@ -8,12 +8,12 @@
     "url": "https://github.com/geoblocks/cesium-helpers/",
     "directory": "packages/cesium-flyto"
   },
-  "main": "cesium-flyto.js",
-  "module": "cesium-flyto.js",
+  "main": "src/cesium-flyto.js",
+  "module": "src/cesium-flyto.js",
   "sideEffects": false,
   "files": [
-    "cesium-flyto.js",
-    "shaders/*.js"
+    "src/cesium-flyto.js",
+    "src/shaders/*.js"
   ],
   "publishConfig": {
     "access": "public"

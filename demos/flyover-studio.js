@@ -1,5 +1,5 @@
 import {createViewer} from './setup.js';
-import CesiumPathFlyover from '../packages/cesium-path-flyover/cesium-path-flyover.js';
+import CesiumPathFlyover from '../packages/cesium-path-flyover/src/cesium-path-flyover.js';
 import FlyoverCaptions from './flyover-captions.js';
 import {canEncodeVideo} from 'mediabunny';
 import {exportFlyover} from './flyover-export.js';

@@ -8,23 +8,23 @@
     "url": "https://github.com/geoblocks/cesium-helpers/",
     "directory": "packages/cesium-obstacles"
   },
-  "main": "cesium-obstacles.js",
-  "module": "cesium-obstacles.js",
+  "main": "src/cesium-obstacles.js",
+  "module": "src/cesium-obstacles.js",
   "sideEffects": false,
   "exports": {
-    ".": "./cesium-obstacles.js",
-    "./cesium-obstacles.js": "./cesium-obstacles.js",
-    "./triangle-mesh.js": "./triangle-mesh.js",
-    "./triangle-trees.js": "./triangle-trees.js",
-    "./gltf-mesh.js": "./gltf-mesh.js",
-    "./mesh-builder.js": "./mesh-builder.js"
+    ".": "./src/cesium-obstacles.js",
+    "./cesium-obstacles.js": "./src/cesium-obstacles.js",
+    "./triangle-mesh.js": "./src/triangle-mesh.js",
+    "./triangle-trees.js": "./src/triangle-trees.js",
+    "./gltf-mesh.js": "./src/gltf-mesh.js",
+    "./mesh-builder.js": "./src/mesh-builder.js"
   },
   "files": [
-    "cesium-obstacles.js",
-    "triangle-mesh.js",
-    "triangle-trees.js",
-    "gltf-mesh.js",
-    "mesh-builder.js"
+    "src/cesium-obstacles.js",
+    "src/triangle-mesh.js",
+    "src/triangle-trees.js",
+    "src/gltf-mesh.js",
+    "src/mesh-builder.js"
   ],
   "publishConfig": {
     "access": "public"

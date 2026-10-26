@@ -8,14 +8,14 @@
     "url": "https://github.com/geoblocks/cesium-helpers/",
     "directory": "packages/cesium-bvh"
   },
-  "main": "cesium-bvh.js",
-  "module": "cesium-bvh.js",
+  "main": "src/cesium-bvh.js",
+  "module": "src/cesium-bvh.js",
   "sideEffects": false,
   "exports": {
-    ".": "./cesium-bvh.js"
+    ".": "./src/cesium-bvh.js"
   },
   "files": [
-    "cesium-bvh.js"
+    "src/cesium-bvh.js"
   ],
   "publishConfig": {
     "access": "public"

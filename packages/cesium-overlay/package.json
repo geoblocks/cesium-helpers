@@ -8,15 +8,15 @@
     "url": "https://github.com/geoblocks/cesium-helpers/",
     "directory": "packages/cesium-overlay"
   },
-  "main": "cesium-overlay.js",
-  "module": "cesium-overlay.js",
+  "main": "src/cesium-overlay.js",
+  "module": "src/cesium-overlay.js",
   "sideEffects": false,
   "exports": {
-    ".": "./cesium-overlay.js"
+    ".": "./src/cesium-overlay.js"
   },
   "files": [
-    "cesium-overlay.js",
-    "overlay-lines.js"
+    "src/cesium-overlay.js",
+    "src/overlay-lines.js"
   ],
   "publishConfig": {
     "access": "public"

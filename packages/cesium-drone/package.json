@@ -8,8 +8,8 @@
     "url": "https://github.com/geoblocks/cesium-helpers/",
     "directory": "packages/cesium-drone"
   },
-  "main": "cesium-drone.js",
-  "module": "cesium-drone.js",
+  "main": "src/cesium-drone.js",
+  "module": "src/cesium-drone.js",
   "sideEffects": false,
   "publishConfig": {
     "access": "public"

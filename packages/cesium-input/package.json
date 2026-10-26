@@ -8,11 +8,11 @@
     "url": "https://github.com/geoblocks/cesium-helpers/",
     "directory": "packages/cesium-input"
   },
-  "main": "cesium-input.js",
-  "module": "cesium-input.js",
+  "main": "src/cesium-input.js",
+  "module": "src/cesium-input.js",
   "sideEffects": false,
   "files": [
-    "cesium-input.js"
+    "src/cesium-input.js"
   ],
   "publishConfig": {
     "access": "public"
