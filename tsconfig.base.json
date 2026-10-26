@@ -1,9 +1,9 @@
 {
   "compilerOptions": {
     "target": "ES2025",
-    "module": "node16",
-    "moduleResolution": "node16",
+    "module": "node18",
     "lib": ["es2025", "dom"],
+    "useDefineForClassFields": false,
     "allowJs": true,
     "checkJs": true,
     "skipLibCheck": true,
