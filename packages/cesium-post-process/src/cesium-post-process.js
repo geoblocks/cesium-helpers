@@ -4,6 +4,7 @@ export {default as ColorIsolation} from './color-isolation.js';
 export {default as DigitalVideo} from './digital-video.js';
 export {default as Dufour} from './dufour.js';
 export {default as DroneDisplay} from './drone-display.js';
+export {default as Effect} from './effect.js';
 export {default as Infrared} from './infrared.js';
 export {default as Jello} from './jello.js';
 export {default as LensDistortion} from './lens-distortion.js';
@@ -23,6 +24,7 @@ export {default as WhiteModel} from './white-model.js';
 
 // the shader chunks the depth-based effects share, and the uniforms of Height, for effects of your own
 export {default as EyeFromDepth} from './shaders/EyeFromDepth.js';
+export {default as Hash} from './shaders/Hash.js';
 export {default as Height} from './shaders/Height.js';
 export {heightUniforms} from './height.js';
 export {localFromEye} from './local-frame.js';

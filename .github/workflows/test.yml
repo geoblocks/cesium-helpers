@@ -32,5 +32,8 @@ jobs:
       - name: Type Check
         run: npm run typecheck
 
+      - name: Build Packages
+        run: npm run build
+
       - name: Build Demos
         run: npm run build-demos

@@ -8,24 +8,51 @@
     "url": "https://github.com/geoblocks/cesium-helpers/",
     "directory": "packages/cesium-obstacles"
   },
-  "main": "src/cesium-obstacles.js",
-  "module": "src/cesium-obstacles.js",
-  "sideEffects": false,
+  "main": "dist/cesium-obstacles.js",
+  "module": "dist/cesium-obstacles.js",
+  "types": "dist/cesium-obstacles.d.ts",
   "exports": {
-    ".": "./src/cesium-obstacles.js",
-    "./cesium-obstacles.js": "./src/cesium-obstacles.js",
-    "./triangle-mesh.js": "./src/triangle-mesh.js",
-    "./triangle-trees.js": "./src/triangle-trees.js",
-    "./gltf-mesh.js": "./src/gltf-mesh.js",
-    "./mesh-builder.js": "./src/mesh-builder.js"
+    ".": {
+      "source": "./src/cesium-obstacles.js",
+      "types": "./dist/cesium-obstacles.d.ts",
+      "default": "./dist/cesium-obstacles.js"
+    },
+    "./cesium-obstacles.js": {
+      "source": "./src/cesium-obstacles.js",
+      "types": "./dist/cesium-obstacles.d.ts",
+      "default": "./dist/cesium-obstacles.js"
+    },
+    "./triangle-mesh.js": {
+      "source": "./src/triangle-mesh.js",
+      "types": "./dist/triangle-mesh.d.ts",
+      "default": "./dist/triangle-mesh.js"
+    },
+    "./triangle-trees.js": {
+      "source": "./src/triangle-trees.js",
+      "types": "./dist/triangle-trees.d.ts",
+      "default": "./dist/triangle-trees.js"
+    },
+    "./gltf-mesh.js": {
+      "source": "./src/gltf-mesh.js",
+      "types": "./dist/gltf-mesh.d.ts",
+      "default": "./dist/gltf-mesh.js"
+    },
+    "./mesh-builder.js": {
+      "source": "./src/mesh-builder.js",
+      "types": "./dist/mesh-builder.d.ts",
+      "default": "./dist/mesh-builder.js"
+    }
   },
+  "sideEffects": false,
   "files": [
-    "src/cesium-obstacles.js",
-    "src/triangle-mesh.js",
-    "src/triangle-trees.js",
-    "src/gltf-mesh.js",
-    "src/mesh-builder.js"
+    "dist",
+    "src",
+    "!src/**/*.test.js"
   ],
+  "scripts": {
+    "build": "tsc -p .",
+    "prepack": "npm run build"
+  },
   "publishConfig": {
     "access": "public"
   },

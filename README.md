@@ -53,6 +53,12 @@ This repository uses [lerna](https://lerna.js.org/) to manage the packages.
 # bootstrap/setup
 npm install
 
+# type check the sources.
+npm run typecheck
+
+# build the packages: JavaScript and type declarations in packages/*/dist.
+npm run build
+
 # check which packages have changed since the last release.
 npx lerna changed
 
@@ -68,10 +74,11 @@ npx lerna version
 git log -1
 git tag --points-at HEAD
 
-# publish to npm the packages tagged on the current commit (needs npm credentials only).
+# publish to npm the packages tagged on the current commit (needs npm credentials only);
+# each package is built first.
 npx lerna publish from-git
 ```
 
-The shaders are written in `packages/*/shaders/*.glsl` and converted to JavaScript modules
+The shaders are written in `packages/*/src/shaders/*.glsl` and converted to JavaScript modules
 next to them, as in CesiumJS. `npm install` and `npm run dev` generate these modules; run
 `npm run build-shaders` after editing a shader otherwise.

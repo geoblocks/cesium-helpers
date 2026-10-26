@@ -6,12 +6,13 @@
     "packages/*"
   ],
   "scripts": {
+    "build": "npm run build-shaders && lerna run build",
     "build-demos": "vite build",
     "build-shaders": "node scripts/build-shaders.js",
     "dev": "vite",
     "gh-pages": "npm run build-demos && gh-pages -d dist",
     "prepare": "npm run build-shaders",
-    "test": "node --test \"packages/**/*.test.js\"",
+    "test": "node --conditions=source --test \"packages/**/*.test.js\"",
     "typecheck": "tsc --pretty"
   },
   "devDependencies": {

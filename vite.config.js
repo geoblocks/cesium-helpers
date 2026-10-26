@@ -1,6 +1,6 @@
 import {resolve, dirname} from 'path';
 import {fileURLToPath} from 'url';
-import {defineConfig} from 'vite';
+import {defaultClientConditions, defineConfig} from 'vite';
 import {buildShader, buildShaders} from './scripts/build-shaders.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -17,6 +17,7 @@ export default defineConfig({
   }],
   base: './',
   resolve: {
+    conditions: [...defaultClientConditions, 'source'],
     alias: {
       '@cesium/core': resolve(__dirname, 'demos/cesium-shim.js'),
       '@cesium/engine': resolve(__dirname, 'demos/cesium-shim.js'),

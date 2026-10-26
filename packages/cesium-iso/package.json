@@ -8,12 +8,26 @@
     "url": "https://github.com/geoblocks/cesium-helpers/",
     "directory": "packages/cesium-iso"
   },
-  "main": "src/cesium-iso.js",
-  "module": "src/cesium-iso.js",
+  "main": "dist/cesium-iso.js",
+  "module": "dist/cesium-iso.js",
+  "types": "dist/cesium-iso.d.ts",
+  "exports": {
+    ".": {
+      "source": "./src/cesium-iso.js",
+      "types": "./dist/cesium-iso.d.ts",
+      "default": "./dist/cesium-iso.js"
+    }
+  },
   "sideEffects": false,
   "files": [
-    "src/cesium-iso.js"
+    "dist",
+    "src",
+    "!src/**/*.test.js"
   ],
+  "scripts": {
+    "build": "tsc -p .",
+    "prepack": "npm run build"
+  },
   "publishConfig": {
     "access": "public"
   },

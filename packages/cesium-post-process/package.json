@@ -8,47 +8,26 @@
     "url": "https://github.com/geoblocks/cesium-helpers/",
     "directory": "packages/cesium-post-process"
   },
-  "main": "src/cesium-post-process.js",
-  "module": "src/cesium-post-process.js",
+  "main": "dist/cesium-post-process.js",
+  "module": "dist/cesium-post-process.js",
+  "types": "dist/cesium-post-process.d.ts",
+  "exports": {
+    ".": {
+      "source": "./src/cesium-post-process.js",
+      "types": "./dist/cesium-post-process.d.ts",
+      "default": "./dist/cesium-post-process.js"
+    }
+  },
   "sideEffects": false,
   "files": [
-    "src/analog-video.js",
-    "src/blur.js",
-    "src/cesium-post-process.js",
-    "src/cloud-cover.js",
-    "src/cloud-map.js",
-    "src/cloud-noise.js",
-    "src/clouds.js",
-    "src/color-isolation.js",
-    "src/depth-test.js",
-    "src/digital-video.js",
-    "src/dufour.js",
-    "src/drone-display.js",
-    "src/effect.js",
-    "src/focus.js",
-    "src/frame-clock.js",
-    "src/height.js",
-    "src/infrared.js",
-    "src/jello.js",
-    "src/lens-distortion.js",
-    "src/lightning.js",
-    "src/local-frame.js",
-    "src/motion-blur.js",
-    "src/precipitation.js",
-    "src/rain-rings.js",
-    "src/snow-line.js",
-    "src/speed-lines.js",
-    "src/spotlight.js",
-    "src/strikes.js",
-    "src/super8.js",
-    "src/technicolor.js",
-    "src/tilt-shift.js",
-    "src/toy.js",
-    "src/valley-fog.js",
-    "src/weather-map.js",
-    "src/white-model.js",
-    "src/shaders/*.js"
+    "dist",
+    "src",
+    "!src/**/*.test.js"
   ],
+  "scripts": {
+    "build": "tsc -p .",
+    "prepack": "npm run build"
+  },
   "publishConfig": {
     "access": "public"
   },

@@ -8,13 +8,26 @@
     "url": "https://github.com/geoblocks/cesium-helpers/",
     "directory": "packages/cesium-flyto"
   },
-  "main": "src/cesium-flyto.js",
-  "module": "src/cesium-flyto.js",
+  "main": "dist/cesium-flyto.js",
+  "module": "dist/cesium-flyto.js",
+  "types": "dist/cesium-flyto.d.ts",
+  "exports": {
+    ".": {
+      "source": "./src/cesium-flyto.js",
+      "types": "./dist/cesium-flyto.d.ts",
+      "default": "./dist/cesium-flyto.js"
+    }
+  },
   "sideEffects": false,
   "files": [
-    "src/cesium-flyto.js",
-    "src/shaders/*.js"
+    "dist",
+    "src",
+    "!src/**/*.test.js"
   ],
+  "scripts": {
+    "build": "tsc -p .",
+    "prepack": "npm run build"
+  },
   "publishConfig": {
     "access": "public"
   },

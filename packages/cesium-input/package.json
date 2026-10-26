@@ -8,12 +8,26 @@
     "url": "https://github.com/geoblocks/cesium-helpers/",
     "directory": "packages/cesium-input"
   },
-  "main": "src/cesium-input.js",
-  "module": "src/cesium-input.js",
+  "main": "dist/cesium-input.js",
+  "module": "dist/cesium-input.js",
+  "types": "dist/cesium-input.d.ts",
+  "exports": {
+    ".": {
+      "source": "./src/cesium-input.js",
+      "types": "./dist/cesium-input.d.ts",
+      "default": "./dist/cesium-input.js"
+    }
+  },
   "sideEffects": false,
   "files": [
-    "src/cesium-input.js"
+    "dist",
+    "src",
+    "!src/**/*.test.js"
   ],
+  "scripts": {
+    "build": "tsc -p .",
+    "prepack": "npm run build"
+  },
   "publishConfig": {
     "access": "public"
   }
