@@ -1,6 +1,6 @@
 {
   "name": "@geoblocks/cesium-obstacles",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "license": "BSD-3-Clause",
   "type": "module",
   "repository": {
@@ -57,7 +57,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@geoblocks/cesium-bvh": "^0.2.0"
+    "@geoblocks/cesium-bvh": "^0.3.0"
   },
   "peerDependencies": {
     "@cesium/core": ">=0.1.0",

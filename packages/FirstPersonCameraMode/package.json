@@ -1,6 +1,6 @@
 {
   "name": "@geoblocks/cesium-first-person-mode",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "license": "BSD-3-Clause",
   "type": "module",
   "repository": {
@@ -32,7 +32,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@geoblocks/cesium-input": "^0.2.0"
+    "@geoblocks/cesium-input": "^0.3.0"
   },
   "peerDependencies": {
     "@cesium/core": ">=0.1.0",
