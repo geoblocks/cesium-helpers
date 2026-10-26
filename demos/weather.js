@@ -1,6 +1,6 @@
 import {createViewer} from './setup.js';
-import CesiumAudio from '../packages/cesium-audio/cesium-audio.js';
-import {Clouds, Lightning, Precipitation} from '../packages/cesium-post-process/cesium-post-process.js';
+import CesiumAudio from '../packages/cesium-audio/src/cesium-audio.js';
+import {Clouds, Lightning, Precipitation} from '../packages/cesium-post-process/src/cesium-post-process.js';
 import {hourlyRadarMap, latestHour} from './meteoswiss.js';
 import '@awesome.me/webawesome/dist/styles/webawesome.css';
 import '@awesome.me/webawesome/dist/components/card/card.js';

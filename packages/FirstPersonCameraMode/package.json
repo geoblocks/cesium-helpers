@@ -8,13 +8,26 @@
     "url": "https://github.com/geoblocks/cesium-helpers/",
     "directory": "packages/FirstPersonCameraMode"
   },
-  "main": "FirstPersonCameraMode.js",
-  "module": "FirstPersonCameraMode.js",
+  "main": "dist/FirstPersonCameraMode.js",
+  "module": "dist/FirstPersonCameraMode.js",
+  "types": "dist/FirstPersonCameraMode.d.ts",
+  "exports": {
+    ".": {
+      "source": "./src/FirstPersonCameraMode.js",
+      "types": "./dist/FirstPersonCameraMode.d.ts",
+      "default": "./dist/FirstPersonCameraMode.js"
+    }
+  },
   "sideEffects": false,
   "files": [
-    "FirstPersonCameraMode.js",
-    "zoom.js"
+    "dist",
+    "src",
+    "!src/**/*.test.js"
   ],
+  "scripts": {
+    "build": "tsc -p .",
+    "prepack": "npm run build"
+  },
   "publishConfig": {
     "access": "public"
   },

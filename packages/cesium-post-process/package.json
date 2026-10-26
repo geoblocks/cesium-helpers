@@ -8,47 +8,26 @@
     "url": "https://github.com/geoblocks/cesium-helpers/",
     "directory": "packages/cesium-post-process"
   },
-  "main": "cesium-post-process.js",
-  "module": "cesium-post-process.js",
+  "main": "dist/cesium-post-process.js",
+  "module": "dist/cesium-post-process.js",
+  "types": "dist/cesium-post-process.d.ts",
+  "exports": {
+    ".": {
+      "source": "./src/cesium-post-process.js",
+      "types": "./dist/cesium-post-process.d.ts",
+      "default": "./dist/cesium-post-process.js"
+    }
+  },
   "sideEffects": false,
   "files": [
-    "analog-video.js",
-    "blur.js",
-    "cesium-post-process.js",
-    "cloud-cover.js",
-    "cloud-map.js",
-    "cloud-noise.js",
-    "clouds.js",
-    "color-isolation.js",
-    "depth-test.js",
-    "digital-video.js",
-    "dufour.js",
-    "drone-display.js",
-    "effect.js",
-    "focus.js",
-    "frame-clock.js",
-    "height.js",
-    "infrared.js",
-    "jello.js",
-    "lens-distortion.js",
-    "lightning.js",
-    "local-frame.js",
-    "motion-blur.js",
-    "precipitation.js",
-    "rain-rings.js",
-    "snow-line.js",
-    "speed-lines.js",
-    "spotlight.js",
-    "strikes.js",
-    "super8.js",
-    "technicolor.js",
-    "tilt-shift.js",
-    "toy.js",
-    "valley-fog.js",
-    "weather-map.js",
-    "white-model.js",
-    "shaders/*.js"
+    "dist",
+    "src",
+    "!src/**/*.test.js"
   ],
+  "scripts": {
+    "build": "tsc -p .",
+    "prepack": "npm run build"
+  },
   "publishConfig": {
     "access": "public"
   },

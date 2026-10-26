@@ -8,15 +8,26 @@
     "url": "https://github.com/geoblocks/cesium-helpers/",
     "directory": "packages/cesium-walk"
   },
-  "main": "cesium-walk.js",
-  "module": "cesium-walk.js",
-  "sideEffects": false,
+  "main": "dist/cesium-walk.js",
+  "module": "dist/cesium-walk.js",
+  "types": "dist/cesium-walk.d.ts",
   "exports": {
-    ".": "./cesium-walk.js"
+    ".": {
+      "source": "./src/cesium-walk.js",
+      "types": "./dist/cesium-walk.d.ts",
+      "default": "./dist/cesium-walk.js"
+    }
   },
+  "sideEffects": false,
   "files": [
-    "cesium-walk.js"
+    "dist",
+    "src",
+    "!src/**/*.test.js"
   ],
+  "scripts": {
+    "build": "tsc -p .",
+    "prepack": "npm run build"
+  },
   "publishConfig": {
     "access": "public"
   },

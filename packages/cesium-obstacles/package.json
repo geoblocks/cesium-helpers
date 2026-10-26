@@ -8,24 +8,51 @@
     "url": "https://github.com/geoblocks/cesium-helpers/",
     "directory": "packages/cesium-obstacles"
   },
-  "main": "cesium-obstacles.js",
-  "module": "cesium-obstacles.js",
-  "sideEffects": false,
+  "main": "dist/cesium-obstacles.js",
+  "module": "dist/cesium-obstacles.js",
+  "types": "dist/cesium-obstacles.d.ts",
   "exports": {
-    ".": "./cesium-obstacles.js",
-    "./cesium-obstacles.js": "./cesium-obstacles.js",
-    "./triangle-mesh.js": "./triangle-mesh.js",
-    "./triangle-trees.js": "./triangle-trees.js",
-    "./gltf-mesh.js": "./gltf-mesh.js",
-    "./mesh-builder.js": "./mesh-builder.js"
+    ".": {
+      "source": "./src/cesium-obstacles.js",
+      "types": "./dist/cesium-obstacles.d.ts",
+      "default": "./dist/cesium-obstacles.js"
+    },
+    "./cesium-obstacles.js": {
+      "source": "./src/cesium-obstacles.js",
+      "types": "./dist/cesium-obstacles.d.ts",
+      "default": "./dist/cesium-obstacles.js"
+    },
+    "./triangle-mesh.js": {
+      "source": "./src/triangle-mesh.js",
+      "types": "./dist/triangle-mesh.d.ts",
+      "default": "./dist/triangle-mesh.js"
+    },
+    "./triangle-trees.js": {
+      "source": "./src/triangle-trees.js",
+      "types": "./dist/triangle-trees.d.ts",
+      "default": "./dist/triangle-trees.js"
+    },
+    "./gltf-mesh.js": {
+      "source": "./src/gltf-mesh.js",
+      "types": "./dist/gltf-mesh.d.ts",
+      "default": "./dist/gltf-mesh.js"
+    },
+    "./mesh-builder.js": {
+      "source": "./src/mesh-builder.js",
+      "types": "./dist/mesh-builder.d.ts",
+      "default": "./dist/mesh-builder.js"
+    }
   },
+  "sideEffects": false,
   "files": [
-    "cesium-obstacles.js",
-    "triangle-mesh.js",
-    "triangle-trees.js",
-    "gltf-mesh.js",
-    "mesh-builder.js"
+    "dist",
+    "src",
+    "!src/**/*.test.js"
   ],
+  "scripts": {
+    "build": "tsc -p .",
+    "prepack": "npm run build"
+  },
   "publishConfig": {
     "access": "public"
   },

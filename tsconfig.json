@@ -1,20 +1,8 @@
 {
+  "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "target": "ES2025",
-    "module": "node16",
-    "moduleResolution": "node16",
-    "lib": ["es2025", "dom"],
-    "allowJs": true,
-    "checkJs": true,
-    "skipLibCheck": true,
-    "noEmit": true,
-    "strict": true,
-    "noImplicitOverride": true,
-    "noImplicitReturns": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "exactOptionalPropertyTypes": true
+    "customConditions": ["source"]
   },
-  "include": ["packages/**/*.js"],
-  "exclude": ["packages/**/*.test.js", "packages/**/dist"]
+  "include": ["packages/*/src/**/*.js"],
+  "exclude": ["packages/**/*.test.js"]
 }

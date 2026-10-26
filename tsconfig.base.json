@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ES2025",
+    "module": "node18",
+    "lib": ["es2025", "dom"],
+    "useDefineForClassFields": false,
+    "allowJs": true,
+    "checkJs": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "strict": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "exactOptionalPropertyTypes": true
+  }
+}
