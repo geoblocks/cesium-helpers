@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {Cartesian3, FixedFrameTransforms, Matrix3, Matrix4, Math as CesiumMath} from '@cesium/core';
 import {localFromEye} from './local-frame.js';
+import OpenSky from './open-sky.js';
 import SnowLine from './snow-line.js';
 
 const fakeViewer = (view = Matrix4.IDENTITY) => {
@@ -93,4 +94,16 @@ test('the noise is laid in a local frame about the origin given, from the camera
   const snow = new SnowLine(viewer, {origin});
   assert.ok(Matrix4.equals(uniformsOf(snow, viewer).localFromEye(), localFromEye(FixedFrameTransforms.eastNorthUpToFixedFrame(origin), view)));
   assert.ok(Cartesian3.equals(snow.origin, origin));
+});
+
+test('without an open sky everything holds snow; with one, its grid, and a change asks for a render', () => {
+  const viewer = fakeViewer();
+  const snow = new SnowLine(viewer);
+  assert.equal(uniformsOf(snow, viewer).hasSky(), 0);
+  const openSky = new OpenSky({covers: new Float32Array(4), columns: 2, rows: 2, extent: [0, 4, 0, 4], frame: Matrix4.IDENTITY});
+  snow.openSky = openSky;
+  assert.equal(viewer.scene.renders, 1);
+  assert.equal(uniformsOf(snow, viewer).hasSky(), 1);
+  assert.equal(uniformsOf(snow, viewer).skyGrid(), openSky.grid);
+  assert.equal(uniformsOf(new SnowLine(viewer, {openSky}), viewer).hasSky(), 1);
 });

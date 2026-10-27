@@ -11,6 +11,7 @@ export {default as LensDistortion} from './lens-distortion.js';
 export {default as Lightning} from './lightning.js';
 export {default as MotionBlur} from './motion-blur.js';
 export {default as Precipitation} from './precipitation.js';
+export {default as OpenSky} from './open-sky.js';
 export {default as RainRings} from './rain-rings.js';
 export {default as SnowLine} from './snow-line.js';
 export {default as SpeedLines} from './speed-lines.js';

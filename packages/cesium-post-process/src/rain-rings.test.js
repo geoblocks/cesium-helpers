@@ -1,6 +1,7 @@
 import {test, mock} from 'node:test';
 import assert from 'node:assert/strict';
 import {Cartesian3, Color, FixedFrameTransforms, Matrix4, Math as CesiumMath} from '@cesium/core';
+import OpenSky from './open-sky.js';
 import RainRings from './rain-rings.js';
 import {localFromEye} from './local-frame.js';
 
@@ -112,4 +113,16 @@ test('the rings run by the clock given, in seconds, wrapped at an hour: a clock 
   assert.equal(uniforms.time(), 12.5);
   now = 0;
   assert.equal(uniforms.time(), 0);
+});
+
+test('without an open sky every flat surface takes rings; with one, its grid, and a change asks for a render', () => {
+  const viewer = fakeViewer();
+  const rings = new RainRings(viewer);
+  const read = () => rings.createStage_(viewer.scene).uniforms;
+  assert.equal(read().hasSky(), 0);
+  const openSky = new OpenSky({covers: new Float32Array(4), columns: 2, rows: 2, extent: [0, 4, 0, 4], frame: Matrix4.IDENTITY});
+  rings.openSky = openSky;
+  assert.equal(viewer.scene.renders, 1);
+  assert.equal(read().hasSky(), 1);
+  assert.equal(read().skyGrid(), openSky.grid);
 });

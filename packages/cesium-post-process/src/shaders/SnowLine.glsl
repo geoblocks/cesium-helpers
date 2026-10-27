@@ -87,6 +87,7 @@ void main() {
   // eye.w is 0 for the sky
   snow *= mix(coverage, scattered, patchiness) * eye.w;
   snow *= smoothstep(WET.x, WET.y, abs(heightAt(eye.xyz) - waterLevel));
+  snow *= openSky(eye.xyz);
   float brightness = czm_luminance(sceneColor.rgb);
   // blue in the shade, warm in the sun, with the relief of the scene kept in the brightness; or as bright as the scene, its shadows and its
   // dusk kept on the snow

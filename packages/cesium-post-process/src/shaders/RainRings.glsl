@@ -1,7 +1,7 @@
 // Rings where the rain lands: the ground cut into cells of a local frame, in each cell a drop landing, as often as the intensity says, where the
 // cell's hash puts it, a thin ring growing from it and fading as it grows, on what is flat enough. Over water slower and wider. The cells are in a
 // local frame, in double precision from the CPU (local-frame.js), so they stay where they are as the camera moves and do not step with the globe's
-// size. Needs EyeFromDepth, Height, Hash and Normal.
+// size. Only on what is open to the sky. Needs EyeFromDepth, Height, Hash, Normal and OpenSky.
 precision highp sampler2D;
 uniform sampler2D colorTexture;
 uniform sampler2D depthTexture;
@@ -60,5 +60,6 @@ void main() {
   ring *= float(hash(id) < intensity);
   ring *= 1.0 - smoothstep(maxSlope - SLOPE_EDGE, maxSlope + SLOPE_EDGE, slope);
   ring *= 1.0 - smoothstep(SMALL.x, SMALL.y, length(fwidth(local)));
+  ring *= openSky(eye.xyz);
   out_FragColor = vec4(mix(sceneColor.rgb, color.rgb, ring * color.a), sceneColor.a);
 }
