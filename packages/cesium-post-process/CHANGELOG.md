@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.6.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-post-process%400.5.0...%40geoblocks%2Fcesium-post-process%400.6.0) (2026-10-27)
+
+### Features
+
+* **post-process:** OpenSky, what SnowLine and RainRings lie on ([be7eac1](https://github.com/geoblocks/cesium-helpers/commit/be7eac15963c323d5ccf77554bd53990c4deebed))
+
+
 # [0.5.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-post-process%400.4.0...%40geoblocks%2Fcesium-post-process%400.5.0) (2026-10-26)
 
 ### Build System
