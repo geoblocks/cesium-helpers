@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en" class="wa-theme-default wa-palette-default wa-light">
+
+<head>
+  <meta charset="UTF-8">
+  <script src="https://cdn.jsdelivr.net/npm/cesium@1.146.0/Build/Cesium/Cesium.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/cesium@1.146.0/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  <style>
+    html, body, #cesiumContainer {
+      height: 100%;
+      margin: 0;
+    }
+    #controls {
+      position: absolute;
+      inset-block-start: var(--wa-space-xl);
+      inset-inline-end: var(--wa-space-xl);
+      --spacing: var(--wa-space-s);
+      max-inline-size: 30ch;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="cesiumContainer"></div>
+  <wa-card id="controls">
+    <p class="wa-caption-m">Press a button of the gamepad, then pan with the left stick, orbit with the right one, and zoom in and out with R2 and L2, as fast as they are pressed, climb and descend with R1 and L1, and press the right stick to turn to north.</p>
+  </wa-card>
+  <script type="module">
+    import {createViewer} from './setup.js';
+    import GamepadNavigation from '../packages/cesium-gamepad-navigation/src/cesium-gamepad-navigation.js';
+    import '@awesome.me/webawesome/dist/styles/webawesome.css';
+    import '@awesome.me/webawesome/dist/components/card/card.js';
+
+    createViewer('cesiumContainer').then(viewer => {
+      const navigation = new GamepadNavigation(viewer);
+      navigation.active = true;
+      window.navigation = navigation;
+    });
+  </script>
+</body>
+
+</html>
