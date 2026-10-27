@@ -7,6 +7,8 @@ import {LocalFrame} from './local-frame.js';
 import EyeFromDepth from './shaders/EyeFromDepth.js';
 import Height from './shaders/Height.js';
 import Normal from './shaders/Normal.js';
+import OpenSkyShader from './shaders/OpenSky.js';
+import {openSkyUniforms} from './open-sky.js';
 import SnowLineShader from './shaders/SnowLine.js';
 
 // the water's level when there is no water: far above everything
@@ -22,7 +24,8 @@ export default class SnowLine extends Effect {
   /**
    * @param {import('@cesium/engine').CesiumWidget} viewer
    * @param {{altitude?: number, transition?: number, maxSlope?: number, coverage?: number, patchiness?: number, waterLevel?: number,
-   *   sunDirection?: Cartesian3, grain?: number, sceneLight?: number, steepCover?: number, origin?: Cartesian3}} [options]
+   *   sunDirection?: Cartesian3, grain?: number, sceneLight?: number, steepCover?: number, origin?: Cartesian3,
+   *   openSky?: import('./open-sky.js').default}} [options]
    */
   constructor(viewer, options = {}) {
     super(viewer);
@@ -37,6 +40,7 @@ export default class SnowLine extends Effect {
     this.sceneLight_ = options.sceneLight ?? 0;
     this.steepCover_ = options.steepCover ?? 0.35;
     this.frame_ = new LocalFrame(options.origin);
+    this.openSky_ = options.openSky;
   }
 
   /**
@@ -45,9 +49,10 @@ export default class SnowLine extends Effect {
    */
   createStage_(scene) {
     const stage = new PostProcessStage({
-      fragmentShader: EyeFromDepth + Height + Normal + SnowLineShader,
+      fragmentShader: EyeFromDepth + Height + Normal + OpenSkyShader + SnowLineShader,
       uniforms: {
         ...heightUniforms(scene),
+        ...openSkyUniforms(scene, () => this.openSky_),
         altitude: () => this.altitude_,
         transition: () => this.transition_,
         maxSlope: () => CesiumMath.toRadians(this.maxSlope_),
@@ -197,6 +202,18 @@ export default class SnowLine extends Effect {
 
   set sceneLight(value) {
     this.sceneLight_ = value;
+    this.viewer.scene.requestRender();
+  }
+
+  /**
+   * What is open to the sky, or undefined for all of it: the rest holds no snow (a deck under a roof, the ground under a tree, a cloud's top).
+   */
+  get openSky() {
+    return this.openSky_;
+  }
+
+  set openSky(value) {
+    this.openSky_ = value;
     this.viewer.scene.requestRender();
   }
 

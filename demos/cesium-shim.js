@@ -30,6 +30,7 @@ export const {
   Matrix3,
   Matrix4,
   PixelDatatype,
+  PixelFormat,
   Plane,
   PointPrimitiveCollection,
   PolygonPipeline,

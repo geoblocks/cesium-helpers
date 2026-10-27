@@ -9,6 +9,8 @@ import EyeFromDepth from './shaders/EyeFromDepth.js';
 import Hash from './shaders/Hash.js';
 import Height from './shaders/Height.js';
 import Normal from './shaders/Normal.js';
+import OpenSkyShader from './shaders/OpenSky.js';
+import {openSkyUniforms} from './open-sky.js';
 import RainRingsShader from './shaders/RainRings.js';
 
 // the rings grow and fade over a fraction of a second: a render for each frame of a video
@@ -28,11 +30,12 @@ export default class RainRings extends Effect {
   /**
    * @param {import('@cesium/engine').CesiumWidget} viewer
    * @param {{intensity?: number, cell?: number, reach?: number, waterLevel?: number, maxSlope?: number, rate?: number,
-   *   color?: Color, origin?: Cartesian3, clock?: () => number}} [options] The share of the cells that have a drop, 0 to 1; the cell's size
+   *   color?: Color, origin?: Cartesian3, clock?: () => number, openSky?: import('./open-sky.js').default}} [options] The share of the cells that have a drop, 0 to 1; the cell's size
    *   and the ring's growth on the ground, in meters (the ring on water is clipped at 0.3 cell); the water's height above the ellipsoid, in
    *   meters, or undefined for none; the steepest slope that takes a ring, in degrees; rings a second in a cell; the ring's color, its alpha how
    *   strongly it shows; the point of the world the cells are laid about; the time the rings run by, in seconds (the wall clock's by default;
-   *   one that stands still keeps them still, for a viewer who asks for less motion).
+   *   one that stands still keeps them still, for a viewer who asks for less motion); what is open to the sky, the rest taking none (all
+   *   of it by default).
    */
   constructor(viewer, options = {}) {
     super(viewer);
@@ -46,6 +49,7 @@ export default class RainRings extends Effect {
     this.frame_ = new LocalFrame(options.origin);
     this.clock_ = options.clock ?? (() => performance.now() / 1000);
     this.colorScratch_ = new Cartesian4();
+    this.openSky_ = options.openSky;
   }
 
   /**
@@ -54,9 +58,10 @@ export default class RainRings extends Effect {
    */
   createStage_(scene) {
     const stage = new PostProcessStage({
-      fragmentShader: EyeFromDepth + Height + Hash + Normal + RainRingsShader,
+      fragmentShader: EyeFromDepth + Height + Hash + Normal + OpenSkyShader + RainRingsShader,
       uniforms: {
         ...heightUniforms(scene),
+        ...openSkyUniforms(scene, () => this.openSky_),
         localFromEye: () => this.frame_.fromEye(scene),
         intensity: () => this.intensity_,
         cell: () => this.cell_,
@@ -183,6 +188,18 @@ export default class RainRings extends Effect {
 
   set color(value) {
     this.color_ = value;
+    this.viewer.scene.requestRender();
+  }
+
+  /**
+   * What is open to the sky, or undefined for all of it: the rest takes no rings (a deck under a roof, the ground under a tree, a cloud's top).
+   */
+  get openSky() {
+    return this.openSky_;
+  }
+
+  set openSky(value) {
+    this.openSky_ = value;
     this.viewer.scene.requestRender();
   }
 
