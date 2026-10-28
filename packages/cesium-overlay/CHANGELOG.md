@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.5.1](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-overlay%400.5.0...%40geoblocks%2Fcesium-overlay%400.5.1) (2026-10-28)
+
+### Performance Improvements
+
+* **cesium-overlay:** contain the layer; keep the paths' shapes in JS ([52c370b](https://github.com/geoblocks/cesium-helpers/commit/52c370b838b85c1911c4968694df5ce8fd4d2efc))
+* **cesium-overlay:** project a line's points with one view matrix ([16f79ec](https://github.com/geoblocks/cesium-helpers/commit/16f79ec5d9d054b9407b152513b89613b7bf95c7))
+* **cesium-overlay:** read the depth in the browser's idle time ([dae01e0](https://github.com/geoblocks/cesium-helpers/commit/dae01e0520ee5f72533ecdb3b5b4294deaea3300))
+* **cesium-overlay:** test a short segment at its ends, a corner once ([a647d3d](https://github.com/geoblocks/cesium-helpers/commit/a647d3d6015ac103a0753eaba4dcf67cf7277d08))
+
+
 # [0.5.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-overlay%400.4.0...%40geoblocks%2Fcesium-overlay%400.5.0) (2026-10-26)
 
 ### Build System
