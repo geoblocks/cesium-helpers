@@ -13,7 +13,7 @@
 
 import {Cartesian2, Cartesian3, EllipsoidalOccluder, Matrix4, Plane} from '@cesium/core';
 import {SceneMode, SceneTransforms} from '@cesium/engine';
-import {alongSegment, clipPolygon, insideRange, pathOf, polylinesOf, runsAlong, samePoints, windowProjection} from './overlay-lines.js';
+import {alongSegment, clipPolygon, gapsOf, insideRange, pathOf, polylinesOf, runsAlong, samePoints, windowProjection} from './overlay-lines.js';
 
 /**
  * Where a pin stands: a point, a function read on every render (a thing that moves), or none (hidden).
@@ -244,8 +244,13 @@ export function overlayOf(target) {
       const closed = line.closed && points.length > 2;
       /** @type {{seen: [Cartesian2, Cartesian2][], hidden: [Cartesian2, Cartesian2][]}} */
       const pieces = {seen: [], hidden: []};
+      // the last segment's test at its end, the next one's start: a corner read once, not once for each of its two segments
+      /** @type {{point: Cartesian3, hidden: boolean} | undefined} */
+      let corner;
       (closed ? points : points.slice(0, -1)).forEach((a, j) => {
         const k = index++;
+        const before = corner;
+        corner = undefined;
         const b = points[(j + 1) % points.length];
         const range = insideRange(a, b, inside);
         /** @param {number} u */
@@ -270,10 +275,8 @@ export function overlayOf(target) {
           const length = Cartesian2.distance(ends[0], ends[1]);
           // a caller's test, cheap, fine at once
           const pass = typeof occlude === 'function' ? 1 : budget.pass;
-          // the fine pass's samples COARSE times as many as the coarse pass's, which, halved to `step`, are among them: kept, not read
-          // again
-          const coarse = Math.max(1, Math.ceil(length / (COARSE * step)));
-          const fine = COARSE * coarse;
+          // the coarse pass's samples among the fine pass's, kept, not read again; a segment shorter than `step` tested at its ends alone
+          const {coarse, fine} = gapsOf(length, step, COARSE);
           /** @type {Map<number, boolean>} */
           const samples = new Map();
           const known = same && kept.view === view ? kept.samples : undefined;
@@ -281,7 +284,8 @@ export function overlayOf(target) {
           const hiddenAt = s => {
             const index = Math.round(s * fine);
             const onGrid = Math.abs(s * fine - index) < 1e-9;
-            const seen = onGrid ? known?.get(index) : undefined;
+            const seen = onGrid ? known?.get(index) ?? (index === 0 && near === 0 && before && Cartesian3.equals(before.point, a) ? before.hidden : undefined)
+              : undefined;
             if (seen !== undefined) {
               samples.set(index, seen);
               return seen;
@@ -308,6 +312,8 @@ export function overlayOf(target) {
           // along the whole segment: what is out of view, untested, seen
           runs = [[0, near, false], ...found.map(([from, to, hidden]) => /** @type {[number, number, boolean]} */ ([at(from), at(to), hidden])), [far, 1, false]];
           line.runs[k] = {a: Cartesian3.clone(a), b: Cartesian3.clone(b), runs, view, pass, samples};
+          const last = samples.get(fine);
+          corner = far === 1 && last !== undefined ? {point: b, hidden: last} : undefined;
           if (!budget.tested && occlude === 'depth') {
             budget.tested = true;
             budget.until = performance.now() + budget.until;

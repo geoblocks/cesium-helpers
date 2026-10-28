@@ -89,6 +89,20 @@ export function alongSegment(s, depthA, depthB) {
 }
 
 /**
+ * How many gaps a segment is tested in: one every `step` pixels in the fine pass, `factor` times fewer in the coarse one, whose
+ * samples are among the fine pass's (its count a multiple). A segment shorter than a step is tested at its two ends alone, in both.
+ * @param {number} length The segment's part in view, on the screen, in pixels.
+ * @param {number} step In pixels.
+ * @param {number} factor How many times fewer the coarse pass's gaps are, at most.
+ * @return {{coarse: number, fine: number}}
+ */
+export function gapsOf(length, step, factor) {
+  const wanted = Math.max(1, Math.ceil(length / step));
+  const coarse = Math.ceil(wanted / factor);
+  return {coarse, fine: coarse * Math.ceil(wanted / coarse)};
+}
+
+/**
  * A line, from 0 to 1, split where a test changes: sampled `count` times along, and where two samples differ, the change found by
  * halving the gap `refine` times. A run shorter than the gap between samples may be missed.
  * @param {(t: number) => boolean} test Whether the line is hidden at a place along it.
