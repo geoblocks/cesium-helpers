@@ -110,9 +110,11 @@ const NEAR_MARGIN = 1;
 // in pixels: where a line changes from seen to hidden is found to about this
 const LINE_PRECISION = 2;
 // in milliseconds: how long a task spends on reads of the depth buffer, between renders, once the GPU has drawn the frame (a read
-// before waits for it: 32 ms right after a render of the K2O page, 0.1 to 0.4 ms after); the first test of a task always finishes,
-// so that each task gets on, and what is left goes to the next task
+// before waits for it: 32 ms right after a render of the K2O page, 0.1 to 0.4 ms after), where the browser does not say how long it
+// is idle; the first test of a task always finishes, so that each task gets on, and what is left goes to the next task
 const TASK_BUDGET = 8;
+// in milliseconds: how long the reads wait for the browser to be idle before they run all the same (a page never idle)
+const IDLE_WAIT = 100;
 // without a WebGL 2 context's fence to tell when the frame is drawn, how long to wait for it
 const FRAME_WAIT = 50;
 // a first, coarse pass tests this many times `step` apart, halved to `step`: a split shown soon, then found to LINE_PRECISION
@@ -347,14 +349,21 @@ export function overlayOf(target) {
   // for as any page; without WebGL 2, a wait), in tasks between renders, until none is left. A new view stops them and starts
   // them again; a render of the same view (a scene rendering on every frame) does not.
   const gl = canvas.getContext('webgl2');
-  // the next task at once: a chain of setTimeout is held 4 ms a link
+  // the next task given how long it may read: all the time the browser says is free (requestIdleCallback), what is left of a frame
+  // while the camera moves, up to 50 ms once it is still; where it has none (Safari), at once for TASK_BUDGET, a chain of setTimeout
+  // being held 4 ms a link
+  const idle = globalThis.requestIdleCallback?.bind(globalThis);
   const channel = new MessageChannel();
   /** @type {(() => void) | undefined} */
   let next;
   channel.port1.onmessage = () => next?.();
-  /** @param {() => void} task */
+  /** @param {(budget: number) => void} task */
   const soon = task => {
-    next = task;
+    if (idle) {
+      idle(deadline => task(deadline.didTimeout ? TASK_BUDGET : deadline.timeRemaining()), {timeout: IDLE_WAIT});
+      return;
+    }
+    next = () => task(TASK_BUDGET);
     channel.port2.postMessage(0);
   };
   /** @type {number | undefined} */
@@ -395,17 +404,18 @@ export function overlayOf(target) {
     const of = view;
     let pass = 0;
     let since = fenced;
-    const work = () => {
+    /** @param {number} budget */
+    const work = budget => {
       if (view !== of) {
         return;
       }
       // a frame not drawn yet: polled, unless renders have gone on too long without one
       if (!frameDrawn() && fenced - since < REWAITS) {
-        waiting = setTimeout(work, gl ? 2 : FRAME_WAIT);
+        waiting = setTimeout(() => soon(work), gl ? 2 : FRAME_WAIT);
         return;
       }
       since = fenced;
-      if (drawLines({until: TASK_BUDGET, tested: false, pass})) {
+      if (drawLines({until: budget, tested: false, pass})) {
         soon(work);
       } else if (pass === 0) {
         pass = 1;
@@ -416,7 +426,7 @@ export function overlayOf(target) {
         dropFence();
       }
     };
-    waiting = setTimeout(work, gl ? 0 : FRAME_WAIT);
+    waiting = setTimeout(() => soon(work), gl ? 0 : FRAME_WAIT);
   };
   // after a render: the view counted, the lines drawn, the depth buffer's tests started or fenced again; then the pins
   const rendered = () => {
