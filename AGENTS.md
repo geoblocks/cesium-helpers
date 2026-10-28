@@ -75,9 +75,10 @@ Use the language's newer built-ins over the older idioms:
 ## Test pages
 
 - `demos/cesium-overlay.html` tests and benchmarks cesium-overlay's lines: a grid of boxes, nothing to load but Cesium, lines
-  of each kind (`occlude: 'depth'`, a caller's test, a fill, strokes). In the browser, `await bench.measure({view})` (`view`
-  one of `bench.views`) gives the renders' times, when the hidden parts first change and settle after a stop, the depth reads
-  and long tasks; `?continuous` renders every frame. Run it before and after a change to the lines and compare.
+  of each kind (`occlude: 'depth'`, a caller's test, a fill, strokes, a curve of many points). In the browser,
+  `await bench.measure({view, points})` (`view` one of `bench.views`, `points` the curve's, 100 by default) gives the renders'
+  times, when the hidden parts first change and settle after a stop, the depth reads and long tasks; `?continuous` renders every
+  frame. Run it before and after a change to the lines and compare, the curve at 500 points for a line of many.
 
 ## Before finishing a change
 

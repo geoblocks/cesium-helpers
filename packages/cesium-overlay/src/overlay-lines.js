@@ -1,7 +1,26 @@
 // The overlay's lines, apart from the scene: the part of a segment or a polygon in view, a line split into the runs a test
 // sees and hides, found by samples and halving where the test changes between two of them, and the paths drawing them.
 
-import {Cartesian3} from '@cesium/core';
+import {Cartesian2, Cartesian3, FixedFrameTransforms, Matrix4} from '@cesium/core';
+
+/**
+ * Points of the world put on the canvas, as SceneTransforms.worldToWindowCoordinates puts them in a 3D scene, from a view's
+ * matrices taken once: that call computes them again for each point (about 1.4 µs a point, most of a long line's render).
+ * @param {Matrix4} viewMatrix
+ * @param {Matrix4} projectionMatrix
+ * @param {number} width The canvas's, in CSS pixels.
+ * @param {number} height
+ * @return {(point: Cartesian3) => Cartesian2 | undefined} In CSS pixels, y down; undefined behind the camera.
+ */
+export function windowProjection(viewMatrix, projectionMatrix, width, height) {
+  // copies: a camera's matrices change in place
+  const view = Matrix4.clone(viewMatrix);
+  const viewProjection = Matrix4.multiply(projectionMatrix, view, new Matrix4());
+  const viewport = Matrix4.computeViewportTransformation({x: 0, y: 0, width, height}, 0, 1, new Matrix4());
+  const eye = new Cartesian3();
+  return point => Matrix4.multiplyByPoint(view, point, eye).z < 0
+    ? FixedFrameTransforms.pointToWindowCoordinates(viewProjection, viewport, point, new Cartesian2()) : undefined;
+}
 
 /**
  * The part of a segment in front of a plane, as a range along it: 0 at its start, 1 at its end.
@@ -67,6 +86,20 @@ export function clipPolygon(points, aheads) {
  */
 export function alongSegment(s, depthA, depthB) {
   return s * depthA / ((1 - s) * depthB + s * depthA);
+}
+
+/**
+ * How many gaps a segment is tested in: one every `step` pixels in the fine pass, `factor` times fewer in the coarse one, whose
+ * samples are among the fine pass's (its count a multiple). A segment shorter than a step is tested at its two ends alone, in both.
+ * @param {number} length The segment's part in view, on the screen, in pixels.
+ * @param {number} step In pixels.
+ * @param {number} factor How many times fewer the coarse pass's gaps are, at most.
+ * @return {{coarse: number, fine: number}}
+ */
+export function gapsOf(length, step, factor) {
+  const wanted = Math.max(1, Math.ceil(length / step));
+  const coarse = Math.ceil(wanted / factor);
+  return {coarse, fine: coarse * Math.ceil(wanted / coarse)};
 }
 
 /**

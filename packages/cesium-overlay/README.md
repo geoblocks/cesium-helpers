@@ -75,9 +75,11 @@ the screen, and where two tests differ, the change found to about 2 pixels by ha
 two tests is missed: a post a few pixels wide, unless the line's `step` is small; one or two lines can afford `step: 8`). A segment is tested again when the view or the segment changes. A test of yours runs then, in the render.
 The depth buffer is read between renders, once the GPU has drawn the last frame (a fence in the scene's WebGL 2 context, placed at
 each render while tests are pending; without one, 50 ms after the render): a read before it would wait for the GPU, tens of
-milliseconds. The reads go in tasks of 8 ms (counted from the end of a task's first test) until all the segments are tested, a
-coarse pass first; a new view stops them and starts them again; while the view moves, a line keeps the split last found, and a new
-segment is drawn seen. A scene rendering the same view again (on every frame, or by itself) is tested too: after two renders
+milliseconds. The reads go in the time the browser says is idle (`requestIdleCallback`: what is left of a frame while the view
+moves, so that its frames stay on time, up to 50 ms once it is still; after 100 ms without one, a task of 8 ms all the same), in
+tasks of 8 ms where the browser has no such call (Safari), counted from the end of a task's first test, until all the segments are
+tested, a coarse pass first; a new view stops them and starts them again; while the view moves, a line keeps the split last found,
+and a new segment is drawn seen. A scene rendering the same view again (on every frame, or by itself) is tested too: after two renders
 without a drawn frame, the reads go on, a task waiting once for the GPU.
 
 The element may be moved into a tool's own `<svg>`, where its stylesheet reaches it: its paths then need `fill: none`.

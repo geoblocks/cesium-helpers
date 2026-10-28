@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {Cartesian3} from '@cesium/core';
-import {alongSegment, clipPolygon, insideRange, nearRange, pathOf, polylinesOf, runsAlong, samePoints} from './overlay-lines.js';
+import {Cartesian3, Matrix4, PerspectiveFrustum} from '@cesium/core';
+import {alongSegment, clipPolygon, gapsOf, insideRange, nearRange, pathOf, polylinesOf, runsAlong, samePoints, windowProjection} from './overlay-lines.js';
 
 const near = (a, b, tolerance, message) => assert.ok(Math.abs(a - b) <= tolerance, `${message ?? ''} ${a} is not ${b}`);
 // in front of the plane x = 1: what is ahead of it, in meters
@@ -92,4 +92,32 @@ test('pieces meeting go on in one path, a closed polyline drawn whole closed', (
   assert.equal(pathOf(square, false), 'M0.0 0.0L10.0 0.0L10.0 10.0L0.0 0.0', 'not closed');
   assert.equal(pathOf([square[0], square[2]], true), 'M0.0 0.0L10.0 0.0M10.0 10.0L0.0 0.0', 'broken: not closed');
   assert.equal(pathOf([], true), '');
+});
+
+test('a point in front of the camera is put on the canvas, y down; one behind is nowhere', () => {
+  // the camera at the origin looking down -z, y up, on a canvas of 200 by 100 pixels
+  const frustum = new PerspectiveFrustum({fov: Math.PI / 2, aspectRatio: 2, near: 1, far: 1000});
+  const toWindow = windowProjection(Matrix4.IDENTITY, frustum.projectionMatrix, 200, 100);
+  const middle = toWindow(new Cartesian3(0, 0, -10));
+  near(middle.x, 100, 1e-9);
+  near(middle.y, 50, 1e-9);
+  // 45 degrees to the right, at the canvas's right edge; up is toward the top
+  near(toWindow(new Cartesian3(10, 0, -10)).x, 200, 1e-9);
+  assert.ok(toWindow(new Cartesian3(0, 1, -10)).y < 50, 'up');
+  assert.equal(toWindow(new Cartesian3(0, 0, 10)), undefined, 'behind');
+});
+
+test('a segment is tested every step pixels, its coarse pass a quarter as often, among the fine samples', () => {
+  // shorter than a step: its two ends alone, in both passes
+  assert.deepEqual(gapsOf(5, 24, 4), {coarse: 1, fine: 1});
+  assert.deepEqual(gapsOf(0, 24, 4), {coarse: 1, fine: 1});
+  // a few steps long: as many fine gaps, one coarse
+  assert.deepEqual(gapsOf(60, 24, 4), {coarse: 1, fine: 3});
+  // long: the fine gaps a multiple of the coarse ones, a step apart at most
+  for (const length of [100, 241, 1000]) {
+    const {coarse, fine} = gapsOf(length, 24, 4);
+    assert.equal(fine % coarse, 0, `${length}: the coarse samples among the fine`);
+    assert.ok(length / fine <= 24, `${length}: a step apart at most`);
+    assert.ok(fine / coarse <= 4, `${length}: the coarse pass a quarter as often at least`);
+  }
 });

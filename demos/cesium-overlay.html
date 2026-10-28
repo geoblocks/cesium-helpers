@@ -55,6 +55,10 @@
     .ring.cesium-overlay-seen, .ring.cesium-overlay-hidden {
       stroke: #f6c;
     }
+
+    .curve.cesium-overlay-seen, .curve.cesium-overlay-hidden {
+      stroke: #7f7;
+    }
   </style>
 </head>
 
@@ -73,13 +77,19 @@
     // imagery, no terrain (nothing to load but Cesium), lines of each kind over them, and `window.bench`:
     //   bench.views                the preset views' names
     //   await bench.view(name)     the camera there, rendered
-    //   await bench.measure({view, moves}) a move of `moves` renders, then a stop: the renders' times, when the hidden parts
-    //                              first change and when they settle after the stop, when the depth reads end, how many and
-    //                              their time, long tasks
-    // `?continuous` renders every frame (Cesium's default) instead of on request.
+    //   await bench.measure({view, moves, points}) a move of `moves` renders, then a stop: the renders' times, when the hidden
+    //                              parts first change and when they settle after the stop, when the depth reads end, how many
+    //                              and their time, long tasks; `points`, the curve's (below), its count kept for later runs
+    //   await bench.frames({view, points, seconds}) the camera turning on every frame: the frames' and renders' times, the reads
+    //   bench.curve(points)        the winding line through the boxes, tested against the depth, of that many points; 0 hides it
+    // `?continuous` renders every frame (Cesium's default) instead of on request; `?points=` the curve's points, 100 by default;
+    // `?plain` every line untested (`occlude: false`).
     import {overlayOf} from '../packages/cesium-overlay/src/cesium-overlay.js';
 
     const continuous = new URLSearchParams(location.search).has('continuous');
+    // every line untested (`occlude: false`): the overlay's own cost, its drawing alone
+    const plain = new URLSearchParams(location.search).has('plain');
+    const tested = test => plain ? false : test;
     const viewer = new Cesium.Viewer('cesiumContainer', {
       globe: false,
       skyBox: false,
@@ -133,18 +143,30 @@
     const square = [[-W, -W], [W, -W], [W, W], [-W, W]];
     const lines = {
       frame: [
-        overlay.line(square.map(xy => corner(xy, 0)), {closed: true, occlude: 'depth', className: 'frame'}),
-        overlay.line(square.map(xy => corner(xy, TOP)), {closed: true, occlude: 'depth', className: 'frame'}),
+        overlay.line(square.map(xy => corner(xy, 0)), {closed: true, occlude: tested('depth'), className: 'frame'}),
+        overlay.line(square.map(xy => corner(xy, TOP)), {closed: true, occlude: tested('depth'), className: 'frame'}),
         // the four uprights, one line of four polylines
-        overlay.line(square.map(xy => [corner(xy, 0), corner(xy, TOP)]), {occlude: 'depth', className: 'frame'}),
+        overlay.line(square.map(xy => [corner(xy, 0), corner(xy, TOP)]), {occlude: tested('depth'), className: 'frame'}),
       ],
       plane: overlay.line([local(-W, -W / 3, TOP), local(W, W / 3, TOP), local(W, W / 3, 0), local(-W, -W / 3, 0)],
-        {closed: true, fill: true, occlude: 'depth', className: 'plane', strokes: ['edge', 'core']}),
-      measure: overlay.line([local(-HALF, HALF + 30, 10), local(HALF, -HALF - 30, 120)], {occlude: 'depth', className: 'measure'}),
+        {closed: true, fill: true, occlude: tested('depth'), className: 'plane', strokes: ['edge', 'core']}),
+      measure: overlay.line([local(-HALF, HALF + 30, 10), local(HALF, -HALF - 30, 120)], {occlude: tested('depth'), className: 'measure'}),
       // hidden on the left half of the canvas: a caller's test, run in the render, on an outline of many points (as
       // cesium-arrange's ring)
       ring: overlay.line(Array.from({length: 48}, (_, k) => local(W * 0.6 * Math.cos(k * Math.PI / 24), W * 0.6 * Math.sin(k * Math.PI / 24), 200)), {closed: true, className: 'ring',
-        occlude: (point, at) => at.x < scene.canvas.clientWidth / 2}),
+        occlude: tested((point, at) => at.x < scene.canvas.clientWidth / 2)}),
+      // a line of many points, as an outline traced from a model or a path walked: across the grid, winding sideways and up and
+      // down through the boxes, hidden behind those in front of it
+      curve: overlay.line([], {occlude: tested('depth'), className: 'curve'}),
+    };
+    let points = Number(new URLSearchParams(location.search).get('points') ?? 100);
+    const curve = (count = points) => {
+      points = count;
+      lines.curve.hidden = count < 2;
+      lines.curve.move(Array.from({length: count}, (_, k) => {
+        const t = k / Math.max(1, count - 1);
+        return local(W * (2 * t - 1), W * 0.8 * Math.sin(t * 6 * Math.PI), 60 + 30 * Math.sin(t * 17 * Math.PI));
+      }));
     };
 
     const VIEWS = {
@@ -160,7 +182,8 @@
       scene.requestRender();
       await wait(1000);
     };
-    const measure = async ({view: name = 'above', moves = 20} = {}) => {
+    const measure = async ({view: name = 'above', moves = 20, points: count = points} = {}) => {
+      curve(count);
       await view(name);
       const pick = scene.pickPosition;
       const reads = [];
@@ -199,7 +222,7 @@
       observer.disconnect();
       scene.pickPosition = pick;
       const result = {
-        view: name, continuous, canvas: [scene.drawingBufferWidth, scene.drawingBufferHeight],
+        view: name, points: count, continuous, plain, canvas: [scene.drawingBufferWidth, scene.drawingBufferHeight],
         renderMs: {median: +median(renders).toFixed(2), max: +Math.max(...renders).toFixed(2)},
         // the last change of a path may be a later render of the same view, its lines a rounding apart: when the reads end
         // is when the work is done
@@ -210,7 +233,36 @@
       document.getElementById('result').textContent = JSON.stringify(result, null, 1);
       return result;
     };
-    window.bench = {views: Object.keys(VIEWS), view, measure, lines, overlay};
+    // the camera turning on every frame for a while: the frames' and the renders' times, the depth reads made meanwhile
+    const frames = async ({view: name = 'above', points: count = points, seconds = 3} = {}) => {
+      curve(count);
+      await view(name);
+      const pick = scene.pickPosition;
+      let reads = 0;
+      scene.pickPosition = function (...args) {
+        reads++;
+        return pick.apply(this, args);
+      };
+      const [gaps, renders] = [[], []];
+      const start = performance.now();
+      let last = start;
+      for (let k = 0; last - start < seconds * 1000; k++) {
+        await new Promise(requestAnimationFrame);
+        const now = performance.now();
+        gaps.push(now - last);
+        last = now;
+        scene.camera.lookRight(k % 2 ? 0.004 : -0.004);
+        scene.render();
+        renders.push(performance.now() - now);
+      }
+      scene.pickPosition = pick;
+      const at = (values, share) => +values.toSorted((a, b) => a - b)[Math.floor(values.length * share)].toFixed(1);
+      const result = {view: name, points: count, plain, frames: gaps.length, frameMs: {median: at(gaps.slice(1), 0.5), p90: at(gaps.slice(1), 0.9)},
+        renderMs: {median: at(renders, 0.5), p90: at(renders, 0.9)}, reads};
+      document.getElementById('result').textContent = JSON.stringify(result, null, 1);
+      return result;
+    };
+    window.bench = {views: Object.keys(VIEWS), view, measure, frames, curve, lines, overlay};
 
     document.getElementById('panel').addEventListener('click', ({target}) => {
       if (target.dataset.view) {
@@ -219,6 +271,7 @@
         measure({view: 'above'});
       }
     });
+    curve();
     view('above');
   </script>
 </body>
