@@ -74,6 +74,8 @@ const STYLE = `
   @scope {
     :scope {
       position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 5;
+      /* what changes in it (a path, a pin's place) lays out and paints nothing of the page outside it */
+      contain: strict;
       /* the tools' palette, theirs to read (--overlay-*), a page's to set (--cesium-overlay-*) */
       --overlay-core: var(--cesium-overlay-core, #fffaf3);
       --overlay-edge: var(--cesium-overlay-edge, #2b1d10);
@@ -210,9 +212,13 @@ export function overlayOf(target) {
     const size = camera.frustum.getPixelDimensions(scene.drawingBufferWidth, scene.drawingBufferHeight, depth, 1, pixel);
     return depthOf(front) < depth - DEPTH_TOLERANCE - DEPTH_PIXELS * Math.max(size.x, size.y);
   };
+  // each path's shape as last set, kept here: a long one read back from the DOM to compare costs as much as setting it
+  /** @type {WeakMap<SVGPathElement, string>} */
+  const drawnPaths = new WeakMap();
   /** A path's shape, set only if it changed: no paint between the tasks' reads for nothing. @param {SVGPathElement} path @param {string} d */
   const setPath = (path, d) => {
-    if (path.getAttribute('d') !== d) {
+    if (drawnPaths.get(path) !== d) {
+      drawnPaths.set(path, d);
       path.setAttribute('d', d);
     }
   };
