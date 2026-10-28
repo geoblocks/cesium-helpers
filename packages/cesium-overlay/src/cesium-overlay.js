@@ -12,8 +12,8 @@
 // camera, and, asked, split into what is seen and what the scene or a test of the caller's hides (two paths, styled apart).
 
 import {Cartesian2, Cartesian3, EllipsoidalOccluder, Matrix4, Plane} from '@cesium/core';
-import {SceneTransforms} from '@cesium/engine';
-import {alongSegment, clipPolygon, insideRange, pathOf, polylinesOf, runsAlong, samePoints} from './overlay-lines.js';
+import {SceneMode, SceneTransforms} from '@cesium/engine';
+import {alongSegment, clipPolygon, insideRange, pathOf, polylinesOf, runsAlong, samePoints, windowProjection} from './overlay-lines.js';
 
 /**
  * Where a pin stands: a point, a function read on every render (a thing that moves), or none (hidden).
@@ -177,6 +177,8 @@ export function overlayOf(target) {
   const depthOf = point => Cartesian3.dot(Cartesian3.subtract(point, camera.positionWC, fromEye), camera.directionWC);
   /** @type {((point: Cartesian3) => number)[]} */
   let inside = [];
+  /** A point's place on the canvas, in this view. @type {(point: Cartesian3) => Cartesian2 | undefined} */
+  let toWindow = point => SceneTransforms.worldToWindowCoordinates(scene, point);
   // how far a point is inside the view: in front of where the projection holds, and within the frustum's sides (its planes 0 to 3;
   // 4 is its near plane, replaced here, 5 its far one, past what is drawn). Cesium's IntersectionTests cut at one plane; a
   // segment's part inside several is the overlap of their ranges (insideRange)
@@ -186,6 +188,11 @@ export function overlayOf(target) {
     const sides = planes.slice(0, 4).map(each => Plane.fromCartesian4(each, new Plane(Cartesian3.UNIT_X, 0)))
       .map(side => (/** @type {Cartesian3} */ point) => Plane.getPointDistance(side, point));
     inside = [point => depthOf(point) - 2 * camera.frustum.near - NEAR_MARGIN, ...sides];
+    // the view's matrices taken once for all the lines' points; Cesium's own call for a 2D or Columbus view, which a matrix does not
+    // cover (its map wraps)
+    toWindow = scene.mode === SceneMode.SCENE3D
+      ? windowProjection(camera.viewMatrix, camera.frustum.projectionMatrix, canvas.clientWidth, canvas.clientHeight)
+      : point => SceneTransforms.worldToWindowCoordinates(scene, point);
   };
   /** Whether the scene shows something in front of a point, at its place on the canvas. @param {Cartesian3} point @param {Cartesian2} at */
   const behindDepth = (point, at) => {
@@ -235,7 +242,7 @@ export function overlayOf(target) {
         const range = insideRange(a, b, inside);
         /** @param {number} u */
         const along = u => Cartesian3.lerp(a, b, u, new Cartesian3());
-        const ends = range?.map(u => SceneTransforms.worldToWindowCoordinates(scene, along(u)));
+        const ends = range?.map(u => toWindow(along(u)));
         if (!range || !ends?.[0] || !ends[1]) {
           return;
         }
@@ -280,7 +287,7 @@ export function overlayOf(target) {
           /** @param {number} s */
           const test = s => {
             const point = along(at(s));
-            const place = SceneTransforms.worldToWindowCoordinates(scene, point);
+            const place = toWindow(point);
             if (occlude === 'depth' && late()) {
               throw OUT_OF_TIME;
             }
@@ -308,7 +315,7 @@ export function overlayOf(target) {
           if (start >= end) {
             continue;
           }
-          const [p, q] = [start, end].map(u => (u === near ? ends[0] : u === far ? ends[1] : SceneTransforms.worldToWindowCoordinates(scene, along(u))));
+          const [p, q] = [start, end].map(u => (u === near ? ends[0] : u === far ? ends[1] : toWindow(along(u))));
           if (p && q) {
             pieces[hidden ? 'hidden' : 'seen'].push([p, q]);
           }
@@ -321,7 +328,7 @@ export function overlayOf(target) {
     setPath(line.hidden, paths.hidden);
     if (line.fill) {
       const shapes = line.closed ? polylines.filter(points => points.length > 2)
-        .map(points => clipPolygon(points, inside).map(point => SceneTransforms.worldToWindowCoordinates(scene, point))) : [];
+        .map(points => clipPolygon(points, inside).map(toWindow)) : [];
       setPath(line.fill, shapes.filter(corners => corners.length && corners.every(Boolean))
         .map(corners => `M${corners.map(at => `${/** @type {Cartesian2} */ (at).x.toFixed(1)} ${/** @type {Cartesian2} */ (at).y.toFixed(1)}`).join('L')}Z`).join(''));
     }
