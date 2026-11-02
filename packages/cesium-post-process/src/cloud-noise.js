@@ -31,14 +31,6 @@ function hash(x, y, z, seed) {
 }
 
 /**
- * @param {number} a
- * @param {number} n
- */
-function wrap(a, n) {
-  return ((a % n) + n) % n;
-}
-
-/**
  * Gradient noise that repeats every `period` cells, about -1 to 1, with the random directions of
  * its lattice points computed once.
  * @param {number} period
@@ -57,7 +49,7 @@ function perlin(period, seed) {
   }
   const fade = (/** @type {number} */ t) => t * t * t * (t * (t * 6 - 15) + 10);
   // the corners of a voxel's cell are within one cell of it, so their wrapped index is a lookup
-  const wrapped = Int32Array.from({length: period + 1}, (_, i) => wrap(i, period));
+  const wrapped = Int32Array.from({length: period + 1}, (_, i) => CesiumMath.mod(i, period));
   /**
    * @param {number} x in cells
    * @param {number} y
@@ -110,7 +102,7 @@ function worley(cells, seed) {
     points.set([hash(cx, cy, cz, seed), hash(cx, cy, cz, seed + 1), hash(cx, cy, cz, seed + 2)], 3 * c);
   }
   // the cells around a voxel are within one of its cell, so their wrapped index is a lookup
-  const wrapped = Int32Array.from({length: cells + 2}, (_, i) => wrap(i - 1, cells));
+  const wrapped = Int32Array.from({length: cells + 2}, (_, i) => CesiumMath.mod(i - 1, cells));
   /**
    * @param {number} x in cells
    * @param {number} y

@@ -7,6 +7,7 @@ import {acquireTerrainDepth, releaseTerrainDepth} from './depth-test.js';
 import Effect from './effect.js';
 import {acquireFrames, releaseFrames} from './frame-clock.js';
 import {heightUniforms} from './height.js';
+import {smoothstep} from './smoothstep.js';
 import CloudsShadow from './shaders/CloudsShadow.js';
 import EyeFromDepth from './shaders/EyeFromDepth.js';
 import Fog from './shaders/Fog.js';
@@ -66,17 +67,6 @@ const OVERCAST = 0.5;
 // the camera goes from under the clouds to above them over this height around the cloud base, in
 // meters, as the drops in Precipitation.glsl
 const CLOUD_BASE_FADE = 50;
-
-/**
- * GLSL's smoothstep.
- * @param {number} edge0
- * @param {number} edge1
- * @param {number} x
- */
-function smoothstep(edge0, edge1, x) {
-  const t = CesiumMath.clamp((x - edge0) / (edge1 - edge0), 0, 1);
-  return t * t * (3 - 2 * t);
-}
 
 /**
  * @typedef {import('./weather-map.js').WeatherMapOptions} PrecipitationMapOptions

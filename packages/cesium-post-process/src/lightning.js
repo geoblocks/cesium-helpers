@@ -3,6 +3,7 @@ import {PostProcessStage} from '@cesium/engine';
 import {acquireTerrainDepth, releaseTerrainDepth} from './depth-test.js';
 import Effect from './effect.js';
 import {acquireFrames, releaseFrames} from './frame-clock.js';
+import {smoothstep} from './smoothstep.js';
 import {advanceStrikes, MAX_STRIKES} from './strikes.js';
 import WeatherMap from './weather-map.js';
 import EyeFromDepth from './shaders/EyeFromDepth.js';
@@ -39,16 +40,6 @@ const ATTEMPTS = 8;
 const GLOW_HEIGHT = 1500;
 // the glow and the channel cross-fade over this height on either side of the cloud base, in meters
 const ABOVE_FADE = 200;
-
-/**
- * @param {number} edge0
- * @param {number} edge1
- * @param {number} x
- */
-function smoothstep(edge0, edge1, x) {
-  const t = CesiumMath.clamp((x - edge0) / (edge1 - edge0), 0, 1);
-  return t * t * (3 - 2 * t);
-}
 
 /**
  * @typedef {{start: number, seed: number, ground: Cartesian3, top: Cartesian3, glow: Cartesian3, glowIntensity: number, branches: number[][]}} Strike

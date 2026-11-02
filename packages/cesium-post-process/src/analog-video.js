@@ -4,6 +4,7 @@ import Effect from './effect.js';
 import {acquireFrames, releaseFrames} from './frame-clock.js';
 import AnalogVideoShader from './shaders/AnalogVideo.js';
 import Hash from './shaders/Hash.js';
+import {smoothstep} from './smoothstep.js';
 
 // PAL video runs at 25 frames per second, as in AnalogVideo.glsl
 const FRAME_RATE = 25;
@@ -45,7 +46,7 @@ export function hash(x, y) {
 export function signalAt(seconds, interference) {
   const fade = seconds * FADE_RATE;
   const t = fract(fade);
-  const wander = hash(Math.floor(fade), 5) + (hash(Math.floor(fade) + 1, 5) - hash(Math.floor(fade), 5)) * t * t * (3 - 2 * t);
+  const wander = CesiumMath.lerp(hash(Math.floor(fade), 5), hash(Math.floor(fade) + 1, 5), smoothstep(0, 1, t));
   const weak = interference >= 1 ? 1 : interference * (0.75 + 0.25 * wander);
   // a tear lasts two frames: decided once for each pair
   const pair = Math.floor((seconds * FRAME_RATE) / 2) % 1000;

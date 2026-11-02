@@ -2,6 +2,7 @@ import {
   BoundingSphere,
   Cartesian3,
   HeadingPitchRange,
+  Math as CesiumMath,
   Matrix4,
 } from '@cesium/core';
 import {
@@ -38,7 +39,7 @@ const MAX_DURATION = 5;
  */
 export function flightDuration(from, to) {
   const halvings = Math.log2(from / to);
-  return Math.min(Math.max(halvings * SECONDS_PER_HALVING, MIN_DURATION), MAX_DURATION);
+  return CesiumMath.clamp(halvings * SECONDS_PER_HALVING, MIN_DURATION, MAX_DURATION);
 }
 
 /**
