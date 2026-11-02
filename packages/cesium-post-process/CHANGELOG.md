@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.6.1](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-post-process%400.6.0...%40geoblocks%2Fcesium-post-process%400.6.1) (2026-11-02)
+
+### Performance Improvements
+
+* **cesium-post-process:** compute the clouds' wind direction once ([1cba9ee](https://github.com/geoblocks/cesium-helpers/commit/1cba9eee988d7b0f660b9fc292198ef9a19a2072))
+
+
 # [0.6.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-post-process%400.5.0...%40geoblocks%2Fcesium-post-process%400.6.0) (2026-10-27)
 
 ### Features

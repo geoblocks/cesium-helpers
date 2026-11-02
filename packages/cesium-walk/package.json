@@ -1,6 +1,6 @@
 {
   "name": "@geoblocks/cesium-walk",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "license": "BSD-3-Clause",
   "type": "module",
   "repository": {
@@ -33,7 +33,7 @@
   },
   "dependencies": {
     "@geoblocks/cesium-input": "^0.3.0",
-    "@geoblocks/cesium-obstacles": "^0.6.0"
+    "@geoblocks/cesium-obstacles": "^0.6.1"
   },
   "peerDependencies": {
     "@cesium/core": ">=0.1.0",
