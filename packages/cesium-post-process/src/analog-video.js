@@ -1,9 +1,9 @@
 import {Math as CesiumMath} from '@cesium/core';
 import {PostProcessStage} from '@cesium/engine';
 import Effect from './effect.js';
-import {acquireFrames, releaseFrames} from './frame-clock.js';
 import AnalogVideoShader from './shaders/AnalogVideo.js';
 import Hash from './shaders/Hash.js';
+import {smoothstep} from './smoothstep.js';
 
 // PAL video runs at 25 frames per second, as in AnalogVideo.glsl
 const FRAME_RATE = 25;
@@ -45,7 +45,7 @@ export function hash(x, y) {
 export function signalAt(seconds, interference) {
   const fade = seconds * FADE_RATE;
   const t = fract(fade);
-  const wander = hash(Math.floor(fade), 5) + (hash(Math.floor(fade) + 1, 5) - hash(Math.floor(fade), 5)) * t * t * (3 - 2 * t);
+  const wander = CesiumMath.lerp(hash(Math.floor(fade), 5), hash(Math.floor(fade) + 1, 5), smoothstep(0, 1, t));
   const weak = interference >= 1 ? 1 : interference * (0.75 + 0.25 * wander);
   // a tear lasts two frames: decided once for each pair
   const pair = Math.floor((seconds * FRAME_RATE) / 2) % 1000;
@@ -69,6 +69,8 @@ export default class AnalogVideo extends Effect {
    */
   constructor(viewer, options = {}) {
     super(viewer);
+    // a new picture only with each video frame, not with each frame of the display
+    this.frameRate_ = FRAME_RATE;
     this.noise_ = options.noise ?? 0.5;
     this.interference_ = options.interference ?? 0.15;
     // the uniforms updated once per frame
@@ -100,8 +102,6 @@ export default class AnalogVideo extends Effect {
    */
   activated_(scene) {
     scene.preRender.addEventListener(this.onPreRender_);
-    // a new picture only with each video frame, not with each frame of the display
-    acquireFrames(scene, FRAME_RATE);
   }
 
   /**
@@ -109,7 +109,6 @@ export default class AnalogVideo extends Effect {
    * @param {import('@cesium/engine').Scene} scene
    */
   deactivating_(scene) {
-    releaseFrames(scene, FRAME_RATE);
     scene.preRender.removeEventListener(this.onPreRender_);
   }
 

@@ -1,7 +1,6 @@
 import {Math as CesiumMath} from '@cesium/core';
 import {PostProcessStage} from '@cesium/engine';
 import Effect from './effect.js';
-import {acquireFrames, releaseFrames} from './frame-clock.js';
 import DigitalVideoShader from './shaders/DigitalVideo.js';
 import Hash from './shaders/Hash.js';
 
@@ -26,6 +25,7 @@ export default class DigitalVideo extends Effect {
    */
   constructor(viewer, options = {}) {
     super(viewer);
+    this.frameRate_ = FRAME_RATE;
     this.breakup_ = options.breakup ?? 0.5;
     // the current breakup: start and length in seconds, and whether it goes black
     /** @type {{start: number, duration: number, blackout: boolean} | undefined} */
@@ -57,7 +57,6 @@ export default class DigitalVideo extends Effect {
   activated_(scene) {
     this.updated_ = performance.now() / 1000;
     scene.preRender.addEventListener(this.onPreRender_);
-    acquireFrames(scene, FRAME_RATE);
   }
 
   /**
@@ -65,7 +64,6 @@ export default class DigitalVideo extends Effect {
    * @param {import('@cesium/engine').Scene} scene
    */
   deactivating_(scene) {
-    releaseFrames(scene, FRAME_RATE);
     scene.preRender.removeEventListener(this.onPreRender_);
     this.episode_ = undefined;
   }

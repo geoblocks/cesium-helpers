@@ -1,6 +1,5 @@
 import {Cartesian3, Math as CesiumMath, Matrix4} from '@cesium/core';
 import {PostProcessStage} from '@cesium/engine';
-import {acquireTerrainDepth, releaseTerrainDepth} from './depth-test.js';
 import Effect from './effect.js';
 import {heightUniforms} from './height.js';
 import {LocalFrame} from './local-frame.js';
@@ -29,6 +28,7 @@ export default class SnowLine extends Effect {
    */
   constructor(viewer, options = {}) {
     super(viewer);
+    this.terrainDepth_ = true;
     this.altitude_ = options.altitude ?? 2000;
     this.transition_ = options.transition ?? 200;
     this.maxSlope_ = options.maxSlope ?? 50;
@@ -78,15 +78,6 @@ export default class SnowLine extends Effect {
    */
   activated_(scene) {
     this.frame_.anchor(scene);
-    acquireTerrainDepth(scene);
-  }
-
-  /**
-   * @override
-   * @param {import('@cesium/engine').Scene} scene
-   */
-  deactivating_(scene) {
-    releaseTerrainDepth(scene);
   }
 
   /**

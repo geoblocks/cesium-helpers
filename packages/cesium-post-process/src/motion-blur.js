@@ -1,6 +1,5 @@
 import {Matrix4, PixelDatatype, Math as CesiumMath} from '@cesium/core';
 import {PostProcessStage, PostProcessStageComposite} from '@cesium/engine';
-import {acquireTerrainDepth, releaseTerrainDepth} from './depth-test.js';
 import Effect from './effect.js';
 import EyeFromDepth from './shaders/EyeFromDepth.js';
 import Hash from './shaders/Hash.js';
@@ -18,6 +17,7 @@ export default class MotionBlur extends Effect {
    */
   constructor(viewer, options = {}) {
     super(viewer);
+    this.terrainDepth_ = true;
     this.strength_ = options.strength ?? 1;
     this.exposure_ = options.exposure ?? 1 / 24;
     this.previousViewProjection_ = new Matrix4();
@@ -73,7 +73,6 @@ export default class MotionBlur extends Effect {
    * @param {import('@cesium/engine').Scene} scene
    */
   activated_(scene) {
-    acquireTerrainDepth(scene);
     this.onPostRender_();
     scene.postRender.addEventListener(this.onPostRender_);
   }
@@ -84,7 +83,6 @@ export default class MotionBlur extends Effect {
    */
   deactivating_(scene) {
     scene.postRender.removeEventListener(this.onPostRender_);
-    releaseTerrainDepth(scene);
   }
 
   /**

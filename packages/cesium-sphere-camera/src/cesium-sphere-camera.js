@@ -67,7 +67,7 @@ export default class CesiumSphereCamera {
 
     // x axis
 
-    let angle = 0.0;
+    let angle;
     look3DStartPos.x = movement.startPosition.x;
     look3DStartPos.y = 0.0;
     look3DEndPos.x = movement.endPosition.x;
@@ -77,10 +77,7 @@ export default class CesiumSphereCamera {
     camera.getPickRay(look3DEndPos, look3DEndRay);
 
     let dot = Cartesian3.dot(look3DStartRay.direction, look3DEndRay.direction);
-    if (dot < 1.0) {
-      // dot is in [0, 1]
-      angle = Math.acos(dot);
-    }
+    angle = CesiumMath.acosClamped(dot);
     angle = movement.startPosition.x > movement.endPosition.x ? -angle : angle;
     const rotationAxis =
       this.viewer.scene.globe.ellipsoid.geodeticSurfaceNormal(camera.position, rotationAxisScratch);
@@ -95,13 +92,9 @@ export default class CesiumSphereCamera {
 
     camera.getPickRay(look3DStartPos, look3DStartRay);
     camera.getPickRay(look3DEndPos, look3DEndRay);
-    angle = 0.0;
 
     dot = Cartesian3.dot(look3DStartRay.direction, look3DEndRay.direction);
-    if (dot < 1.0) {
-      // dot is in [0, 1]
-      angle = Math.acos(dot);
-    }
+    angle = CesiumMath.acosClamped(dot);
     angle = movement.startPosition.y > movement.endPosition.y ? -angle : angle;
     const direction = camera.direction;
     const negativeRotationAxis = Cartesian3.negate(

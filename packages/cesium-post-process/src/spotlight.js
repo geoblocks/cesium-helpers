@@ -1,6 +1,5 @@
 import {Cartesian4, PixelDatatype} from '@cesium/core';
 import {PostProcessStage, PostProcessStageComposite} from '@cesium/engine';
-import {acquireTerrainDepth, releaseTerrainDepth} from './depth-test.js';
 import Effect from './effect.js';
 import {eyeFocus} from './focus.js';
 import {heightUniforms} from './height.js';
@@ -29,6 +28,7 @@ export default class Spotlight extends Effect {
    */
   constructor(viewer, options = {}) {
     super(viewer);
+    this.terrainDepth_ = true;
     this.focus_ = options.focus;
     this.power_ = options.power ?? 1;
     this.radius_ = options.radius ?? 200;
@@ -85,22 +85,6 @@ export default class Spotlight extends Effect {
       // the light is drawn over the scene, not over the beam
       inputPreviousStageTexture: false,
     });
-  }
-
-  /**
-   * @override
-   * @param {import('@cesium/engine').Scene} scene
-   */
-  activated_(scene) {
-    acquireTerrainDepth(scene);
-  }
-
-  /**
-   * @override
-   * @param {import('@cesium/engine').Scene} scene
-   */
-  deactivating_(scene) {
-    releaseTerrainDepth(scene);
   }
 
   /**

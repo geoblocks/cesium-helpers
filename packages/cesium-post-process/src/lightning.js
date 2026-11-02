@@ -1,8 +1,8 @@
 import {Cartesian3, Cartesian4, Cartographic, Event, Matrix4, Math as CesiumMath} from '@cesium/core';
 import {PostProcessStage} from '@cesium/engine';
-import {acquireTerrainDepth, releaseTerrainDepth} from './depth-test.js';
 import Effect from './effect.js';
 import {acquireFrames, releaseFrames} from './frame-clock.js';
+import {smoothstep} from './smoothstep.js';
 import {advanceStrikes, MAX_STRIKES} from './strikes.js';
 import WeatherMap from './weather-map.js';
 import EyeFromDepth from './shaders/EyeFromDepth.js';
@@ -41,16 +41,6 @@ const GLOW_HEIGHT = 1500;
 const ABOVE_FADE = 200;
 
 /**
- * @param {number} edge0
- * @param {number} edge1
- * @param {number} x
- */
-function smoothstep(edge0, edge1, x) {
-  const t = CesiumMath.clamp((x - edge0) / (edge1 - edge0), 0, 1);
-  return t * t * (3 - 2 * t);
-}
-
-/**
  * @typedef {{start: number, seed: number, ground: Cartesian3, top: Cartesian3, glow: Cartesian3, glowIntensity: number, branches: number[][]}} Strike
  */
 
@@ -75,6 +65,7 @@ export default class Lightning extends Effect {
    */
   constructor(viewer, options = {}) {
     super(viewer);
+    this.terrainDepth_ = true;
     this.intensity_ = options.intensity ?? 0.5;
     this.cloudBase_ = options.cloudBase ?? 2500;
     this.radius_ = options.radius ?? 5000;
@@ -226,7 +217,6 @@ export default class Lightning extends Effect {
   activated_(scene) {
     this.lastTime_ = performance.now() / 1000;
     scene.preRender.addEventListener(this.onPreRender_);
-    acquireTerrainDepth(scene);
     if (this.intensity_ > 0) {
       acquireFrames(scene, FRAME_RATE);
     }
@@ -240,7 +230,6 @@ export default class Lightning extends Effect {
     if (this.intensity_ > 0) {
       releaseFrames(scene, FRAME_RATE);
     }
-    releaseTerrainDepth(scene);
     scene.preRender.removeEventListener(this.onPreRender_);
     this.strikes_.length = 0;
     for (const bottom of this.strikeBottom_) {

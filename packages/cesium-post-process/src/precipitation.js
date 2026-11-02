@@ -3,10 +3,10 @@ import {PostProcessStage, PostProcessStageComposite} from '@cesium/engine';
 // @ts-expect-error the engine exports its textures, framebuffers and render states, but does not type them
 import {Framebuffer, RenderState, Texture} from '@cesium/engine';
 import {cloudShadow, hasCloudCover} from './cloud-cover.js';
-import {acquireTerrainDepth, releaseTerrainDepth} from './depth-test.js';
 import Effect from './effect.js';
 import {acquireFrames, releaseFrames} from './frame-clock.js';
 import {heightUniforms} from './height.js';
+import {smoothstep} from './smoothstep.js';
 import CloudsShadow from './shaders/CloudsShadow.js';
 import EyeFromDepth from './shaders/EyeFromDepth.js';
 import Fog from './shaders/Fog.js';
@@ -66,17 +66,6 @@ const OVERCAST = 0.5;
 // the camera goes from under the clouds to above them over this height around the cloud base, in
 // meters, as the drops in Precipitation.glsl
 const CLOUD_BASE_FADE = 50;
-
-/**
- * GLSL's smoothstep.
- * @param {number} edge0
- * @param {number} edge1
- * @param {number} x
- */
-function smoothstep(edge0, edge1, x) {
-  const t = CesiumMath.clamp((x - edge0) / (edge1 - edge0), 0, 1);
-  return t * t * (3 - 2 * t);
-}
 
 /**
  * @typedef {import('./weather-map.js').WeatherMapOptions} PrecipitationMapOptions
@@ -148,6 +137,7 @@ export default class Precipitation extends Effect {
    */
   constructor(viewer, options = {}) {
     super(viewer);
+    this.terrainDepth_ = true;
     this.intensity_ = options.intensity ?? 0.5;
     this.wind_ = options.wind ?? 10;
     this.speed_ = options.speed ?? 1;
@@ -347,7 +337,6 @@ export default class Precipitation extends Effect {
     this.lastTime_ = performance.now() / 1000;
     this.updateLayers_();
     scene.preRender.addEventListener(this.onPreRender_);
-    acquireTerrainDepth(scene);
     acquireOvercast(scene);
     if (this.intensity_ > 0) {
       acquireFrames(scene, FRAME_RATE);
@@ -363,7 +352,6 @@ export default class Precipitation extends Effect {
       releaseFrames(scene, FRAME_RATE);
     }
     releaseOvercast(scene);
-    releaseTerrainDepth(scene);
     scene.preRender.removeEventListener(this.onPreRender_);
     this.destroySkyTable_();
     this.weatherMap_.destroy();
