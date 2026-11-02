@@ -54,6 +54,23 @@ refitBvh(bvh, movedTris);   // the same triangles, the same numbers, new places;
 
 The tree is plain arrays (`bounds`, `meta`, `data`, `ids`): send them to a worker, and make the queries there.
 
+## Reading a glTF
+
+A glTF's triangles as flat typed arrays, from its bytes, no Cesium (`@geoblocks/cesium-bvh/gltf`):
+
+```js
+import {trianglesOf, buildBvh} from '@geoblocks/cesium-bvh';
+import {gltfTriangles} from '@geoblocks/cesium-bvh/gltf';
+
+const groups = gltfTriangles(glb);           // [{vertices, triangles, name, node, mesh, primitive}], a primitive each, y up as glTF
+const zUp = [1, 0, 0, 0, 0, 0, 1, 0, 0, -1, 0, 0, 0, 0, 0, 1];   // column major: (x, y, z) at (x, -z, y)
+const bvh = buildBvh(trianglesOf(gltfTriangles(glb, undefined, {frame: zUp})));
+```
+
+A binary glTF, or its JSON and its buffers (`gltfTriangles(json, buffers)`). Nodes' matrices, lists, strips and fans, positions in floats or
+quantized (`KHR_mesh_quantization`), indexed or not. Draco, meshopt, `EXT_mesh_gpu_instancing` and sparse accessors throw, as do indices that
+are not whole triangles or reach past the vertices. A mirrored node (a negative scale) or `frame` keeps the triangles' winding: it is not flipped.
+
 ## Not here
 
 - A tree that restructures as triangles move: `refitBvh` keeps the shape, so it answers right but slower the farther triangles have gone; rebuild it then.

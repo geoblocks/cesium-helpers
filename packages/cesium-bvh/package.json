@@ -16,6 +16,11 @@
       "source": "./src/cesium-bvh.js",
       "types": "./dist/cesium-bvh.d.ts",
       "default": "./dist/cesium-bvh.js"
+    },
+    "./gltf": {
+      "source": "./src/gltf.js",
+      "types": "./dist/gltf.d.ts",
+      "default": "./dist/gltf.js"
     }
   },
   "sideEffects": false,
