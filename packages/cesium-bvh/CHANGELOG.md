@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.4.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-bvh%400.3.0...%40geoblocks%2Fcesium-bvh%400.4.0) (2026-11-02)
+
+### Features
+
+* **cesium-bvh:** read a glTF's triangles without Cesium ([f61d83e](https://github.com/geoblocks/cesium-helpers/commit/f61d83e603fe33ceb7ef0b81b180a7bc91dc8a34))
+
+
 # [0.3.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-bvh%400.2.0...%40geoblocks%2Fcesium-bvh%400.3.0) (2026-10-26)
 
 ### Build System

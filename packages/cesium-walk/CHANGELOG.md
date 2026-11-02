@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.5.2](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-walk%400.5.1...%40geoblocks%2Fcesium-walk%400.5.2) (2026-11-02)
+
+**Note:** Version bump only for package @geoblocks/cesium-walk
+
+
+
+
+
 ## [0.5.1](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-walk%400.5.0...%40geoblocks%2Fcesium-walk%400.5.1) (2026-11-02)
 
 **Note:** Version bump only for package @geoblocks/cesium-walk

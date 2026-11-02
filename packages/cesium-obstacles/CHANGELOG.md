@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.7.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-obstacles%400.6.1...%40geoblocks%2Fcesium-obstacles%400.7.0) (2026-11-02)
+
+### Features
+
+* **cesium-bvh:** read a glTF's triangles without Cesium ([f61d83e](https://github.com/geoblocks/cesium-helpers/commit/f61d83e603fe33ceb7ef0b81b180a7bc91dc8a34))
+
+
 ## [0.6.1](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-obstacles%400.6.0...%40geoblocks%2Fcesium-obstacles%400.6.1) (2026-11-02)
 
 **Note:** Version bump only for package @geoblocks/cesium-obstacles
