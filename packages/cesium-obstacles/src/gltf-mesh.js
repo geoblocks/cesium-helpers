@@ -178,7 +178,7 @@ export function gltfTriangles(gltf, buffers, forwardAxis = Axis.X) {
     roots = scene.nodes ?? [];
   } else {
     const children = new Set(nodes.flatMap((/** @type {any} */ node) => node.children ?? []));
-    roots = nodes.map((/** @type {any} */ _, /** @type {number} */ i) => i).filter((/** @type {number} */ i) => !children.has(i));
+    roots = nodes.keys().filter((/** @type {number} */ i) => !children.has(i)).toArray();
   }
 
   /** @type {Map<number, {positions: ArrayLike<number>, triangles: Uint32Array}[]>} */

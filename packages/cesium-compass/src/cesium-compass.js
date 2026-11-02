@@ -605,7 +605,7 @@ export default class CesiumCompass extends LitElement {
 
     this.unlistenFromClockTick = this.clock.onTick.addEventListener(this.handleOrbitTickFunction);
 
-    this.updateAngleAndOpacity(cursorVector, this.context.compassRectangle.width);
+    this.updateAngleAndOpacity(cursorVector);
   }
 
   handleOrbitTick() {
@@ -659,14 +659,13 @@ export default class CesiumCompass extends LitElement {
 
   /**
    * @param {Cartesian2} vector
-   * @param {number} compassWidth
    */
-  updateAngleAndOpacity(vector, compassWidth) {
+  updateAngleAndOpacity(vector) {
     const angle = Math.atan2(-vector.y, vector.x);
     this.orbitCursorAngle = CesiumMath.zeroToTwoPi(angle - CesiumMath.PI_OVER_TWO);
 
     const distance = Cartesian2.magnitude(vector);
-    const maxDistance = compassWidth / 2.0;
+    const maxDistance = this.context.compassRectangle.width / 2.0;
     const distanceFraction = Math.min(distance / maxDistance, 1.0);
     this.orbitCursorOpacity = 0.5 * distanceFraction * distanceFraction + 0.5;
   }
@@ -676,7 +675,7 @@ export default class CesiumCompass extends LitElement {
    */
   handleOrbitPointerMove(event) {
     const cursorVector = this.cursorVector(event);
-    this.updateAngleAndOpacity(cursorVector, this.context.compassRectangle.width);
+    this.updateAngleAndOpacity(cursorVector);
   }
 
   handleOrbitPointerUp() {

@@ -532,7 +532,7 @@ export default class CesiumIso {
         return;
       }
       if (this.held_.size) {
-        const [x, y] = [...this.held_].reduce(([x, y], key) => [x + (PAN[key]?.[0] ?? 0), y + (PAN[key]?.[1] ?? 0)], [0, 0]);
+        const [x, y] = this.held_.values().reduce(([x, y], key) => [x + (PAN[key]?.[0] ?? 0), y + (PAN[key]?.[1] ?? 0)], [0, 0]);
         const width = this.width_();
         const meters = PAN_SPEED * width * Math.min(0.05, (now - (this.slid_ ?? now)) / 1000);
         const {canvas} = this.viewer.scene;
