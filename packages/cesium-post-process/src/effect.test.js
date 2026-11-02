@@ -80,3 +80,14 @@ test('an effect without a stage cannot be activated', () => {
     effect.active = true;
   }, /createStage_/);
 });
+
+test('an effect declaring the terrain depth has it forced while active and restored after', () => {
+  const viewer = fakeViewer();
+  viewer.scene.globe = {depthTestAgainstTerrain: false};
+  const effect = new Recorded(viewer);
+  effect.terrainDepth_ = true;
+  effect.active = true;
+  assert.equal(viewer.scene.globe.depthTestAgainstTerrain, true);
+  effect.active = false;
+  assert.equal(viewer.scene.globe.depthTestAgainstTerrain, false);
+});

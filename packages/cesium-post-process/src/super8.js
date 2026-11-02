@@ -1,7 +1,6 @@
 import {PostProcessStage, PostProcessStageComposite} from '@cesium/engine';
 import createBlur from './blur.js';
 import Effect from './effect.js';
-import {acquireFrames, releaseFrames} from './frame-clock.js';
 import Frame from './shaders/Frame.js';
 import Noise from './shaders/Noise.js';
 import Super8Shader from './shaders/Super8.js';
@@ -26,6 +25,8 @@ export default class Super8 extends Effect {
    */
   constructor(viewer, options = {}) {
     super(viewer);
+    // a new picture only with each film frame, not with each frame of the display
+    this.frameRate_ = FRAME_RATE;
     this.fade_ = options.fade ?? 0.5;
     this.halation_ = options.halation ?? 0.5;
     this.grain_ = options.grain ?? 0.15;
@@ -65,23 +66,6 @@ export default class Super8 extends Effect {
     stage.uniforms.sigma = HALATION_SIGMA;
     stage.uniforms.stepSize = HALATION_STEP;
     return stage;
-  }
-
-  /**
-   * @override
-   * @param {import('@cesium/engine').Scene} scene
-   */
-  activated_(scene) {
-    // a new picture only with each film frame, not with each frame of the display
-    acquireFrames(scene, FRAME_RATE);
-  }
-
-  /**
-   * @override
-   * @param {import('@cesium/engine').Scene} scene
-   */
-  deactivating_(scene) {
-    releaseFrames(scene, FRAME_RATE);
   }
 
   /**

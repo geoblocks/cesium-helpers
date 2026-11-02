@@ -1,7 +1,11 @@
+import {acquireTerrainDepth, releaseTerrainDepth} from './depth-test.js';
+import {acquireFrames, releaseFrames} from './frame-clock.js';
+
 /**
  * A screen-space effect: a post-process stage on a scene while active.
  * Subclasses create their stage in `createStage_` and take their side effects
- * in `activated_` and `deactivating_`.
+ * in `activated_` and `deactivating_`. The terrain's depth and a render rate it needs for as
+ * long as it is active are declared by `terrainDepth_` and `frameRate_`, set in the constructor.
  */
 export default class Effect {
   /**
@@ -11,6 +15,10 @@ export default class Effect {
     this.viewer = viewer;
     /** @type {import('@cesium/engine').PostProcessStage | import('@cesium/engine').PostProcessStageComposite | undefined} */
     this.stage_ = undefined;
+    /** Whether the effect reads the terrain's depth: the scene keeps it for as long as the effect is active. */
+    this.terrainDepth_ = false;
+    /** The renders a second the effect needs in requestRenderMode while active, 0 for none. */
+    this.frameRate_ = 0;
   }
 
   get active() {
@@ -25,12 +33,24 @@ export default class Effect {
       }
       this.stage_ = this.createStage_(scene);
       scene.postProcessStages.add(this.stage_);
+      if (this.terrainDepth_) {
+        acquireTerrainDepth(scene);
+      }
+      if (this.frameRate_ > 0) {
+        acquireFrames(scene, this.frameRate_);
+      }
       this.activated_(scene);
     } else {
       if (!this.stage_) {
         return;
       }
       this.deactivating_(scene);
+      if (this.frameRate_ > 0) {
+        releaseFrames(scene, this.frameRate_);
+      }
+      if (this.terrainDepth_) {
+        releaseTerrainDepth(scene);
+      }
       // removing a stage also destroys it
       scene.postProcessStages.remove(this.stage_);
       this.stage_ = undefined;

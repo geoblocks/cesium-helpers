@@ -1,7 +1,6 @@
 import {Cartesian4} from '@cesium/core';
 import {PostProcessStage, PostProcessStageComposite} from '@cesium/engine';
 import createBlur from './blur.js';
-import {acquireTerrainDepth, releaseTerrainDepth} from './depth-test.js';
 import Effect from './effect.js';
 import {eyeFocus} from './focus.js';
 import EyeFromDepth from './shaders/EyeFromDepth.js';
@@ -20,6 +19,7 @@ export default class TiltShift extends Effect {
    */
   constructor(viewer, options = {}) {
     super(viewer);
+    this.terrainDepth_ = true;
     this.focus_ = options.focus;
     this.range_ = options.range ?? 0.3;
     this.blur_ = options.blur ?? 4;
@@ -51,22 +51,6 @@ export default class TiltShift extends Effect {
     });
     stage.uniforms.sigma = this.blur_;
     return stage;
-  }
-
-  /**
-   * @override
-   * @param {import('@cesium/engine').Scene} scene
-   */
-  activated_(scene) {
-    acquireTerrainDepth(scene);
-  }
-
-  /**
-   * @override
-   * @param {import('@cesium/engine').Scene} scene
-   */
-  deactivating_(scene) {
-    releaseTerrainDepth(scene);
   }
 
   /**

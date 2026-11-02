@@ -1,6 +1,5 @@
 import {Cartesian3, Cartesian4, Color, Math as CesiumMath} from '@cesium/core';
 import {PostProcessStage} from '@cesium/engine';
-import {acquireTerrainDepth, releaseTerrainDepth} from './depth-test.js';
 import Effect from './effect.js';
 import {acquireFrames, releaseFrames} from './frame-clock.js';
 import {heightUniforms} from './height.js';
@@ -39,6 +38,7 @@ export default class RainRings extends Effect {
    */
   constructor(viewer, options = {}) {
     super(viewer);
+    this.terrainDepth_ = true;
     this.intensity_ = options.intensity ?? 0.5;
     this.cell_ = options.cell ?? 2;
     this.reach_ = options.reach ?? 0.35;
@@ -84,7 +84,6 @@ export default class RainRings extends Effect {
    */
   activated_(scene) {
     this.frame_.anchor(scene);
-    acquireTerrainDepth(scene);
     if (this.intensity_ > 0) {
       acquireFrames(scene, FRAME_RATE);
     }
@@ -98,7 +97,6 @@ export default class RainRings extends Effect {
     if (this.intensity_ > 0) {
       releaseFrames(scene, FRAME_RATE);
     }
-    releaseTerrainDepth(scene);
   }
 
   /**

@@ -1,6 +1,5 @@
 import {Cartesian3, Cartesian4} from '@cesium/core';
 import {PostProcessStage} from '@cesium/engine';
-import {acquireTerrainDepth, releaseTerrainDepth} from './depth-test.js';
 import Effect from './effect.js';
 import DepthEdges from './shaders/DepthEdges.js';
 import EyeFromDepth from './shaders/EyeFromDepth.js';
@@ -27,6 +26,7 @@ export default class Toy extends Effect {
    */
   constructor(viewer, options = {}) {
     super(viewer);
+    this.terrainDepth_ = true;
     this.light_ = options.light ?? 0.22;
     this.shade_ = options.shade ?? 0.18;
     this.bevel_ = options.bevel ?? 0;
@@ -72,22 +72,6 @@ export default class Toy extends Effect {
       skyTop: () => this.sky_ ? color(this.sky_[0], skyTopScratch) : NO_SKY,
       skyBottom: () => this.sky_ ? color(this.sky_[1], skyBottomScratch) : NO_SKY,
     };
-  }
-
-  /**
-   * @override
-   * @param {import('@cesium/engine').Scene} scene
-   */
-  activated_(scene) {
-    acquireTerrainDepth(scene);
-  }
-
-  /**
-   * @override
-   * @param {import('@cesium/engine').Scene} scene
-   */
-  deactivating_(scene) {
-    releaseTerrainDepth(scene);
   }
 
   /**

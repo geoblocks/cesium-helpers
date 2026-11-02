@@ -1,6 +1,5 @@
 import {Color} from '@cesium/core';
 import {PostProcessStage} from '@cesium/engine';
-import {acquireTerrainDepth, releaseTerrainDepth} from './depth-test.js';
 import Effect from './effect.js';
 import {heightUniforms} from './height.js';
 import EyeFromDepth from './shaders/EyeFromDepth.js';
@@ -19,6 +18,7 @@ export default class ValleyFog extends Effect {
    */
   constructor(viewer, options = {}) {
     super(viewer);
+    this.terrainDepth_ = true;
     this.top_ = options.top ?? 1500;
     this.density_ = options.density ?? 0.005;
     this.softness_ = options.softness ?? 100;
@@ -40,22 +40,6 @@ export default class ValleyFog extends Effect {
         color: () => this.color_,
       },
     });
-  }
-
-  /**
-   * @override
-   * @param {import('@cesium/engine').Scene} scene
-   */
-  activated_(scene) {
-    acquireTerrainDepth(scene);
-  }
-
-  /**
-   * @override
-   * @param {import('@cesium/engine').Scene} scene
-   */
-  deactivating_(scene) {
-    releaseTerrainDepth(scene);
   }
 
   /**

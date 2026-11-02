@@ -7,7 +7,6 @@ import {Framebuffer, RenderState, Texture} from '@cesium/engine';
 import {acquireCloudCover, releaseCloudCover} from './cloud-cover.js';
 import createCloudMap from './cloud-map.js';
 import createCloudNoise, {createMapNoise} from './cloud-noise.js';
-import {acquireTerrainDepth, releaseTerrainDepth} from './depth-test.js';
 import Effect from './effect.js';
 import {acquireFrames, releaseFrames} from './frame-clock.js';
 import {heightUniforms} from './height.js';
@@ -110,6 +109,7 @@ export default class Clouds extends Effect {
    */
   constructor(viewer, options = {}) {
     super(viewer);
+    this.terrainDepth_ = true;
     this.cloudBase_ = options.cloudBase ?? 2500;
     this.cloudTop_ = options.cloudTop ?? 9000;
     this.density_ = options.density ?? 1;
@@ -536,7 +536,6 @@ export default class Clouds extends Effect {
     }
     scene.preRender.addEventListener(this.onPreRender_);
     scene.postRender.addEventListener(this.onPostRender_);
-    acquireTerrainDepth(scene);
     acquireCloudCover(scene, this.shadowSource_);
   }
 
@@ -546,7 +545,6 @@ export default class Clouds extends Effect {
    */
   deactivating_(scene) {
     releaseCloudCover(scene, this.shadowSource_);
-    releaseTerrainDepth(scene);
     scene.preRender.removeEventListener(this.onPreRender_);
     scene.postRender.removeEventListener(this.onPostRender_);
     if (this.settling_) {

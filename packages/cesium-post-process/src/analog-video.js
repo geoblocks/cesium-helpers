@@ -1,7 +1,6 @@
 import {Math as CesiumMath} from '@cesium/core';
 import {PostProcessStage} from '@cesium/engine';
 import Effect from './effect.js';
-import {acquireFrames, releaseFrames} from './frame-clock.js';
 import AnalogVideoShader from './shaders/AnalogVideo.js';
 import Hash from './shaders/Hash.js';
 import {smoothstep} from './smoothstep.js';
@@ -70,6 +69,8 @@ export default class AnalogVideo extends Effect {
    */
   constructor(viewer, options = {}) {
     super(viewer);
+    // a new picture only with each video frame, not with each frame of the display
+    this.frameRate_ = FRAME_RATE;
     this.noise_ = options.noise ?? 0.5;
     this.interference_ = options.interference ?? 0.15;
     // the uniforms updated once per frame
@@ -101,8 +102,6 @@ export default class AnalogVideo extends Effect {
    */
   activated_(scene) {
     scene.preRender.addEventListener(this.onPreRender_);
-    // a new picture only with each video frame, not with each frame of the display
-    acquireFrames(scene, FRAME_RATE);
   }
 
   /**
@@ -110,7 +109,6 @@ export default class AnalogVideo extends Effect {
    * @param {import('@cesium/engine').Scene} scene
    */
   deactivating_(scene) {
-    releaseFrames(scene, FRAME_RATE);
     scene.preRender.removeEventListener(this.onPreRender_);
   }
 

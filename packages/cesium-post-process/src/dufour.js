@@ -1,6 +1,5 @@
 import {Cartesian3, Color, FixedFrameTransforms, Math as CesiumMath, Matrix3, Matrix4} from '@cesium/core';
 import {PostProcessStage} from '@cesium/engine';
-import {acquireTerrainDepth, releaseTerrainDepth} from './depth-test.js';
 import Effect from './effect.js';
 import {heightUniforms} from './height.js';
 import DepthEdges from './shaders/DepthEdges.js';
@@ -35,6 +34,7 @@ export default class Dufour extends Effect {
    */
   constructor(viewer, options = {}) {
     super(viewer);
+    this.terrainDepth_ = true;
     this.spacing_ = options.spacing ?? 3.5;
     this.strokeLength_ = options.strokeLength ?? 14;
     this.weight_ = options.weight ?? 1;
@@ -95,22 +95,6 @@ export default class Dufour extends Effect {
     }
     this.origin_ = Cartesian3.clone(surface, this.origin_);
     Matrix4.getMatrix3(FixedFrameTransforms.eastNorthUpToFixedFrame(this.origin_, scene.ellipsoid, frameScratch), this.frame_);
-  }
-
-  /**
-   * @override
-   * @param {import('@cesium/engine').Scene} scene
-   */
-  activated_(scene) {
-    acquireTerrainDepth(scene);
-  }
-
-  /**
-   * @override
-   * @param {import('@cesium/engine').Scene} scene
-   */
-  deactivating_(scene) {
-    releaseTerrainDepth(scene);
   }
 
   /**
