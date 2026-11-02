@@ -86,6 +86,8 @@ let mapNoise;
 // texels along each side of the map's noise
 const MAP_NOISE_SIZE = 256;
 
+const groundScratch = new Cartesian3();
+
 /**
  * Clouds from a map of the rain: a slab above the cloud base where the map
  * has rain, a flat layer over drizzle and towers up to the cloud top over the
@@ -115,6 +117,10 @@ export default class Clouds extends Effect {
     this.drift_ = options.drift ?? 0;
     // without a map, no clouds
     this.weatherMap_ = new WeatherMap(0);
+    // the wind's direction for the map's rectangle it was computed for
+    /** @type {import('@cesium/core').Rectangle | undefined} */
+    this.windRectangle_ = undefined;
+    this.windVector_ = Cartesian3.ZERO;
     // the maps of the rain, from which the clouds' maps are made
     /** @type {import('./weather-map.js').WeatherMapOptions | undefined} */
     this.map_ = options.map;
@@ -278,8 +284,13 @@ export default class Clouds extends Effect {
     if (!rectangle) {
       return Cartesian3.ZERO;
     }
-    const up = Ellipsoid.WGS84.geodeticSurfaceNormalCartographic(Rectangle.center(rectangle));
-    return Cartesian3.normalize(Cartesian3.cross(Cartesian3.UNIT_Z, up, new Cartesian3()), new Cartesian3());
+    // computed again only for another map's rectangle: it is read by every stage on every frame
+    if (rectangle !== this.windRectangle_) {
+      this.windRectangle_ = rectangle;
+      const up = Ellipsoid.WGS84.geodeticSurfaceNormalCartographic(Rectangle.center(rectangle));
+      this.windVector_ = Cartesian3.normalize(Cartesian3.cross(Cartesian3.UNIT_Z, up, new Cartesian3()), new Cartesian3());
+    }
+    return this.windVector_;
   }
 
   /**
@@ -291,7 +302,10 @@ export default class Clouds extends Effect {
     const {dayNumber, secondsOfDay} = this.viewer.clock.currentTime;
     const distance = this.wind_ * (dayNumber * 86400 + secondsOfDay) + this.drift_ * seconds;
     const offset = Cartesian3.multiplyByScalar(this.windDirection_(), distance, new Cartesian3());
-    return new Cartesian3(offset.x % WIND_PERIOD, offset.y % WIND_PERIOD, offset.z % WIND_PERIOD);
+    offset.x %= WIND_PERIOD;
+    offset.y %= WIND_PERIOD;
+    offset.z %= WIND_PERIOD;
+    return offset;
   }
 
   /**
@@ -395,7 +409,7 @@ export default class Clouds extends Effect {
    * @param {import('@cesium/engine').Scene} scene
    */
   drawShadow_(scene) {
-    const ground = Ellipsoid.WGS84.scaleToGeodeticSurface(scene.camera.positionWC, new Cartesian3());
+    const ground = Ellipsoid.WGS84.scaleToGeodeticSurface(scene.camera.positionWC, groundScratch);
     const time = this.viewer.clock.currentTime;
     const now = Date.now();
     const extent = this.shadowExtentFor_(scene.camera.positionCartographic.height);
