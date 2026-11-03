@@ -1,6 +1,7 @@
 import {
   BoundingSphere,
   Cartesian3,
+  FixedFrameTransforms,
   HeadingPitchRange,
   Math as CesiumMath,
   Matrix4,
@@ -11,7 +12,6 @@ import {
   PostProcessStageComposite,
   PostProcessStageLibrary,
   ScreenSpaceEventType,
-  Transforms,
 } from '@cesium/engine';
 import {EyeFromDepth, MotionBlur} from '@geoblocks/cesium-post-process';
 import DepthOfField from './shaders/DepthOfField.js';
@@ -131,8 +131,7 @@ export default class CesiumFlyTo {
     // heading and pitch of the line of sight, in the local frame of the target
     const toTarget = Cartesian3.subtract(target, camera.positionWC, directionScratch);
     const distance = Cartesian3.magnitude(toTarget);
-    // @ts-expect-error Transforms.eastNorthUpToFixedFrame is missing from the @cesium/engine 26.4.0 typings
-    const enu = Transforms.eastNorthUpToFixedFrame(target, scene.ellipsoid, enuScratch);
+    const enu = FixedFrameTransforms.eastNorthUpToFixedFrame(target, scene.ellipsoid, enuScratch);
     const local = Matrix4.multiplyByPointAsVector(Matrix4.inverseTransformation(enu, enu), toTarget, toTarget);
     Cartesian3.normalize(local, local);
     const heading = Math.atan2(local.x, local.y);

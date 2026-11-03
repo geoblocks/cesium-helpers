@@ -1,5 +1,4 @@
-import {Cartesian3, Cartographic, Math as CesiumMath, Matrix4} from "@cesium/core";
-import {Transforms} from "@cesium/engine";
+import {Cartesian3, Cartographic, FixedFrameTransforms, Math as CesiumMath, Matrix4} from "@cesium/core";
 
 export const SAMPLE_SPACING = 20;
 const MAX_OFFSET = 60;
@@ -213,8 +212,7 @@ export async function reliefProfile(targets, heights, ranges, ellipsoid, heights
   /** @type {Cartographic[]} */
   const cartographics = [];
   targets.forEach((target, i) => {
-    // @ts-expect-error Transforms.eastNorthUpToFixedFrame is missing from the @cesium/engine 26.4.0 typings
-    const enu = Transforms.eastNorthUpToFixedFrame(target, ellipsoid, enuScratch);
+    const enu = FixedFrameTransforms.eastNorthUpToFixedFrame(target, ellipsoid, enuScratch);
     for (let k = 0; k < RELIEF_RING; k++) {
       const angle = (k * CesiumMath.TWO_PI) / RELIEF_RING;
       offsetScratch.x = ranges[i] * Math.sin(angle);
@@ -304,8 +302,7 @@ async function liftsNeededFrom(samples, headings, options, heightsAt, start, end
   const cartographics = [];
   for (let i = start; i < end; i++) {
     const marker = samples.positions[i];
-    // @ts-expect-error Transforms.eastNorthUpToFixedFrame is missing from the @cesium/engine 26.4.0 typings
-    const enu = Transforms.eastNorthUpToFixedFrame(marker, options.ellipsoid, enuScratch);
+    const enu = FixedFrameTransforms.eastNorthUpToFixedFrame(marker, options.ellipsoid, enuScratch);
     for (const heading of headings[i]) {
       cameraOffsetEnu(heading, samples.ranges[i], options.pitch, samples.rise[i], offsetScratch);
       const camera = Matrix4.multiplyByPoint(enu, offsetScratch, cameraScratch);
