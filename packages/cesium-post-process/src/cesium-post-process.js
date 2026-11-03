@@ -29,4 +29,6 @@ export {default as Hash} from './shaders/Hash.js';
 export {default as Height} from './shaders/Height.js';
 export {heightUniforms} from './height.js';
 export {localFromEye} from './local-frame.js';
+// the scene's shared render clock, for an effect of your own that animates only part of the time it is active
+export {acquireFrames, releaseFrames} from './frame-clock.js';
 export {default as Normal} from './shaders/Normal.js';

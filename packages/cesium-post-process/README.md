@@ -258,6 +258,8 @@ const stage = new PostProcessStage({
 
 `Normal`, also prepended after `EyeFromDepth`, gives a pixel's normal in eye coordinates from the depth of its neighbors, facing the camera: `vec3 normalAt(sampler2D depthTexture, vec2 uv, vec3 center, float distance)`, with `center` the pixel's eye coordinates and the neighbors `distance` pixels away, on each axis the nearer side so that the scene's edges do not bend it; and `vec3 smoothNormalAt(sampler2D depthTexture, vec2 uv, vec3 center)`, averaged over two distances so that the terrain's flat triangles blend into a smoother surface. It needs no uniforms.
 
+`acquireFrames(scene, rate)` and `releaseFrames(scene, rate)` share the animated effects' render clock with an effect of your own: while a rate is acquired, the scene renders at the highest rate acquired, also with `requestRenderMode`, from one timer for the scene rather than one for each effect, whose render requests would not line up and would add up. An `Effect` that animates as long as it is active sets `frameRate_` instead; acquire a rate yourself when it animates only part of that time (as `RainRings` does while it rains), and release the same rate when it stops.
+
 `localFromEye(frame, viewMatrix)` gives the matrix from the eye's coordinates to a local frame (such as `FixedFrameTransforms.eastNorthUpToFixedFrame(origin)`), made in double precision, for a shader that lays a pattern over the ground: `(localFromEye * vec4(eye.xyz, 1.0)).xy` is the pixel's place in meters, to the millimeter, where the world coordinates would step by half a meter.
 
 ### Order of the effects
