@@ -1,0 +1,1 @@
+import{C as e}from"./cesium-shim-OL_EbrB8.js";function t(t,n,r){let i=e.clamp((r-t)/(n-t),0,1);return i*i*(3-2*i)}export{t};
