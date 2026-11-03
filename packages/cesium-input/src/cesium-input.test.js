@@ -2,6 +2,8 @@ import {test} from "node:test";
 import assert from "node:assert/strict";
 import Controls, {standardGamepad} from "./cesium-input.js";
 
+/** @import {Binding} from "./cesium-input.js" */
+
 /** @type {Record<string, (event: any) => void>} */
 const listeners = {};
 const target = {addEventListener: (/** @type {string} */ type, /** @type {any} */ f) => listeners[type] = f, removeEventListener: () => {}};
@@ -50,7 +52,7 @@ test("a gamepad blocked by a Permissions Policy reads as none", async () => {
   assert.equal(standardGamepad(), undefined);
 });
 
-const bindings = /** @satisfies {Record<string, import("./cesium-input.js").Binding>} */ ({
+const bindings = /** @satisfies {Record<string, Binding>} */ ({
   move: {type: "vector", keys: {up: ["KeyW"]}},
   turn: {type: "axis", keys: {positive: ["KeyE"]}},
   jump: {type: "button", keys: ["Space"]},

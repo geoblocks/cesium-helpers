@@ -3,13 +3,15 @@ import Effect from './effect.js';
 import Frame from './shaders/Frame.js';
 import TechnicolorShader from './shaders/Technicolor.js';
 
+/** @import {CesiumWidget} from '@cesium/engine' */
+
 /**
  * Three-strip Technicolor: dense, saturated primaries, as the films of the
  * 1930s to 1950s.
  */
 export default class Technicolor extends Effect {
   /**
-   * @param {import('@cesium/engine').CesiumWidget} viewer
+   * @param {CesiumWidget} viewer
    * @param {{strength?: number, aspectRatio?: number}} [options]
    */
   constructor(viewer, options = {}) {

@@ -1,5 +1,7 @@
 import {Cartesian3, Cartographic, FixedFrameTransforms, Math as CesiumMath, Matrix4} from "@cesium/core";
 
+/** @import {Ellipsoid} from "@cesium/core" */
+
 export const SAMPLE_SPACING = 20;
 const MAX_OFFSET = 60;
 const OFFSET_STEP = 15;
@@ -204,7 +206,7 @@ export function sampleProfile(values, fraction) {
  * @param {Cartesian3[]} targets
  * @param {number[]} heights of the targets above the ellipsoid, meters
  * @param {number[]} ranges meters, per target
- * @param {import('@cesium/core').Ellipsoid} ellipsoid
+ * @param {Ellipsoid} ellipsoid
  * @param {(cartographics: Cartographic[]) => Promise<(number | undefined)[]>} heightsAt terrain height per position
  * @return {Promise<number[]>} meters, per target
  */
@@ -252,7 +254,7 @@ export async function reliefProfile(targets, heights, ranges, ellipsoid, heights
  * @property {number} maxTurn largest heading offset change between consecutive samples, radians
  * @property {number} maxLift meters of lift for the line of sight; what would need more stays hidden
  * @property {number} offsetCost meters of lift one degree of heading offset is worth
- * @property {import('@cesium/core').Ellipsoid} ellipsoid
+ * @property {Ellipsoid} ellipsoid
  */
 
 /**

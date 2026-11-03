@@ -2,13 +2,15 @@ import {PostProcessStage} from '@cesium/engine';
 import Effect from './effect.js';
 import LensDistortionShader from './shaders/LensDistortion.js';
 
+/** @import {CesiumWidget} from '@cesium/engine' */
+
 /**
  * The barrel distortion and dark corners of a wide-angle lens, like those of
  * FPV cameras.
  */
 export default class LensDistortion extends Effect {
   /**
-   * @param {import('@cesium/engine').CesiumWidget} viewer
+   * @param {CesiumWidget} viewer
    * @param {{distortion?: number, vignette?: number}} [options]
    */
   constructor(viewer, options = {}) {

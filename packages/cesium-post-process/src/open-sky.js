@@ -3,6 +3,8 @@ import {Cartesian4, Matrix4, PixelDatatype, PixelFormat} from '@cesium/core';
 import {Sampler, Texture, TextureMagnificationFilter, TextureMinificationFilter} from '@cesium/engine';
 import {localFromEye} from './local-frame.js';
 
+/** @import {Scene} from '@cesium/engine' */
+
 // the height of a node with nothing over it: far below everything, so whatever lies there is open
 const NOTHING = -1e9;
 const NO_GRID = new Cartesian4();
@@ -50,7 +52,7 @@ export default class OpenSky {
 
   /**
    * The frame's coordinates from the camera's eye's.
-   * @param {import('@cesium/engine').Scene} scene
+   * @param {Scene} scene
    */
   fromEye(scene) {
     return localFromEye(this.frame_, scene.camera.viewMatrix, this.scratch_);
@@ -82,7 +84,7 @@ export default class OpenSky {
 
 /**
  * The uniforms of OpenSky.glsl, from the open sky an effect has at the moment: with none, everything is open.
- * @param {import('@cesium/engine').Scene} scene
+ * @param {Scene} scene
  * @param {() => OpenSky | undefined} sky
  */
 export function openSkyUniforms(scene, sky) {

@@ -1,12 +1,14 @@
+/** @import {Scene} from '@cesium/engine' */
+
 // Animated effects need the scene to render at their frame rate, also in requestRenderMode. With a
 // timer each, their render requests would not line up and would add up: one timer per scene
 // requests renders at the highest rate the active effects need.
 
-/** @type {WeakMap<import('@cesium/engine').Scene, {rates: number[], interval: ReturnType<typeof setInterval> | undefined}>} */
+/** @type {WeakMap<Scene, {rates: number[], interval: ReturnType<typeof setInterval> | undefined}>} */
 const clocks = new WeakMap();
 
 /**
- * @param {import('@cesium/engine').Scene} scene
+ * @param {Scene} scene
  * @param {{rates: number[], interval: ReturnType<typeof setInterval> | undefined}} clock
  */
 function restart(scene, clock) {
@@ -17,7 +19,7 @@ function restart(scene, clock) {
 /**
  * A render request; once the scene is destroyed, with effects left active, the clock stops: a
  * destroyed scene throws on every call.
- * @param {import('@cesium/engine').Scene} scene
+ * @param {Scene} scene
  * @param {{rates: number[], interval: ReturnType<typeof setInterval> | undefined}} clock
  */
 function tick(scene, clock) {
@@ -30,7 +32,7 @@ function tick(scene, clock) {
 }
 
 /**
- * @param {import('@cesium/engine').Scene} scene
+ * @param {Scene} scene
  * @param {number} rate frames per second
  */
 export function acquireFrames(scene, rate) {
@@ -44,7 +46,7 @@ export function acquireFrames(scene, rate) {
 }
 
 /**
- * @param {import('@cesium/engine').Scene} scene
+ * @param {Scene} scene
  * @param {number} rate the rate given to acquireFrames
  */
 export function releaseFrames(scene, rate) {

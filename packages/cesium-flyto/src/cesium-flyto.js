@@ -16,6 +16,8 @@ import {
 import {EyeFromDepth, MotionBlur} from '@geoblocks/cesium-post-process';
 import DepthOfField from './shaders/DepthOfField.js';
 
+/** @import {CesiumWidget, ScreenSpaceEventHandler} from '@cesium/engine' */
+
 const directionScratch = new Cartesian3();
 const enuScratch = new Matrix4();
 
@@ -48,11 +50,11 @@ export function flightDuration(from, to) {
  */
 export default class CesiumFlyTo {
   /**
-   * @param {import('@cesium/engine').CesiumWidget} viewer
+   * @param {CesiumWidget} viewer
    * @param {ScreenSpaceEventType} [eventType=ScreenSpaceEventType.LEFT_DOUBLE_CLICK]
    * @param {number} [range=300] distance (in meters) between the camera and the clicked position at the end of the flight
    * @param {number} [duration] flight duration in seconds; when omitted, half a second per halving of the distance to the target, between 1 and 5 seconds
-   * @param {import('@cesium/engine').EasingFunction.Callback} [easingFunction=EasingFunction.SINUSOIDAL_IN_OUT]
+   * @param {EasingFunction.Callback} [easingFunction=EasingFunction.SINUSOIDAL_IN_OUT]
    */
   constructor(
     viewer,
@@ -69,7 +71,7 @@ export default class CesiumFlyTo {
     this.active_ = false;
 
     /**
-     * @type {ReturnType<import('@cesium/engine').ScreenSpaceEventHandler['getInputAction']> | undefined}
+     * @type {ReturnType<ScreenSpaceEventHandler['getInputAction']> | undefined}
      */
     this.previousAction_ = undefined;
     this.onInputAction_ = this.onInputAction.bind(this);
@@ -113,7 +115,7 @@ export default class CesiumFlyTo {
   }
 
   /**
-   * @param {import('@cesium/engine').ScreenSpaceEventHandler.PositionedEvent} movement
+   * @param {ScreenSpaceEventHandler.PositionedEvent} movement
    */
   onInputAction(movement) {
     const scene = this.viewer.scene;

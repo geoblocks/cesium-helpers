@@ -1,6 +1,9 @@
 import {Cartesian2, Math as CesiumMath} from "@cesium/core";
 import {EllipsoidTerrainProvider} from "@cesium/engine";
 
+/** @import {Cartographic, Rectangle} from "@cesium/core" */
+/** @import {TerrainData, TerrainProvider} from "@cesium/engine" */
+
 const FALLBACK_LEVEL = 14;
 const TILES_IN_FLIGHT = 64;
 // buckets per side of a quantized-mesh tile's index; about ten triangles per
@@ -93,7 +96,7 @@ class MeshIndex {
 
   /**
    * The height at a position, as `interpolateHeight` computes it.
-   * @param {import('@cesium/core').Rectangle} rectangle of the tile
+   * @param {Rectangle} rectangle of the tile
    * @param {number} longitude radians
    * @param {number} latitude radians
    * @return {number | undefined} undefined outside every triangle
@@ -138,13 +141,13 @@ class MeshIndex {
  */
 export default class TerrainSampler {
   /**
-   * @param {import('@cesium/engine').TerrainProvider} terrainProvider
+   * @param {TerrainProvider} terrainProvider
    * @param {number} level
    */
   constructor(terrainProvider, level) {
     this.provider_ = terrainProvider;
     this.level_ = level;
-    /** @type {Map<number, Promise<import('@cesium/engine').TerrainData | undefined>>} */
+    /** @type {Map<number, Promise<TerrainData | undefined>>} */
     this.tiles_ = new Map();
     /** @type {Map<number, MeshIndex>} by tile key, built on the first lookup */
     this.indices_ = new Map();
@@ -154,7 +157,7 @@ export default class TerrainSampler {
   }
 
   /**
-   * @param {import('@cesium/core').Cartographic[]} cartographics not modified
+   * @param {Cartographic[]} cartographics not modified
    * @return {Promise<(number | undefined)[]>} terrain height per position; undefined
    *   where the provider has no terrain (an EllipsoidTerrainProvider) or no tile
    */
@@ -175,7 +178,7 @@ export default class TerrainSampler {
   }
 
   /**
-   * @param {import('@cesium/core').Cartographic[]} cartographics
+   * @param {Cartographic[]} cartographics
    * @param {number} level
    * @return {Promise<(number | undefined)[]>}
    */
@@ -266,7 +269,7 @@ export default class TerrainSampler {
    * @param {number} x
    * @param {number} y
    * @param {number} level
-   * @return {Promise<import('@cesium/engine').TerrainData | undefined>}
+   * @return {Promise<TerrainData | undefined>}
    */
   tile_(key, x, y, level) {
     let promise = this.tiles_.get(key);
@@ -281,7 +284,7 @@ export default class TerrainSampler {
    * @param {number} x
    * @param {number} y
    * @param {number} level
-   * @return {Promise<import('@cesium/engine').TerrainData | undefined>}
+   * @return {Promise<TerrainData | undefined>}
    */
   async fetch_(x, y, level) {
     if (this.provider_.getTileDataAvailable(x, y, level) === false) {

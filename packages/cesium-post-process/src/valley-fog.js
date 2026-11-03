@@ -7,13 +7,15 @@ import Fog from './shaders/Fog.js';
 import Height from './shaders/Height.js';
 import ValleyFogShader from './shaders/ValleyFog.js';
 
+/** @import {CesiumWidget, Scene} from '@cesium/engine' */
+
 /**
  * Fog filling the valleys below an altitude: from above, a sea of fog with the
  * peaks standing out; from inside, the visibility drops with the distance.
  */
 export default class ValleyFog extends Effect {
   /**
-   * @param {import('@cesium/engine').CesiumWidget} viewer
+   * @param {CesiumWidget} viewer
    * @param {{top?: number, density?: number, softness?: number, color?: Color}} [options]
    */
   constructor(viewer, options = {}) {
@@ -27,7 +29,7 @@ export default class ValleyFog extends Effect {
 
   /**
    * @override
-   * @param {import('@cesium/engine').Scene} scene
+   * @param {Scene} scene
    */
   createStage_(scene) {
     return new PostProcessStage({

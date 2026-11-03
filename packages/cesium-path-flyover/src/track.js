@@ -1,6 +1,8 @@
 import {Cartesian3, FixedFrameTransforms, Math as CesiumMath, Matrix4} from "@cesium/core";
 import {Resource} from "@cesium/engine";
 
+/** @import {Ellipsoid} from "@cesium/core" */
+
 const scratchA = new Cartesian3();
 const scratchB = new Cartesian3();
 const scratchMatrix = new Matrix4();
@@ -125,7 +127,7 @@ function parseGpxPoints(text, tag) {
 /**
  * @param {LonLat[]} coords
  * @param {number} minDistance meters
- * @param {import('@cesium/core').Ellipsoid} ellipsoid
+ * @param {Ellipsoid} ellipsoid
  * @return {LonLat[]}
  */
 export function decimate(coords, minDistance, ellipsoid) {

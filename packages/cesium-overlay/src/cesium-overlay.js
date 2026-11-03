@@ -15,6 +15,8 @@ import {Cartesian2, Cartesian3, EllipsoidalOccluder, Matrix4, Plane} from '@cesi
 import {SceneMode, SceneTransforms} from '@cesium/engine';
 import {alongSegment, clipPolygon, gapsOf, insideRange, pathOf, polylinesOf, runsAlong, samePoints, windowProjection} from './overlay-lines.js';
 
+/** @import {Scene} from '@cesium/engine' */
+
 /**
  * Where a pin stands: a point, a function read on every render (a thing that moves), or none (hidden).
  * @typedef {Cartesian3 | (() => Cartesian3 | undefined) | undefined} Position
@@ -134,7 +136,7 @@ const KEY = Symbol.for('@geoblocks/cesium-overlay');
 
 /**
  * The scene's overlay: made by the first to ask, the same for the others.
- * @param {import('@cesium/engine').Scene | {scene: import('@cesium/engine').Scene}} target A scene, or a Viewer or CesiumWidget.
+ * @param {Scene | {scene: Scene}} target A scene, or a Viewer or CesiumWidget.
  * @return {Overlay}
  */
 export function overlayOf(target) {

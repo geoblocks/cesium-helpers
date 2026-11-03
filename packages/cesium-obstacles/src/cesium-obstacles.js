@@ -5,6 +5,8 @@ export {triangleTrees} from "./triangle-trees.js";
 export {gltfTriangles} from "./gltf-mesh.js";
 export {Group} from "./mesh-builder.js";
 
+/** @import {Cesium3DTileset, Scene} from "@cesium/engine" */
+
 /** @typedef {import("./triangle-mesh.js").TriangleMesh} TriangleMesh */
 /** @typedef {import("./gltf-mesh.js").GltfTriangles} GltfTriangles */
 
@@ -69,7 +71,7 @@ export function blockedStep(toward, length, eye, obstacle, result) {
  */
 export class ObstacleProbe {
   /**
-   * @param {import('@cesium/engine').Scene} scene
+   * @param {Scene} scene
    */
   constructor(scene) {
     this.scene_ = scene;
@@ -140,8 +142,8 @@ export class ObstacleProbe {
  * taken as upright, as buildings' are; each ray takes a few milliseconds, as Cesium reads the tiles' geometry
  * back from the GPU.
  * FIXME: Cesium3DTileset.pick and Scene.frameState are private, https://github.com/CesiumGS/cesium/issues/13901
- * @param {import('@cesium/engine').Scene} scene
- * @param {import('@cesium/engine').Cesium3DTileset} tileset
+ * @param {Scene} scene
+ * @param {Cesium3DTileset} tileset
  * @param {Cartesian3} eye Where the mover is.
  * @param {Cartesian3} toward The unit direction of the steps, level.
  * @param {number} [reach=1] How far ahead, in meters.

@@ -12,6 +12,9 @@ import OpenSkyShader from './shaders/OpenSky.js';
 import {openSkyUniforms} from './open-sky.js';
 import RainRingsShader from './shaders/RainRings.js';
 
+/** @import {CesiumWidget, Scene} from '@cesium/engine' */
+/** @import OpenSky from './open-sky.js' */
+
 // the rings grow and fade over a fraction of a second: a render for each frame of a video
 const FRAME_RATE = 30;
 // the shader's time wraps at an hour, a whole number of the rings' periods
@@ -27,9 +30,9 @@ const NO_WATER = 1e9;
  */
 export default class RainRings extends Effect {
   /**
-   * @param {import('@cesium/engine').CesiumWidget} viewer
+   * @param {CesiumWidget} viewer
    * @param {{intensity?: number, cell?: number, reach?: number, waterLevel?: number, maxSlope?: number, rate?: number,
-   *   color?: Color, origin?: Cartesian3, clock?: () => number, openSky?: import('./open-sky.js').default}} [options] The share of the cells that have a drop, 0 to 1; the cell's size
+   *   color?: Color, origin?: Cartesian3, clock?: () => number, openSky?: OpenSky}} [options] The share of the cells that have a drop, 0 to 1; the cell's size
    *   and the ring's growth on the ground, in meters (the ring on water is clipped at 0.3 cell); the water's height above the ellipsoid, in
    *   meters, or undefined for none; the steepest slope that takes a ring, in degrees; rings a second in a cell; the ring's color, its alpha how
    *   strongly it shows; the point of the world the cells are laid about; the time the rings run by, in seconds (the wall clock's by default;
@@ -54,7 +57,7 @@ export default class RainRings extends Effect {
 
   /**
    * @override
-   * @param {import('@cesium/engine').Scene} scene
+   * @param {Scene} scene
    */
   createStage_(scene) {
     const stage = new PostProcessStage({
@@ -80,7 +83,7 @@ export default class RainRings extends Effect {
 
   /**
    * @override
-   * @param {import('@cesium/engine').Scene} scene
+   * @param {Scene} scene
    */
   activated_(scene) {
     this.frame_.anchor(scene);
@@ -91,7 +94,7 @@ export default class RainRings extends Effect {
 
   /**
    * @override
-   * @param {import('@cesium/engine').Scene} scene
+   * @param {Scene} scene
    */
   deactivating_(scene) {
     if (this.intensity_ > 0) {

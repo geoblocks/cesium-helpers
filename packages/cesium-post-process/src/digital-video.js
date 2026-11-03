@@ -4,6 +4,8 @@ import Effect from './effect.js';
 import DigitalVideoShader from './shaders/DigitalVideo.js';
 import Hash from './shaders/Hash.js';
 
+/** @import {CesiumWidget, Scene} from '@cesium/engine' */
+
 // digital FPV video runs at this rate
 const FRAME_RATE = 30;
 // at full breakup, a breakup starts on average every this many seconds
@@ -20,7 +22,7 @@ const BLACKOUT = 0.25;
  */
 export default class DigitalVideo extends Effect {
   /**
-   * @param {import('@cesium/engine').CesiumWidget} viewer
+   * @param {CesiumWidget} viewer
    * @param {{breakup?: number}} [options]
    */
   constructor(viewer, options = {}) {
@@ -52,7 +54,7 @@ export default class DigitalVideo extends Effect {
 
   /**
    * @override
-   * @param {import('@cesium/engine').Scene} scene
+   * @param {Scene} scene
    */
   activated_(scene) {
     this.updated_ = performance.now() / 1000;
@@ -61,7 +63,7 @@ export default class DigitalVideo extends Effect {
 
   /**
    * @override
-   * @param {import('@cesium/engine').Scene} scene
+   * @param {Scene} scene
    */
   deactivating_(scene) {
     scene.preRender.removeEventListener(this.onPreRender_);

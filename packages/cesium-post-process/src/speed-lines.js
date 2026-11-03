@@ -5,6 +5,9 @@ import {eyeFocus} from './focus.js';
 import Hash from './shaders/Hash.js';
 import SpeedLinesShader from './shaders/SpeedLines.js';
 
+/** @import {Focus} from './focus.js' */
+/** @import {CesiumWidget, Scene} from '@cesium/engine' */
+
 const focusScratch = new Cartesian4();
 
 /**
@@ -14,8 +17,8 @@ const focusScratch = new Cartesian4();
  */
 export default class SpeedLines extends Effect {
   /**
-   * @param {import('@cesium/engine').CesiumWidget} viewer
-   * @param {{focus?: import('./focus.js').Focus, strength?: number}} [options]
+   * @param {CesiumWidget} viewer
+   * @param {{focus?: Focus, strength?: number}} [options]
    */
   constructor(viewer, options = {}) {
     super(viewer);
@@ -25,7 +28,7 @@ export default class SpeedLines extends Effect {
 
   /**
    * @override
-   * @param {import('@cesium/engine').Scene} scene
+   * @param {Scene} scene
    */
   createStage_(scene) {
     const stage = new PostProcessStage({

@@ -13,6 +13,9 @@ import {
 import EyeFromDepth from "./shaders/EyeFromDepth.js";
 import Lens from "./shaders/Lens.js";
 
+/** @import {PerspectiveFrustum} from "@cesium/core" */
+/** @import {CesiumWidget, ScreenSpaceCameraController, ScreenSpaceEventHandler} from "@cesium/engine" */
+
 // blur of the depth of field and of the rim, the sigma of Cesium's blur stage
 const LENS_BLUR = 3;
 
@@ -20,7 +23,7 @@ const middleScratch = new Cartesian2();
 
 export default class CesiumBinoculars {
   /**
-   * @param {import('@cesium/engine').CesiumWidget} viewer
+   * @param {CesiumWidget} viewer
    * @param {number} [zoomFactor] magnification per mouse wheel notch
    * @param {number} [maxMagnification]
    */
@@ -32,11 +35,11 @@ export default class CesiumBinoculars {
     this.active_ = false;
 
     /**
-     * @type {Pick<import('@cesium/engine').ScreenSpaceCameraController, 'enableZoom' | 'enableRotate' | 'enableTilt' | 'lookEventTypes'> | undefined}
+     * @type {Pick<ScreenSpaceCameraController, 'enableZoom' | 'enableRotate' | 'enableTilt' | 'lookEventTypes'> | undefined}
      */
     this.previousController_ = undefined;
     /**
-     * @type {ReturnType<import('@cesium/engine').ScreenSpaceEventHandler['getInputAction']> | undefined}
+     * @type {ReturnType<ScreenSpaceEventHandler['getInputAction']> | undefined}
      */
     this.previousAction_ = undefined;
     /** @type {PostProcessStageComposite | undefined} */
@@ -156,7 +159,7 @@ export default class CesiumBinoculars {
   }
 
   get frustum_() {
-    return /** @type {import('@cesium/core').PerspectiveFrustum} */ (this.viewer.scene.camera.frustum);
+    return /** @type {PerspectiveFrustum} */ (this.viewer.scene.camera.frustum);
   }
 
   /**

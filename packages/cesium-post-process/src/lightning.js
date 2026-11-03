@@ -9,6 +9,9 @@ import EyeFromDepth from './shaders/EyeFromDepth.js';
 import Hash from './shaders/Hash.js';
 import LightningShader from './shaders/Lightning.js';
 
+/** @import {WeatherMapOptions} from './weather-map.js' */
+/** @import {CesiumWidget, Scene} from '@cesium/engine' */
+
 // the flickering of the strokes is tens of milliseconds long: a render for each frame of a video
 const FRAME_RATE = 30;
 // strikes per second at intensity 1
@@ -60,8 +63,8 @@ const eyeScratch = new Cartesian3();
  */
 export default class Lightning extends Effect {
   /**
-   * @param {import('@cesium/engine').CesiumWidget} viewer
-   * @param {{intensity?: number, cloudBase?: number, radius?: number, inFront?: boolean, map?: import('./weather-map.js').WeatherMapOptions}} [options]
+   * @param {CesiumWidget} viewer
+   * @param {{intensity?: number, cloudBase?: number, radius?: number, inFront?: boolean, map?: WeatherMapOptions}} [options]
    */
   constructor(viewer, options = {}) {
     super(viewer);
@@ -192,7 +195,7 @@ export default class Lightning extends Effect {
 
   /**
    * @override
-   * @param {import('@cesium/engine').Scene} _scene
+   * @param {Scene} _scene
    */
   createStage_(_scene) {
     const stage = new PostProcessStage({
@@ -212,7 +215,7 @@ export default class Lightning extends Effect {
 
   /**
    * @override
-   * @param {import('@cesium/engine').Scene} scene
+   * @param {Scene} scene
    */
   activated_(scene) {
     this.lastTime_ = performance.now() / 1000;
@@ -224,7 +227,7 @@ export default class Lightning extends Effect {
 
   /**
    * @override
-   * @param {import('@cesium/engine').Scene} scene
+   * @param {Scene} scene
    */
   deactivating_(scene) {
     if (this.intensity_ > 0) {

@@ -23,6 +23,9 @@ import SkyTable from './shaders/SkyTable.js';
 import WeatherMapShader from './shaders/WeatherMap.js';
 import WeatherMap from './weather-map.js';
 
+/** @import {CesiumWidget, Light, Scene} from '@cesium/engine' */
+/** @import {WeatherMapOptions} from './weather-map.js' */
+
 // the streaks are the drops' motion over a frame's exposure
 const FRAME_RATE = 30;
 // the shader's time wraps at an hour, a whole number of the periods of its gusts and its flutter
@@ -68,16 +71,16 @@ const OVERCAST = 0.5;
 const CLOUD_BASE_FADE = 50;
 
 /**
- * @typedef {import('./weather-map.js').WeatherMapOptions} PrecipitationMapOptions
+ * @typedef {WeatherMapOptions} PrecipitationMapOptions
  */
 
 // the scenes under clouds, with their light and shadows before: rain and snow may be active at
 // once, the first one dims the light, the last one restores it
-/** @type {WeakMap<import('@cesium/engine').Scene, {count: number, light: import('@cesium/engine').Light, intensity: number, shadows: boolean}>} */
+/** @type {WeakMap<Scene, {count: number, light: Light, intensity: number, shadows: boolean}>} */
 const overcast = new WeakMap();
 
 /**
- * @param {import('@cesium/engine').Scene} scene
+ * @param {Scene} scene
  */
 function acquireOvercast(scene) {
   const clouds = overcast.get(scene);
@@ -92,7 +95,7 @@ function acquireOvercast(scene) {
 
 /**
  * The sunlight and the shadows under the clouds, in proportion to how hard it rains at the camera.
- * @param {import('@cesium/engine').Scene} scene
+ * @param {Scene} scene
  * @param {number} local
  */
 function shadeOvercast(scene, local) {
@@ -105,7 +108,7 @@ function shadeOvercast(scene, local) {
 }
 
 /**
- * @param {import('@cesium/engine').Scene} scene
+ * @param {Scene} scene
  */
 function releaseOvercast(scene) {
   const clouds = overcast.get(scene);
@@ -132,7 +135,7 @@ function releaseOvercast(scene) {
  */
 export default class Precipitation extends Effect {
   /**
-   * @param {import('@cesium/engine').CesiumWidget} viewer
+   * @param {CesiumWidget} viewer
    * @param {{intensity?: number, wind?: number, speed?: number, cloudBase?: number, snow?: number, map?: PrecipitationMapOptions}} [options]
    */
   constructor(viewer, options = {}) {
@@ -179,7 +182,7 @@ export default class Precipitation extends Effect {
 
   /**
    * Draws the sky table into its own texture before the stages run.
-   * @param {import('@cesium/engine').Scene} scene
+   * @param {Scene} scene
    */
   drawSkyTable_(scene) {
     // @ts-expect-error the scene's context is not typed
@@ -259,7 +262,7 @@ export default class Precipitation extends Effect {
 
   /**
    * @override
-   * @param {import('@cesium/engine').Scene} scene
+   * @param {Scene} scene
    */
   createStage_(scene) {
     // PrecipitationWind's uniforms, for both passes
@@ -331,7 +334,7 @@ export default class Precipitation extends Effect {
 
   /**
    * @override
-   * @param {import('@cesium/engine').Scene} scene
+   * @param {Scene} scene
    */
   activated_(scene) {
     this.lastTime_ = performance.now() / 1000;
@@ -345,7 +348,7 @@ export default class Precipitation extends Effect {
 
   /**
    * @override
-   * @param {import('@cesium/engine').Scene} scene
+   * @param {Scene} scene
    */
   deactivating_(scene) {
     if (this.intensity_ > 0) {

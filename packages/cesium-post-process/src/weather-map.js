@@ -2,6 +2,8 @@ import {Cartesian4, Math as CesiumMath} from '@cesium/core';
 // @ts-expect-error the engine exports its textures, but does not type them
 import {Texture} from '@cesium/engine';
 
+/** @import {Rectangle} from '@cesium/core' */
+
 const TWO_PI = CesiumMath.TWO_PI;
 // the max map's texels are blocks of this many pixels of the map across
 const POOL = 4;
@@ -11,7 +13,7 @@ const POOL = 4;
  * over a rectangle of longitudes and latitudes, north up, not crossing the
  * antimeridian. Outside the rectangle there is none, so the image should
  * fade to 0 at its edges.
- * @typedef {{image: HTMLCanvasElement | ImageData | {width: number, height: number, data: Uint8ClampedArray}, rectangle: import('@cesium/core').Rectangle}} WeatherMapOptions
+ * @typedef {{image: HTMLCanvasElement | ImageData | {width: number, height: number, data: Uint8ClampedArray}, rectangle: Rectangle}} WeatherMapOptions
  */
 
 /**

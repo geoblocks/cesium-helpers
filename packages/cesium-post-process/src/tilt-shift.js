@@ -6,6 +6,9 @@ import {eyeFocus} from './focus.js';
 import EyeFromDepth from './shaders/EyeFromDepth.js';
 import TiltShiftShader from './shaders/TiltShift.js';
 
+/** @import {Focus} from './focus.js' */
+/** @import {CesiumWidget, Scene} from '@cesium/engine' */
+
 const focusScratch = new Cartesian4();
 
 /**
@@ -14,8 +17,8 @@ const focusScratch = new Cartesian4();
  */
 export default class TiltShift extends Effect {
   /**
-   * @param {import('@cesium/engine').CesiumWidget} viewer
-   * @param {{focus?: import('./focus.js').Focus, range?: number, blur?: number, saturation?: number}} [options]
+   * @param {CesiumWidget} viewer
+   * @param {{focus?: Focus, range?: number, blur?: number, saturation?: number}} [options]
    */
   constructor(viewer, options = {}) {
     super(viewer);
@@ -28,7 +31,7 @@ export default class TiltShift extends Effect {
 
   /**
    * @override
-   * @param {import('@cesium/engine').Scene} scene
+   * @param {Scene} scene
    */
   createStage_(scene) {
     const blur = createBlur('czm_tilt_shift_blur');
