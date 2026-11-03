@@ -58,7 +58,9 @@ const SAMPLE_LEVEL = 16;
 const LONG_TRACK = 50000; // meters
 const LONG_TRACK_PLAN_LEVEL = 15;
 const ACCENT = Color.fromCssColorString("#FF680A");
-const TRAIL_WIDTH = 16; // pixels, the glow included
+// pixels, measured level: flat ground seen from low down squeezes it on screen, by the sine of the angle down to
+// it; the trail of Trail.glsl, 7.5 px across, fits in it down to about 18 degrees
+const TRAIL_WIDTH = 24;
 const MARKER_SIZE = 18; // pixels
 
 const MODIFIERS = [KeyboardEventModifier.SHIFT, KeyboardEventModifier.CTRL, KeyboardEventModifier.ALT];
