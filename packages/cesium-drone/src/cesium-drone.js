@@ -1,5 +1,4 @@
-import {Cartesian3, Cartographic, Ellipsoid, Event, Math as CesiumMath, Matrix4} from '@cesium/core';
-import {Transforms} from '@cesium/engine';
+import {Cartesian3, Cartographic, Ellipsoid, Event, FixedFrameTransforms, Math as CesiumMath, Matrix4} from '@cesium/core';
 import Controls from '@geoblocks/cesium-input';
 import {ObstacleProbe, blockedStep, meshGroundHeight, meshObstacleAhead} from '@geoblocks/cesium-obstacles';
 
@@ -298,8 +297,7 @@ export default class CesiumDrone {
     this.pitch_ += (targetPitch - this.pitch_) * attitudeEase;
     this.roll_ += (targetRoll - this.roll_) * attitudeEase;
 
-    // @ts-expect-error Transforms.eastNorthUpToFixedFrame is missing from the @cesium/engine 26.4.0 typings
-    const enu = Transforms.eastNorthUpToFixedFrame(this.position_, undefined, enuScratch);
+    const enu = FixedFrameTransforms.eastNorthUpToFixedFrame(this.position_, undefined, enuScratch);
     const step = Matrix4.multiplyByPointAsVector(enu, Cartesian3.multiplyByScalar(velocity, dt, stepScratch), stepScratch);
     Cartesian3.clone(this.position_, previousScratch);
     if (!this.crashIntoObstacle_(step, dt)) {

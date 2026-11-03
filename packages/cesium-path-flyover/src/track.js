@@ -1,5 +1,5 @@
-import {Cartesian3, Math as CesiumMath, Matrix4} from "@cesium/core";
-import {Resource, Transforms} from "@cesium/engine";
+import {Cartesian3, FixedFrameTransforms, Math as CesiumMath, Matrix4} from "@cesium/core";
+import {Resource} from "@cesium/engine";
 
 const scratchA = new Cartesian3();
 const scratchB = new Cartesian3();
@@ -149,8 +149,7 @@ export function decimate(coords, minDistance, ellipsoid) {
  * @return {number} heading in radians, 0 is north, clockwise
  */
 export function forwardHeading(samples, previous) {
-  // @ts-expect-error Transforms.eastNorthUpToFixedFrame is missing from the @cesium/engine 26.4.0 typings
-  const enu = Transforms.eastNorthUpToFixedFrame(samples[0], undefined, scratchMatrix);
+  const enu = FixedFrameTransforms.eastNorthUpToFixedFrame(samples[0], undefined, scratchMatrix);
   const inverse = Matrix4.inverseTransformation(enu, scratchMatrix);
   const steps = samples.length - 1;
   let east = 0;
