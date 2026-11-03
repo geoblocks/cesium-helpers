@@ -1,5 +1,7 @@
 import {Cartesian3, Cartesian4, Matrix4} from '@cesium/core';
 
+/** @import {Scene} from '@cesium/engine' */
+
 /**
  * What an effect focuses on: a position, a function called every frame for a moving target, or
  * undefined for what is in the middle of the screen.
@@ -11,7 +13,7 @@ const eyeScratch = new Cartesian3();
 /**
  * The focus in eye coordinates, computed in double precision; w is 0 for the middle of the
  * screen, which the shaders read from the depth texture.
- * @param {import('@cesium/engine').Scene} scene
+ * @param {Scene} scene
  * @param {Focus} focus
  * @param {Cartesian4} result
  */

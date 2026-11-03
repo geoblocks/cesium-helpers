@@ -1,6 +1,8 @@
 import {Cartesian2, Cartesian3, Cartographic, FixedFrameTransforms, IntersectionTests, Math as CesiumMath, Matrix4, Plane} from '@cesium/core';
 import {EasingFunction} from '@cesium/engine';
 
+/** @import {CesiumWidget} from '@cesium/engine' */
+
 // in meters, how far the camera stays from its target by default, out of the scene's way: an orthographic view's
 // size does not depend on it, its depth's precision does (32-bit floats: half a millimeter at 5 km)
 const ORBIT = 5000;
@@ -36,7 +38,7 @@ const orbitScratch = new Cartesian3();
  */
 export default class CesiumIso {
   /**
-   * @param {import('@cesium/engine').CesiumWidget} viewer
+   * @param {CesiumWidget} viewer
    * @param {{pitch?: number, heading?: number, size?: number, minSize?: number, maxSize?: number,
    *   limit?: (target: Cartesian3) => Cartesian3, orbit?: number}} [options] The pitch, in degrees down from the horizon; a
    *   corner's heading, in degrees, the others a quarter turn apart; the size, in meters across the screen's shorter side,

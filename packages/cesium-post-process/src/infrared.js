@@ -2,12 +2,14 @@ import {PostProcessStage} from '@cesium/engine';
 import Effect from './effect.js';
 import InfraredShader from './shaders/Infrared.js';
 
+/** @import {CesiumWidget} from '@cesium/engine' */
+
 /**
  * Black and white infrared film: bright foliage, dark sky and water.
  */
 export default class Infrared extends Effect {
   /**
-   * @param {import('@cesium/engine').CesiumWidget} viewer
+   * @param {CesiumWidget} viewer
    * @param {{strength?: number}} [options]
    */
   constructor(viewer, options = {}) {

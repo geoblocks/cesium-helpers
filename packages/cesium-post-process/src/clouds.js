@@ -27,6 +27,10 @@ import RainHaze from './shaders/RainHaze.js';
 import WeatherMapShader from './shaders/WeatherMap.js';
 import WeatherMap from './weather-map.js';
 
+/** @import {CloudShadow} from './cloud-cover.js' */
+/** @import {WeatherMapOptions} from './weather-map.js' */
+/** @import {CesiumWidget, Scene} from '@cesium/engine' */
+
 // the clouds are kilometers wide and soft: a quarter of the resolution, a 16th of the pixels, is
 // enough for their raymarch (CloudsComposite.glsl's CLOUD_SCALE)
 const CLOUD_SCALE = 0.25;
@@ -104,8 +108,8 @@ const groundScratch = new Cartesian3();
  */
 export default class Clouds extends Effect {
   /**
-   * @param {import('@cesium/engine').CesiumWidget} viewer
-   * @param {{map?: import('./weather-map.js').WeatherMapOptions, cloudBase?: number, cloudTop?: number, density?: number, wind?: number, drift?: number}} [options]
+   * @param {CesiumWidget} viewer
+   * @param {{map?: WeatherMapOptions, cloudBase?: number, cloudTop?: number, density?: number, wind?: number, drift?: number}} [options]
    */
   constructor(viewer, options = {}) {
     super(viewer);
@@ -118,13 +122,13 @@ export default class Clouds extends Effect {
     // without a map, no clouds
     this.weatherMap_ = new WeatherMap(0);
     // the wind's direction for the map's rectangle it was computed for
-    /** @type {import('@cesium/core').Rectangle | undefined} */
+    /** @type {Rectangle | undefined} */
     this.windRectangle_ = undefined;
     this.windVector_ = Cartesian3.ZERO;
     // the maps of the rain, from which the clouds' maps are made
-    /** @type {import('./weather-map.js').WeatherMapOptions | undefined} */
+    /** @type {WeatherMapOptions | undefined} */
     this.map_ = options.map;
-    /** @type {import('./weather-map.js').WeatherMapOptions | undefined} */
+    /** @type {WeatherMapOptions | undefined} */
     this.nextMap_ = undefined;
     this.weatherMap_.map = options.map && createCloudMap(options.map);
     // the map's intensity at the camera when it is inside the clouds, read each frame
@@ -166,7 +170,7 @@ export default class Clouds extends Effect {
     this.shadowDrawnAt_ = -Infinity;
     this.shadowChanged_ = true;
     // for Precipitation, which lights its haze through it
-    /** @type {import('./cloud-cover.js').CloudShadow} */
+    /** @type {CloudShadow} */
     this.shadowSource_ = {texture: () => this.shadow_, center: this.shadowCenter_, extent: () => this.shadowExtent_, base: () => this.cloudBase_, top: () => this.slabTop_()};
     this.onPreRender_ = () => {
       const {camera} = this.viewer.scene;
@@ -200,7 +204,7 @@ export default class Clouds extends Effect {
 
   /**
    * @override
-   * @param {import('@cesium/engine').Scene} scene
+   * @param {Scene} scene
    */
   createStage_(scene) {
     // the farthest depth of each block of pixels of the march, at its resolution
@@ -310,7 +314,7 @@ export default class Clouds extends Effect {
 
   /**
    * The uniforms of CloudsSlab.glsl, with Height.glsl's it needs.
-   * @param {import('@cesium/engine').Scene} scene
+   * @param {Scene} scene
    */
   slabUniforms_(scene) {
     return {...heightUniforms(scene), cloudBase: () => this.cloudBase_, slabTop: () => this.slabTop_()};
@@ -337,7 +341,7 @@ export default class Clouds extends Effect {
 
   /**
    * The uniforms of CloudsShadow.glsl, for the stages that read the shadow map.
-   * @param {import('@cesium/engine').Scene} scene
+   * @param {Scene} scene
    */
   shadowUniforms_(scene) {
     return {
@@ -406,7 +410,7 @@ export default class Clouds extends Effect {
    * Draws the shadow map into its own texture before the stages run, when it is due: the
    * stages' textures are sized after the screen. A redraw put off renders after the change
    * settles, in the frames the accumulation asks for.
-   * @param {import('@cesium/engine').Scene} scene
+   * @param {Scene} scene
    */
   drawShadow_(scene) {
     const ground = Ellipsoid.WGS84.scaleToGeodeticSurface(scene.camera.positionWC, groundScratch);
@@ -451,7 +455,7 @@ export default class Clouds extends Effect {
   /**
    * Keeps this frame's accumulated clouds for the next one, drawn into the history at the size of
    * the resolve's output, made again when it changes.
-   * @param {import('@cesium/engine').Scene} scene
+   * @param {Scene} scene
    */
   keepHistory_(scene) {
     // @ts-expect-error the collection's output textures are not typed
@@ -528,7 +532,7 @@ export default class Clouds extends Effect {
 
   /**
    * @override
-   * @param {import('@cesium/engine').Scene} scene
+   * @param {Scene} scene
    */
   activated_(scene) {
     if (this.drift_ > 0) {
@@ -541,7 +545,7 @@ export default class Clouds extends Effect {
 
   /**
    * @override
-   * @param {import('@cesium/engine').Scene} scene
+   * @param {Scene} scene
    */
   deactivating_(scene) {
     releaseCloudCover(scene, this.shadowSource_);

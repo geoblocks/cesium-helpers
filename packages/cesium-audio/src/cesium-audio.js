@@ -1,5 +1,7 @@
 import {Cartesian3} from '@cesium/core';
 
+/** @import {CesiumWidget, PositionProperty} from '@cesium/engine' */
+
 const positionScratch = new Cartesian3();
 const relativePositionScratch = new Cartesian3();
 
@@ -13,8 +15,8 @@ const SMOOTHING_TIME_CONSTANT = 0.02;
  */
 export default class CesiumAudio {
   /**
-   * @param {import('@cesium/engine').CesiumWidget} viewer
-   * @param {Cartesian3 | import('@cesium/engine').PositionProperty} position position of the sound source,
+   * @param {CesiumWidget} viewer
+   * @param {Cartesian3 | PositionProperty} position position of the sound source,
    * a property (like an entity position) is evaluated at the clock current time
    * @param {PannerNode} panner
    */

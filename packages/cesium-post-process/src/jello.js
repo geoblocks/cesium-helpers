@@ -4,6 +4,8 @@ import Effect from './effect.js';
 import {acquireFrames, releaseFrames} from './frame-clock.js';
 import JelloShader from './shaders/Jello.js';
 
+/** @import {CesiumWidget, Scene} from '@cesium/engine' */
+
 // the shake renders at this rate, like a video camera
 const FRAME_RATE = 30;
 // the shake's sinusoids, as multiples of the frequency, and their share of the amount, so that
@@ -30,7 +32,7 @@ const COMPONENTS = ['x', 'y', 'z', 'w'];
  */
 export default class Jello extends Effect {
   /**
-   * @param {import('@cesium/engine').CesiumWidget} viewer
+   * @param {CesiumWidget} viewer
    * @param {{amount?: number, frequency?: number}} [options]
    */
   constructor(viewer, options = {}) {
@@ -81,7 +83,7 @@ export default class Jello extends Effect {
 
   /**
    * @override
-   * @param {import('@cesium/engine').Scene} scene
+   * @param {Scene} scene
    */
   activated_(scene) {
     scene.preRender.addEventListener(this.onPreRender_);
@@ -92,7 +94,7 @@ export default class Jello extends Effect {
 
   /**
    * @override
-   * @param {import('@cesium/engine').Scene} scene
+   * @param {Scene} scene
    */
   deactivating_(scene) {
     if (this.amount_ > 0) {

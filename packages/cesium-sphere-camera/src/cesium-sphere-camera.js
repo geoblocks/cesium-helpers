@@ -8,6 +8,8 @@ import {
   ScreenSpaceEventType,
 } from "@cesium/engine";
 
+/** @import {CesiumWidget, ScreenSpaceEventHandler} from '@cesium/engine' */
+
 const look3DStartPos = new Cartesian2();
 const look3DEndPos = new Cartesian2();
 const look3DStartRay = new Ray();
@@ -18,7 +20,7 @@ const rotationAxisScratch = new Cartesian3();
 
 export default class CesiumSphereCamera {
   /**
-   * @param {import('@cesium/engine').CesiumWidget} viewer
+   * @param {CesiumWidget} viewer
    */
   constructor(viewer) {
     this.viewer = viewer;
@@ -57,7 +59,7 @@ export default class CesiumSphereCamera {
 
   /**
    * Code from look3D function in ScreenSpaceCameraController
-   * @param {import('@cesium/engine').ScreenSpaceEventHandler.MotionEvent} movement
+   * @param {ScreenSpaceEventHandler.MotionEvent} movement
    */
   handleMoveEvent(movement) {
     if (!this.dragging_) {

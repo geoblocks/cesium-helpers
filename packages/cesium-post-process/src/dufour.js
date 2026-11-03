@@ -9,6 +9,8 @@ import Hash from './shaders/Hash.js';
 import Height from './shaders/Height.js';
 import Normal from './shaders/Normal.js';
 
+/** @import {CesiumWidget, Scene} from '@cesium/engine' */
+
 // how far the camera moves over the ground, in meters, before the hachures' frame follows it: they jump then
 const REBASE = 20000;
 
@@ -29,7 +31,7 @@ const inkScratch = new Cartesian3();
  */
 export default class Dufour extends Effect {
   /**
-   * @param {import('@cesium/engine').CesiumWidget} viewer
+   * @param {CesiumWidget} viewer
    * @param {{spacing?: number, strokeLength?: number, weight?: number, oblique?: number, flatSlope?: number, outline?: number, jump?: number, paper?: Color, ink?: Color}} [options]
    */
   constructor(viewer, options = {}) {
@@ -52,7 +54,7 @@ export default class Dufour extends Effect {
 
   /**
    * @override
-   * @param {import('@cesium/engine').Scene} scene
+   * @param {Scene} scene
    */
   createStage_(scene) {
     const toEye = (/** @type {number} */ column, /** @type {Cartesian3} */ result) => {
@@ -86,7 +88,7 @@ export default class Dufour extends Effect {
   /**
    * Moves the hachures' frame under the camera once it is REBASE meters away over the ground.
    * @private
-   * @param {import('@cesium/engine').Scene} scene
+   * @param {Scene} scene
    */
   follow_(scene) {
     const surface = scene.ellipsoid.scaleToGeodeticSurface(scene.camera.positionWC, surfaceScratch);

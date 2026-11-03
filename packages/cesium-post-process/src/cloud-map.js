@@ -1,6 +1,8 @@
 import {Math as CesiumMath} from '@cesium/core';
 import {imageData} from './weather-map.js';
 
+/** @import {WeatherMapOptions} from './weather-map.js' */
+
 // The clouds' map, from a map of the rain: a radar sees the rain, "not the small cloud droplets and
 // ice crystals that make up the rest of the cloud" (UBC ATSC 201), so the clouds are derived from
 // it rather than drawn where it rains. Red is the rain, as it is; green is the coverage, the rain
@@ -23,7 +25,7 @@ const EARTH_RADIUS = 6371000;
 // a Gaussian is approximated by this many box blurs, each a running sum whatever its width
 const BOXES = 3;
 
-/** @type {WeakMap<object, import('./weather-map.js').WeatherMapOptions>} */
+/** @type {WeakMap<object, WeatherMapOptions>} */
 const cloudMaps = new WeakMap();
 
 /**
@@ -82,8 +84,8 @@ function dilate(values, width, height, radius, rows) {
 
 /**
  * The clouds' map of a map of the rain, over the same rectangle, made once for each image.
- * @param {import('./weather-map.js').WeatherMapOptions} map
- * @returns {import('./weather-map.js').WeatherMapOptions}
+ * @param {WeatherMapOptions} map
+ * @returns {WeatherMapOptions}
  */
 export default function createCloudMap(map) {
   const known = cloudMaps.get(map.image);

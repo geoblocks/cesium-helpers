@@ -14,6 +14,9 @@ import SpotlightBeam from './shaders/SpotlightBeam.js';
 import SpotlightBeamBlur from './shaders/SpotlightBeamBlur.js';
 import SpotlightCone from './shaders/SpotlightCone.js';
 
+/** @import {Focus} from './focus.js' */
+/** @import {CesiumWidget, Scene} from '@cesium/engine' */
+
 const focusScratch = new Cartesian4();
 
 /**
@@ -23,8 +26,8 @@ const focusScratch = new Cartesian4();
  */
 export default class Spotlight extends Effect {
   /**
-   * @param {import('@cesium/engine').CesiumWidget} viewer
-   * @param {{focus?: import('./focus.js').Focus, power?: number, radius?: number, softness?: number, darkness?: number, beam?: number, beamAnisotropy?: number}} [options]
+   * @param {CesiumWidget} viewer
+   * @param {{focus?: Focus, power?: number, radius?: number, softness?: number, darkness?: number, beam?: number, beamAnisotropy?: number}} [options]
    */
   constructor(viewer, options = {}) {
     super(viewer);
@@ -40,7 +43,7 @@ export default class Spotlight extends Effect {
 
   /**
    * @override
-   * @param {import('@cesium/engine').Scene} scene
+   * @param {Scene} scene
    */
   createStage_(scene) {
     // SpotlightCone's uniforms, for all the passes

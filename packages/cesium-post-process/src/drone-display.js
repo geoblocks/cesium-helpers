@@ -3,6 +3,8 @@ import {PostProcessStage} from '@cesium/engine';
 import Effect from './effect.js';
 import DroneDisplayShader from './shaders/DroneDisplay.js';
 
+/** @import {CesiumWidget, Scene} from '@cesium/engine' */
+
 // a 3S battery, full, empty, the seconds it takes to drain between them at the cruise throttle,
 // and how far its voltage sags at full throttle
 const FULL_VOLTS = 12.6;
@@ -29,7 +31,7 @@ const GAP = 0.5;
  */
 export default class DroneDisplay extends Effect {
   /**
-   * @param {import('@cesium/engine').CesiumWidget} viewer
+   * @param {CesiumWidget} viewer
    * @param {{opacity?: number}} [options]
    */
   constructor(viewer, options = {}) {
@@ -53,7 +55,7 @@ export default class DroneDisplay extends Effect {
 
   /**
    * @override
-   * @param {import('@cesium/engine').Scene} scene
+   * @param {Scene} scene
    */
   createStage_(scene) {
     return new PostProcessStage({
@@ -78,7 +80,7 @@ export default class DroneDisplay extends Effect {
 
   /**
    * @override
-   * @param {import('@cesium/engine').Scene} scene
+   * @param {Scene} scene
    */
   activated_(scene) {
     this.startTime_ = performance.now() / 1000;
@@ -92,7 +94,7 @@ export default class DroneDisplay extends Effect {
 
   /**
    * @override
-   * @param {import('@cesium/engine').Scene} scene
+   * @param {Scene} scene
    */
   deactivating_(scene) {
     scene.postRender.removeEventListener(this.onPostRender_);

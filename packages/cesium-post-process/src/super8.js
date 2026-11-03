@@ -5,6 +5,8 @@ import Frame from './shaders/Frame.js';
 import Noise from './shaders/Noise.js';
 import Super8Shader from './shaders/Super8.js';
 
+/** @import {CesiumWidget} from '@cesium/engine' */
+
 // spread of the halation glow, the sigma and step of Cesium's blur stage, at half resolution:
 // a glow this wide does not need more
 const HALATION_SIGMA = 6;
@@ -20,7 +22,7 @@ const FRAME_RATE = 18;
  */
 export default class Super8 extends Effect {
   /**
-   * @param {import('@cesium/engine').CesiumWidget} viewer
+   * @param {CesiumWidget} viewer
    * @param {{fade?: number, halation?: number, grain?: number, weave?: number, flicker?: number, lightLeaks?: number, aspectRatio?: number}} [options]
    */
   constructor(viewer, options = {}) {

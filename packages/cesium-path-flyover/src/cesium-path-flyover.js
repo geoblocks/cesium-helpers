@@ -28,6 +28,10 @@ import {SAMPLE_SPACING, cameraOffsetEnu, curvature, gaussianSmooth, planCamera, 
 import {deriveRun} from "./run.js";
 import Trail from "./shaders/Trail.js";
 
+/** @import {Run} from "./run.js" */
+/** @import {LonLat} from "./track.js" */
+/** @import {CesiumWidget} from "@cesium/engine" */
+
 const MIN_POINT_DISTANCE = 10;
 const MARKER_HEIGHT = 2;
 const HEADING_SAMPLES = 8;
@@ -88,7 +92,7 @@ const enuScratch = new Matrix4();
  * @property {number | false} [recenterDelay=2] seconds after the last input before the view returns to the plan; false leaves it until recenter()
  */
 
-/** @typedef {Mechanics & Partial<import('./run.js').Run>} Options */
+/** @typedef {Mechanics & Partial<Run>} Options */
 
 /**
  * The camera path, sampled uniformly over the playback time. The camera looks at
@@ -105,7 +109,7 @@ const enuScratch = new Matrix4();
 
 export default class CesiumPathFlyover {
   /**
-   * @param {import('@cesium/engine').CesiumWidget} viewer
+   * @param {CesiumWidget} viewer
    * @param {Options} [options]
    */
   constructor(viewer, options = {}) {
@@ -229,7 +233,7 @@ export default class CesiumPathFlyover {
   }
 
   /**
-   * @param {import('./track.js').LonLat[]} coords
+   * @param {LonLat[]} coords
    * @return {GroundPolylinePrimitive}
    */
   createTrack_(coords) {

@@ -2,6 +2,9 @@ import {Cartesian2} from '@cesium/core';
 import Toy from './toy.js';
 import WhiteModelShader from './shaders/WhiteModel.js';
 
+/** @import {Color} from '@cesium/core' */
+/** @import {CesiumWidget} from '@cesium/engine' */
+
 const valuesScratch = new Cartesian2();
 
 /**
@@ -13,8 +16,8 @@ const valuesScratch = new Cartesian2();
  */
 export default class WhiteModel extends Toy {
   /**
-   * @param {import('@cesium/engine').CesiumWidget} viewer
-   * @param {{light?: number, shade?: number, bevel?: number, outline?: number, jump?: number, saturation?: number, warm?: [number, number, number], values?: [number, number], poche?: number, occlusion?: number, radius?: number, sky?: [import('@cesium/core').Color, import('@cesium/core').Color]}} [options]
+   * @param {CesiumWidget} viewer
+   * @param {{light?: number, shade?: number, bevel?: number, outline?: number, jump?: number, saturation?: number, warm?: [number, number, number], values?: [number, number], poche?: number, occlusion?: number, radius?: number, sky?: [Color, Color]}} [options]
    */
   constructor(viewer, options = {}) {
     // the toy's options, each the white model's default when not given, or given as undefined

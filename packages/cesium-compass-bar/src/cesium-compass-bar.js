@@ -1,6 +1,9 @@
 import { Math as CesiumMath } from "@cesium/core";
 import { LitElement, css, html } from "lit";
 
+/** @import {Event} from "@cesium/core" */
+/** @import {Scene} from "@cesium/engine" */
+
 const DIRECTIONS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 
 export default class CesiumCompassBar extends LitElement {
@@ -83,9 +86,9 @@ export default class CesiumCompassBar extends LitElement {
 
     /**
      * Required. In TypeScript, replace with a `declare scene: Scene;` field.
-     * @type {import('@cesium/engine').Scene}
+     * @type {Scene}
      */
-    this.scene = /** @type {import('@cesium/engine').Scene} */ (/** @type {unknown} */ (undefined));
+    this.scene = /** @type {Scene} */ (/** @type {unknown} */ (undefined));
 
     /**
      * @type {number}
@@ -103,7 +106,7 @@ export default class CesiumCompassBar extends LitElement {
     this.heading = 0;
 
     /**
-     * @type {import('@cesium/core').Event.RemoveCallback | null}
+     * @type {Event.RemoveCallback | null}
      */
     this.unlistenFromPostRender = null;
 

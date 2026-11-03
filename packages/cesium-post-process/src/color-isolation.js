@@ -2,12 +2,14 @@ import {PostProcessStage} from '@cesium/engine';
 import Effect from './effect.js';
 import ColorIsolationShader from './shaders/ColorIsolation.js';
 
+/** @import {CesiumWidget} from '@cesium/engine' */
+
 /**
  * Color isolation: one hue keeps its color, the rest of the scene turns gray.
  */
 export default class ColorIsolation extends Effect {
   /**
-   * @param {import('@cesium/engine').CesiumWidget} viewer
+   * @param {CesiumWidget} viewer
    * @param {{hue?: number, range?: number, strength?: number}} [options]
    */
   constructor(viewer, options = {}) {

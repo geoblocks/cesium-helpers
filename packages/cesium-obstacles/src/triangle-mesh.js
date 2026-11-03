@@ -4,8 +4,9 @@ import {bvhQueries, refitBvh, trianglesOf} from "@geoblocks/cesium-bvh";
 import {gltfTriangles} from "./gltf-mesh.js";
 import {triangleTrees} from "./triangle-trees.js";
 
-/** @typedef {import("./gltf-mesh.js").GltfTriangles} GltfTriangles */
-/** @typedef {import("./cesium-obstacles.js").Obstacle} Obstacle */
+/** @import {Obstacle} from "./cesium-obstacles.js" */
+/** @import {GltfTriangles} from "./gltf-mesh.js" */
+/** @import {TriangleTrees} from "./triangle-trees.js" */
 
 // Triangles known on the CPU, in meters, z up, in the frame of a model matrix: the floors under a mover and the
 // walls ahead of it, in any direction, without reading the depth, which waits for the GPU.
@@ -45,7 +46,7 @@ const floorCartographicScratch = new Cartographic();
  * The floors and walls of groups of triangles; a group with `collide: false` is left out.
  * @param {{vertices: Float32Array, triangles: Uint32Array, collide?: boolean}[]} groups x, y, z, in meters, z up.
  * @param {Matrix4} modelMatrix From the triangles' frame to the globe.
- * @param {{trees?: import("./triangle-trees.js").TriangleTrees}} [options] trees: `triangleTrees` of the groups that collide, in this
+ * @param {{trees?: TriangleTrees}} [options] trees: `triangleTrees` of the groups that collide, in this
  *     order, made apart (in a worker, say) so that a page does not wait for them; the groups themselves stay the mesh's to refit.
  * @return {TriangleMesh}
  */
@@ -73,7 +74,7 @@ export function createTriangleMeshFromGltf(gltf, modelMatrix, {buffers, collide 
  * The floors and walls of triangles.
  * @param {{vertices: Float32Array, triangles: Uint32Array}[]} colliding
  * @param {Matrix4} modelMatrix From the triangles' frame to the globe.
- * @param {import("./triangle-trees.js").TriangleTrees} [trees] The trees of these triangles, if made already.
+ * @param {TriangleTrees} [trees] The trees of these triangles, if made already.
  * @return {TriangleMesh}
  */
 function collisionMesh(colliding, modelMatrix, trees) {

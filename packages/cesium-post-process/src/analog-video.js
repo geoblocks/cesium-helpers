@@ -5,6 +5,8 @@ import AnalogVideoShader from './shaders/AnalogVideo.js';
 import Hash from './shaders/Hash.js';
 import {smoothstep} from './smoothstep.js';
 
+/** @import {CesiumWidget, Scene} from '@cesium/engine' */
+
 // PAL video runs at 25 frames per second, as in AnalogVideo.glsl
 const FRAME_RATE = 25;
 // the strength of the signal fades in and out at this rate, in changes per second
@@ -64,7 +66,7 @@ export function signalAt(seconds, interference) {
  */
 export default class AnalogVideo extends Effect {
   /**
-   * @param {import('@cesium/engine').CesiumWidget} viewer
+   * @param {CesiumWidget} viewer
    * @param {{noise?: number, interference?: number}} [options]
    */
   constructor(viewer, options = {}) {
@@ -98,7 +100,7 @@ export default class AnalogVideo extends Effect {
 
   /**
    * @override
-   * @param {import('@cesium/engine').Scene} scene
+   * @param {Scene} scene
    */
   activated_(scene) {
     scene.preRender.addEventListener(this.onPreRender_);
@@ -106,7 +108,7 @@ export default class AnalogVideo extends Effect {
 
   /**
    * @override
-   * @param {import('@cesium/engine').Scene} scene
+   * @param {Scene} scene
    */
   deactivating_(scene) {
     scene.preRender.removeEventListener(this.onPreRender_);

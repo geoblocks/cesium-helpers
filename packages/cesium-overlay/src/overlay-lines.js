@@ -24,9 +24,9 @@ export function windowProjection(viewMatrix, projectionMatrix, width, height) {
 
 /**
  * The part of a segment in front of a plane, as a range along it: 0 at its start, 1 at its end.
- * @param {import('@cesium/core').Cartesian3} p
- * @param {import('@cesium/core').Cartesian3} q
- * @param {(point: import('@cesium/core').Cartesian3) => number} ahead How far a point is in front of the plane: negative behind it.
+ * @param {Cartesian3} p
+ * @param {Cartesian3} q
+ * @param {(point: Cartesian3) => number} ahead How far a point is in front of the plane: negative behind it.
  * @return {[number, number] | undefined} Undefined if it is all behind.
  */
 export function nearRange(p, q, ahead) {
@@ -39,9 +39,9 @@ export function nearRange(p, q, ahead) {
 
 /**
  * The part of a segment inside several planes (the view's sides and its near plane): where their ranges overlap.
- * @param {import('@cesium/core').Cartesian3} p
- * @param {import('@cesium/core').Cartesian3} q
- * @param {((point: import('@cesium/core').Cartesian3) => number)[]} aheads How far a point is inside each plane.
+ * @param {Cartesian3} p
+ * @param {Cartesian3} q
+ * @param {((point: Cartesian3) => number)[]} aheads How far a point is inside each plane.
  * @return {[number, number] | undefined} Undefined if no part is inside them all.
  */
 export function insideRange(p, q, aheads) {

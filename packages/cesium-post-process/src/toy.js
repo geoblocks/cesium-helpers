@@ -5,6 +5,9 @@ import DepthEdges from './shaders/DepthEdges.js';
 import EyeFromDepth from './shaders/EyeFromDepth.js';
 import ToyShader from './shaders/Toy.js';
 
+/** @import {Color} from '@cesium/core' */
+/** @import {CesiumWidget, Scene} from '@cesium/engine' */
+
 const NO_SKY = new Cartesian4(0, 0, 0, 0);
 const warmScratch = new Cartesian3();
 const skyTopScratch = new Cartesian4();
@@ -21,8 +24,8 @@ const skyBottomScratch = new Cartesian4();
  */
 export default class Toy extends Effect {
   /**
-   * @param {import('@cesium/engine').CesiumWidget} viewer
-   * @param {{light?: number, shade?: number, bevel?: number, outline?: number, jump?: number, saturation?: number, warm?: [number, number, number], sky?: [import('@cesium/core').Color, import('@cesium/core').Color]}} [options]
+   * @param {CesiumWidget} viewer
+   * @param {{light?: number, shade?: number, bevel?: number, outline?: number, jump?: number, saturation?: number, warm?: [number, number, number], sky?: [Color, Color]}} [options]
    */
   constructor(viewer, options = {}) {
     super(viewer);
@@ -39,7 +42,7 @@ export default class Toy extends Effect {
 
   /**
    * @override
-   * @param {import('@cesium/engine').Scene} _scene
+   * @param {Scene} _scene
    */
   createStage_(_scene) {
     return new PostProcessStage({fragmentShader: EyeFromDepth + DepthEdges + this.shader_(), uniforms: this.uniforms_()});
@@ -60,7 +63,7 @@ export default class Toy extends Effect {
    * @return {Object<string, () => any>}
    */
   uniforms_() {
-    const color = (/** @type {import('@cesium/core').Color} */ c, /** @type {Cartesian4} */ result) => Cartesian4.fromElements(c.red, c.green, c.blue, 1, result);
+    const color = (/** @type {Color} */ c, /** @type {Cartesian4} */ result) => Cartesian4.fromElements(c.red, c.green, c.blue, 1, result);
     return {
       light: () => this.light_,
       shade: () => this.shade_,

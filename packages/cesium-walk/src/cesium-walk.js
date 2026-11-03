@@ -2,6 +2,11 @@ import {Cartesian3, Ellipsoid, FixedFrameTransforms, Math as CesiumMath, Matrix4
 import Controls from "@geoblocks/cesium-input";
 import {ObstacleProbe, blockedStep, meshGroundHeight, meshObstacleAhead} from "@geoblocks/cesium-obstacles";
 
+/** @import {Cartographic} from "@cesium/core" */
+/** @import {CesiumWidget} from "@cesium/engine" */
+/** @import {Binding} from "@geoblocks/cesium-input" */
+/** @import {Obstacle, TriangleMesh} from "@geoblocks/cesium-obstacles" */
+
 // in seconds: a frame after a backgrounded tab must not walk or fall far
 const MAX_DELTA = 0.1;
 // the head bob: a dip of DIP meters at each step of STEP_LENGTH meters, twice as deep when sprinting,
@@ -21,7 +26,7 @@ const CLEAR_PASSES = 3;
 // the default bindings: W, A, S, D or the arrows to walk, Shift to sprint and Space to jump; on a gamepad, the
 // left stick, at any speed and in any direction, Cross to sprint and Square to jump, as in GTA 5. Keys by
 // event.code, so that other keyboard layouts walk with the keys in the same place
-/** @satisfies {Record<string, import("@geoblocks/cesium-input").Binding>} */
+/** @satisfies {Record<string, Binding>} */
 export const WALK_BINDINGS = {
   move: {type: "vector", keys: {up: ["KeyW", "ArrowUp"], down: ["KeyS", "ArrowDown"], left: ["KeyA", "ArrowLeft"], right: ["KeyD", "ArrowRight"]}, stick: "left"},
   sprint: {type: "button", keys: ["ShiftLeft", "ShiftRight"], buttons: [0]},
@@ -73,13 +78,13 @@ function jumpStart(pressed, wasPressed, grounded) {
 
 export default class CesiumWalk {
   /**
-   * @param {import('@cesium/engine').CesiumWidget} viewer
+   * @param {CesiumWidget} viewer
    * @param {number} [speed=1.6] Walk speed in meters per second.
    * @param {number} [height=2.0] Height of the camera above the terrain.
    */
   constructor(viewer, speed = 1.6, height = 2.0) {
     /**
-     * @type {import('@cesium/engine').CesiumWidget}
+     * @type {CesiumWidget}
      */
     this.viewer = viewer;
 
@@ -175,7 +180,7 @@ export default class CesiumWalk {
      * The obstacle ahead of the walker in a direction, a point of its plane and its normal toward the walker,
      * if any; asked for each step while collision is on. By default the obstacles in view, read in the depth
      * of the last frame, which waits for the GPU; for a world known on the CPU, a ray cast in every direction.
-     * @type {(toward: Cartesian3, key: string) => import('@geoblocks/cesium-obstacles').Obstacle | undefined}
+     * @type {(toward: Cartesian3, key: string) => Obstacle | undefined}
      */
     this.obstacleAhead = (toward, key) => this.obstacleProbe_.ahead(toward, key);
 
@@ -197,7 +202,7 @@ export default class CesiumWalk {
     /**
      * The height of the ground under a position, in meters above the ellipsoid, or undefined when unknown
      * yet. The terrain by default, none without a globe; a model's floors otherwise, for a walker on several levels.
-     * @type {(position: import('@cesium/core').Cartographic) => number | undefined}
+     * @type {(position: Cartographic) => number | undefined}
      */
     this.groundHeight = position => viewer.scene.globe?.getHeight(position);
 
@@ -443,7 +448,7 @@ export default class CesiumWalk {
   }
 
   /**
-   * @return {import('@cesium/core').Cartesian3} The ellipsoid surface normal at the camera position.
+   * @return {Cartesian3} The ellipsoid surface normal at the camera position.
    */
   surfaceNormal_() {
     const scene = this.viewer.scene;
@@ -468,7 +473,7 @@ export function rayHeights(eye, step) {
  * with a radius, its body at those heights is kept that far from the walls beside it too, a step's riser under
  * the knees excepted.
  * @param {CesiumWalk} walk
- * @param {import("@geoblocks/cesium-obstacles").TriangleMesh} mesh
+ * @param {TriangleMesh} mesh
  * @param {{eye: number, step: number, reach: number, radius?: number}} options In meters: the eyes above the
  *     floor, the highest step, how far ahead the walls are looked for, the body's radius (none by default).
  */

@@ -1,11 +1,13 @@
+/** @import {Globe, Scene} from '@cesium/engine' */
+
 // The post-process stages only get the depth of the terrain when it is depth tested. Several
 // effects may need it at once: the first one turns depth testing on, the last one restores it.
 
-/** @type {WeakMap<import('@cesium/engine').Globe, {count: number, previous: boolean}>} */
+/** @type {WeakMap<Globe, {count: number, previous: boolean}>} */
 const users = new WeakMap();
 
 /**
- * @param {import('@cesium/engine').Scene} scene
+ * @param {Scene} scene
  */
 export function acquireTerrainDepth(scene) {
   const globe = scene.globe;
@@ -22,7 +24,7 @@ export function acquireTerrainDepth(scene) {
 }
 
 /**
- * @param {import('@cesium/engine').Scene} scene
+ * @param {Scene} scene
  */
 export function releaseTerrainDepth(scene) {
   const globe = scene.globe;

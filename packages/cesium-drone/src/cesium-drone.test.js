@@ -5,6 +5,8 @@ import {Transforms} from '@cesium/engine';
 import {createTriangleMesh} from '@geoblocks/cesium-obstacles';
 import CesiumDrone, {flyOn} from './cesium-drone.js';
 
+/** @import {TriangleMesh} from '@geoblocks/cesium-obstacles' */
+
 // in a frame east, north and up on the equator at longitude 0
 const modelMatrix = Transforms.eastNorthUpToFixedFrame(Cartesian3.fromDegrees(0, 0));
 
@@ -43,13 +45,13 @@ const testDrone = (terrain = undefined) => {
 
 /**
  * @param {CesiumDrone} drone
- * @param {import('@geoblocks/cesium-obstacles').TriangleMesh} mesh
+ * @param {TriangleMesh} mesh
  */
 const local = (drone, mesh) => mesh.local(drone.position_);
 
 /**
  * A drone at a position of the mesh's frame.
- * @param {import('@geoblocks/cesium-obstacles').TriangleMesh} mesh
+ * @param {TriangleMesh} mesh
  * @param {number} x
  * @param {number} y
  * @param {number} z

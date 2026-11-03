@@ -1,5 +1,7 @@
 import {Cartesian3, FixedFrameTransforms, Matrix4} from '@cesium/core';
 
+/** @import {Scene} from '@cesium/engine' */
+
 /**
  * The local frame's coordinates from the eye's, for a shader that wants a pixel's place in a small frame (east-north-up about a point) to
  * lay a pattern over the ground that stays where it is as the camera moves. Made in double precision on the CPU: the globe's offset
@@ -39,7 +41,7 @@ export class LocalFrame {
 
   /**
    * The origin, the camera's position if there is none yet.
-   * @param {import('@cesium/engine').Scene} scene
+   * @param {Scene} scene
    */
   anchor(scene) {
     this.origin_ ??= Cartesian3.clone(scene.camera.positionWC);
@@ -48,7 +50,7 @@ export class LocalFrame {
 
   /**
    * The local frame's coordinates from the camera's eye's (localFromEye), anchored first.
-   * @param {import('@cesium/engine').Scene} scene
+   * @param {Scene} scene
    */
   fromEye(scene) {
     this.frame_ ??= FixedFrameTransforms.eastNorthUpToFixedFrame(this.anchor(scene), scene.ellipsoid, new Matrix4());

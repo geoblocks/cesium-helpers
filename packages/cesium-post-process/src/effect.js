@@ -1,6 +1,8 @@
 import {acquireTerrainDepth, releaseTerrainDepth} from './depth-test.js';
 import {acquireFrames, releaseFrames} from './frame-clock.js';
 
+/** @import {CesiumWidget, PostProcessStage, PostProcessStageComposite, Scene} from '@cesium/engine' */
+
 /**
  * A screen-space effect: a post-process stage on a scene while active.
  * Subclasses create their stage in `createStage_` and take their side effects
@@ -9,11 +11,11 @@ import {acquireFrames, releaseFrames} from './frame-clock.js';
  */
 export default class Effect {
   /**
-   * @param {import('@cesium/engine').CesiumWidget} viewer
+   * @param {CesiumWidget} viewer
    */
   constructor(viewer) {
     this.viewer = viewer;
-    /** @type {import('@cesium/engine').PostProcessStage | import('@cesium/engine').PostProcessStageComposite | undefined} */
+    /** @type {PostProcessStage | PostProcessStageComposite | undefined} */
     this.stage_ = undefined;
     /** Whether the effect reads the terrain's depth: the scene keeps it for as long as the effect is active. */
     this.terrainDepth_ = false;
@@ -59,8 +61,8 @@ export default class Effect {
   }
 
   /**
-   * @param {import('@cesium/engine').Scene} _scene
-   * @return {import('@cesium/engine').PostProcessStage | import('@cesium/engine').PostProcessStageComposite}
+   * @param {Scene} _scene
+   * @return {PostProcessStage | PostProcessStageComposite}
    */
   createStage_(_scene) {
     throw new Error(`${this.constructor.name} does not implement createStage_`);
@@ -68,13 +70,13 @@ export default class Effect {
 
   /**
    * Called once the stage is added to the scene.
-   * @param {import('@cesium/engine').Scene} _scene
+   * @param {Scene} _scene
    */
   activated_(_scene) {}
 
   /**
    * Called before the stage is removed from the scene.
-   * @param {import('@cesium/engine').Scene} _scene
+   * @param {Scene} _scene
    */
   deactivating_(_scene) {}
 

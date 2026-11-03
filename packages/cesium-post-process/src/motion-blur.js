@@ -6,13 +6,15 @@ import Hash from './shaders/Hash.js';
 import MotionBlurShader from './shaders/MotionBlur.js';
 import MotionBlurVelocity from './shaders/MotionBlurVelocity.js';
 
+/** @import {CesiumWidget, Scene} from '@cesium/engine' */
+
 /**
  * Camera motion blur: each pixel is blurred along its motion on the screen
  * since the previous frame, over the exposure time.
  */
 export default class MotionBlur extends Effect {
   /**
-   * @param {import('@cesium/engine').CesiumWidget} viewer
+   * @param {CesiumWidget} viewer
    * @param {{strength?: number, exposure?: number}} [options]
    */
   constructor(viewer, options = {}) {
@@ -32,7 +34,7 @@ export default class MotionBlur extends Effect {
 
   /**
    * @override
-   * @param {import('@cesium/engine').Scene} scene
+   * @param {Scene} scene
    */
   createStage_(scene) {
     // the velocity of each pixel is computed once, at half resolution, rather than once per
@@ -70,7 +72,7 @@ export default class MotionBlur extends Effect {
 
   /**
    * @override
-   * @param {import('@cesium/engine').Scene} scene
+   * @param {Scene} scene
    */
   activated_(scene) {
     this.onPostRender_();
@@ -79,7 +81,7 @@ export default class MotionBlur extends Effect {
 
   /**
    * @override
-   * @param {import('@cesium/engine').Scene} scene
+   * @param {Scene} scene
    */
   deactivating_(scene) {
     scene.postRender.removeEventListener(this.onPostRender_);

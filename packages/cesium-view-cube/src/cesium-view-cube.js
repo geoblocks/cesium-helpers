@@ -2,6 +2,9 @@ import {Cartesian3, FixedFrameTransforms, Matrix3, Matrix4} from '@cesium/core';
 import {SceneMode} from '@cesium/engine';
 import {LitElement, css, html, svg} from 'lit';
 
+/** @import {Event} from '@cesium/core' */
+/** @import {Scene} from '@cesium/engine' */
+
 // The cube's faces, by the axis they face (0 east, 1 north, 2 up) and its sign, and the axes, in the east-north-up
 // frame at the camera: x to the east, y to the north, z up, as ParaView's orientation axes
 const FACES = [
@@ -142,9 +145,9 @@ export default class CesiumViewCube extends LitElement {
 
     /**
      * Required. In TypeScript, replace with a `declare scene: Scene;` field.
-     * @type {import('@cesium/engine').Scene}
+     * @type {Scene}
      */
-    this.scene = /** @type {import('@cesium/engine').Scene} */ (/** @type {unknown} */ (undefined));
+    this.scene = /** @type {Scene} */ (/** @type {unknown} */ (undefined));
 
     /**
      * East, north and up as the camera sees them: the drawing's x to the right, y down, and z toward the camera.
@@ -154,7 +157,7 @@ export default class CesiumViewCube extends LitElement {
 
     /**
      * The scene listened to, and how to stop.
-     * @type {{scene: import('@cesium/engine').Scene, remove: import('@cesium/core').Event.RemoveCallback} | null}
+     * @type {{scene: Scene, remove: Event.RemoveCallback} | null}
      */
     this.listening = null;
   }

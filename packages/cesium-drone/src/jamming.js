@@ -1,5 +1,7 @@
 import {Cartesian3, Cartographic, Math as CesiumMath} from '@cesium/core';
 
+/** @import {Globe} from '@cesium/engine' */
+
 // the jammer's antenna, in meters above the ground
 const ANTENNA = 10;
 // the jamming is full within this share of its range
@@ -23,7 +25,7 @@ const antennaPositionScratch = new Cartesian3();
  * How strongly the jammers reach a position, 0 to 1: from 0 at a jammer's
  * range to 1 near it, much less behind terrain that hides it; the strongest
  * jammer wins. Only the terrain loaded in the globe hides a jammer.
- * @param {import('@cesium/engine').Globe} globe
+ * @param {Globe} globe
  * @param {Cartesian3} position
  * @param {Jammer[]} jammers
  * @return {number}
@@ -50,7 +52,7 @@ export function jammingAt(globe, position, jammers) {
 
 /**
  * Whether the terrain rises above the straight line between two points.
- * @param {import('@cesium/engine').Globe} globe
+ * @param {Globe} globe
  * @param {Cartographic} from
  * @param {Cartographic} to
  * @return {boolean}

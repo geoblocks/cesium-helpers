@@ -10,6 +10,9 @@ import OpenSkyShader from './shaders/OpenSky.js';
 import {openSkyUniforms} from './open-sky.js';
 import SnowLineShader from './shaders/SnowLine.js';
 
+/** @import {CesiumWidget, Scene} from '@cesium/engine' */
+/** @import OpenSky from './open-sky.js' */
+
 // the water's level when there is no water: far above everything
 const NO_WATER = 1e9;
 
@@ -21,10 +24,10 @@ const sunScratch = new Cartesian3();
  */
 export default class SnowLine extends Effect {
   /**
-   * @param {import('@cesium/engine').CesiumWidget} viewer
+   * @param {CesiumWidget} viewer
    * @param {{altitude?: number, transition?: number, maxSlope?: number, coverage?: number, patchiness?: number, waterLevel?: number,
    *   sunDirection?: Cartesian3, grain?: number, sceneLight?: number, steepCover?: number, origin?: Cartesian3,
-   *   openSky?: import('./open-sky.js').default}} [options]
+   *   openSky?: OpenSky}} [options]
    */
   constructor(viewer, options = {}) {
     super(viewer);
@@ -45,7 +48,7 @@ export default class SnowLine extends Effect {
 
   /**
    * @override
-   * @param {import('@cesium/engine').Scene} scene
+   * @param {Scene} scene
    */
   createStage_(scene) {
     const stage = new PostProcessStage({
@@ -74,7 +77,7 @@ export default class SnowLine extends Effect {
 
   /**
    * @override
-   * @param {import('@cesium/engine').Scene} scene
+   * @param {Scene} scene
    */
   activated_(scene) {
     this.frame_.anchor(scene);

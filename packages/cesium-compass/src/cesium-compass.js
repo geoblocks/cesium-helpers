@@ -6,6 +6,9 @@ import {styleMap} from 'lit/directives/style-map.js';
 
 import {Cartesian2, Cartesian3, FixedFrameTransforms, Matrix4, Ellipsoid, Ray, Math as CesiumMath} from '@cesium/core';
 
+/** @import {Clock, Event} from '@cesium/core' */
+/** @import {Scene} from '@cesium/engine' */
+
 const vectorScratch = new Cartesian2();
 const windowPositionScratch = new Cartesian2();
 const clickLocationScratch = new Cartesian2();
@@ -250,15 +253,15 @@ export default class CesiumCompass extends LitElement {
 
     /**
      * Required. In TypeScript, replace with a `declare scene: Scene;` field.
-     * @type {import('@cesium/engine').Scene}
+     * @type {Scene}
      */
-    this.scene = /** @type {import('@cesium/engine').Scene} */ (/** @type {unknown} */ (undefined));
+    this.scene = /** @type {Scene} */ (/** @type {unknown} */ (undefined));
 
     /**
      * Required. In TypeScript, replace with a `declare clock: Clock;` field.
-     * @type {import('@cesium/core').Clock}
+     * @type {Clock}
      */
-    this.clock = /** @type {import('@cesium/core').Clock} */ (/** @type {unknown} */ (undefined));
+    this.clock = /** @type {Clock} */ (/** @type {unknown} */ (undefined));
 
     /**
      * @type {boolean}
@@ -305,12 +308,12 @@ export default class CesiumCompass extends LitElement {
     this.rotateClick = false;
 
     /**
-     * @type {import('@cesium/core').Event.RemoveCallback | null}
+     * @type {Event.RemoveCallback | null}
      */
     this.unlistenFromPostRender = null;
 
     /**
-     * @type {import('@cesium/core').Event.RemoveCallback | null}
+     * @type {Event.RemoveCallback | null}
      */
     this.unlistenFromClockTick = null;
 

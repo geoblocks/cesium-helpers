@@ -2,6 +2,10 @@ import {Math as CesiumMath} from '@cesium/core';
 import Controls from '@geoblocks/cesium-input';
 import HoldZoom from './zoom.js';
 
+/** @import {PerspectiveFrustum} from '@cesium/core' */
+/** @import {CesiumWidget} from '@cesium/engine' */
+/** @import {Binding} from '@geoblocks/cesium-input' */
+
 // short of 87.4 degrees, where Cesium reads the heading from the up vector and turns the view around
 const MAX_PITCH = CesiumMath.toRadians(85);
 // in seconds: a frame after a backgrounded tab must not turn far
@@ -12,7 +16,7 @@ const MAX_FOV = CesiumMath.toRadians(60);
 
 // the default bindings: the right stick looks around, L2 or the right mouse button zooms in, held; the mouse's
 // movement looks around too, under the pointer lock
-/** @satisfies {Record<string, import('@geoblocks/cesium-input').Binding>} */
+/** @satisfies {Record<string, Binding>} */
 export const LOOK_BINDINGS = {
   look: {type: 'vector', stick: 'right'},
   zoom: {type: 'button', buttons: [6], mouse: [2]},
@@ -31,7 +35,7 @@ export function clampPitch(pitch) {
 export default class FirstPersonCameraMode {
 
   /**
-   * @param {import('@cesium/engine').CesiumWidget} viewer
+   * @param {CesiumWidget} viewer
    * @param {number} [zoomFactor=CesiumMath.toRadians(5)]
    * @param {number} [movementFactor=0.003]
    */
@@ -183,10 +187,10 @@ export default class FirstPersonCameraMode {
   }
 
   /**
-   * @return {import('@cesium/core').PerspectiveFrustum}
+   * @return {PerspectiveFrustum}
    */
   frustum_() {
-    return /** @type {import('@cesium/core').PerspectiveFrustum} */ (this.scene_.camera.frustum);
+    return /** @type {PerspectiveFrustum} */ (this.scene_.camera.frustum);
   }
 
   /**

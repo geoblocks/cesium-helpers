@@ -2,6 +2,10 @@ import {Cartesian3, Cartographic, Ellipsoid, Event, FixedFrameTransforms, Math a
 import Controls from '@geoblocks/cesium-input';
 import {ObstacleProbe, blockedStep, meshGroundHeight, meshObstacleAhead} from '@geoblocks/cesium-obstacles';
 
+/** @import {CesiumWidget} from '@cesium/engine' */
+/** @import {Binding} from '@geoblocks/cesium-input' */
+/** @import {Obstacle, TriangleMesh} from '@geoblocks/cesium-obstacles' */
+
 export {jammingAt} from './jamming.js';
 
 // seconds for the velocity, and the body's pitch and roll, to get two thirds of the way to their target
@@ -37,7 +41,7 @@ const KEYS = {
 // turning and tilting the camera, the triggers climbing and descending, R1 boosting, as in most games; or
 // 'mode2', the sticks of a drone's radio, the left one climbing and turning, the right one moving, R2
 // boosting, the bumpers tilting the camera
-/** @satisfies {Record<'game' | 'mode2', Record<string, import('@geoblocks/cesium-input').Binding>>} */
+/** @satisfies {Record<'game' | 'mode2', Record<string, Binding>>} */
 export const DRONE_BINDINGS = {
   game: {
     move: {type: 'vector', keys: KEYS.move, stick: 'left'},
@@ -80,7 +84,7 @@ const upScratch = new Cartesian3();
  */
 export default class CesiumDrone {
   /**
-   * @param {import('@cesium/engine').CesiumWidget} viewer
+   * @param {CesiumWidget} viewer
    * @param {{speed?: number, boostSpeed?: number, climbSpeed?: number, turnRate?: number, clearance?: number, crashSpeed?: number, cameraTilt?: number, failsafeDelay?: number, layout?: 'game' | 'mode2', collision?: boolean}} [options]
    */
   constructor(viewer, options = {}) {
@@ -156,7 +160,7 @@ export default class CesiumDrone {
      * any; asked for each step while collision is on. By default the obstacles in view, read in the depth of
      * the last frame, which waits for the GPU; for a world known on the CPU, a ray cast in every direction,
      * reaching as far as a step goes.
-     * @type {(toward: Cartesian3, key: string) => import('@geoblocks/cesium-obstacles').Obstacle | undefined}
+     * @type {(toward: Cartesian3, key: string) => Obstacle | undefined}
      */
     this.obstacleAhead = (toward, key) => this.obstacleProbe_.ahead(toward, key);
 
@@ -424,7 +428,7 @@ export default class CesiumDrone {
  * from rays cast from its middle and from around its body, ahead, beside, above and below it; climbing, the
  * ceilings too; its roofs and floors are its ground, else the ground it had (the terrain). Turns the collision on.
  * @param {CesiumDrone} drone
- * @param {import('@geoblocks/cesium-obstacles').TriangleMesh} mesh
+ * @param {TriangleMesh} mesh
  * @param {{radius?: number, reach?: number}} [options] In meters: the drone's body about its middle, 0.25 by
  *     default; how far ahead the walls are looked for, as far as a step goes at the top speed, 5 by default.
  */
