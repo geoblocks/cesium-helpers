@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.7.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-post-process%400.6.1...%40geoblocks%2Fcesium-post-process%400.7.0) (2026-11-03)
+
+### Features
+
+* **cesium-post-process:** export the shared render clock ([9265adb](https://github.com/geoblocks/cesium-helpers/commit/9265adb0dc15b41ce1852cf27a881a022d55bfbd))
+
+
 ## [0.6.1](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-post-process%400.6.0...%40geoblocks%2Fcesium-post-process%400.6.1) (2026-11-02)
 
 ### Performance Improvements

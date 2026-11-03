@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.2.3](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-flyto%400.2.2...%40geoblocks%2Fcesium-flyto%400.2.3) (2026-11-03)
+
+### Bug Fixes
+
+* import eastNorthUpToFixedFrame from @cesium/core ([e543083](https://github.com/geoblocks/cesium-helpers/commit/e543083ee05b504bd3fad3ee46c868b5c972fb11))
+
+
 ## [0.2.2](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-flyto%400.2.1...%40geoblocks%2Fcesium-flyto%400.2.2) (2026-11-02)
 
 **Note:** Version bump only for package @geoblocks/cesium-flyto
