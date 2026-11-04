@@ -150,7 +150,8 @@ function buildTree(lo, hi, leaf) {
   return {bounds: bounds.slice(0, nodes * 6), meta: meta.slice(0, nodes * 3), at, nodes};
 }
 
-const EMPTY = {bounds: new Float64Array(0), meta: new Int32Array(0), data: new Float64Array(0), ids: new Int32Array(0), nodes: 0};
+// a tree over nothing, new at each call: a caller may keep it or hand its buffers over to a worker, as any tree
+const empty = () => ({bounds: new Float64Array(0), meta: new Int32Array(0), data: new Float64Array(0), ids: new Int32Array(0), nodes: 0});
 
 /**
  * The tree over some triangles.
@@ -164,7 +165,7 @@ const EMPTY = {bounds: new Float64Array(0), meta: new Int32Array(0), data: new F
 export function buildBvh(tris, ids = Int32Array.from({length: tris.length / 9}, (_, i) => i), {leaf = 4} = {}) {
   const n = ids.length;
   if (n === 0) {
-    return EMPTY;
+    return empty();
   }
   const order = Int32Array.from(ids);
   const lo = new Float64Array(n * 3), hi = new Float64Array(n * 3);
@@ -267,7 +268,7 @@ export function refitBvh(bvh, tris) {
 export function buildSegmentBvh(segments, ids = Int32Array.from({length: segments.length / 6}, (_, i) => i), {leaf = 4} = {}) {
   const n = ids.length;
   if (n === 0) {
-    return EMPTY;
+    return empty();
   }
   const order = Int32Array.from(ids);
   const lo = new Float64Array(n * 3), hi = new Float64Array(n * 3);

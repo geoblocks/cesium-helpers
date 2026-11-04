@@ -323,3 +323,11 @@ test('segments: a subset by number, none, one point-like segment', () => {
   assert.deepEqual(segmentQueries(buildSegmentBvh(segments, [])).near(0, 0, 0, 100), []);
   assert.deepEqual(segmentQueries(buildSegmentBvh(segments)).near(9, 9, 9.05, 0.1), [2]);
 });
+
+test('an empty tree is the caller\'s own: two calls share no buffer, no object (one handed over to a worker leaves the next whole)', () => {
+  const trees = [buildBvh(new Float64Array(0)), buildBvh(new Float64Array(9), []), buildSegmentBvh(new Float64Array(0)), buildSegmentBvh(new Float64Array(6), [])];
+  assert.ok(trees.every(tree => tree.nodes === 0));
+  assert.equal(new Set(trees).size, trees.length);
+  const buffers = trees.flatMap(({bounds, meta, data, ids}) => [bounds, meta, data, ids].map(array => array.buffer));
+  assert.equal(new Set(buffers).size, buffers.length);
+});
