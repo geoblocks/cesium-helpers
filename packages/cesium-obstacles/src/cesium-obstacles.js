@@ -70,15 +70,16 @@ export function blockedStep(toward, length, eye, obstacle, result) {
  * Looks for the obstacles in view ahead of the mover, a walker or a drone, in the depth of the last frame.
  */
 export class ObstacleProbe {
+  #scene;
+  // the last look in each direction of steps: when, which way, and the obstacle, if one was in view
+  /** @type {Map<string, Obstacle & {time: number, direction: Cartesian3}>} */
+  #looks = new Map();
+
   /**
    * @param {Scene} scene
    */
   constructor(scene) {
-    this.scene_ = scene;
-
-    // the last look in each direction of steps: when, which way, and the obstacle, if one was in view
-    /** @type {Map<string, Obstacle & {time: number, direction: Cartesian3}>} */
-    this.looks_ = new Map();
+    this.#scene = scene;
   }
 
   /**
@@ -89,15 +90,15 @@ export class ObstacleProbe {
    */
   ahead(toward, key) {
     const now = performance.now();
-    const last = this.looks_.get(key);
+    const last = this.#looks.get(key);
     if (last && now - last.time < SAMPLE_INTERVAL && Cartesian3.dot(last.direction, toward) > TURN) {
       return last;
     }
-    const scene = this.scene_;
+    const scene = this.#scene;
     const eye = scene.camera.positionWC;
     /** @type {Obstacle & {time: number, direction: Cartesian3}} */
     const look = {time: now, direction: Cartesian3.clone(toward)};
-    this.looks_.set(key, look);
+    this.#looks.set(key, look);
     // in view: the depth of the last frame along the steps from the eye, and a little beside and above for
     // the obstacle's plane
     const ahead = Cartesian3.add(eye, Cartesian3.multiplyByScalar(toward, 2, probeScratch), probeScratch);
