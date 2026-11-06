@@ -8,18 +8,31 @@ const {default: CesiumIso} = await import('./cesium-iso.js');
 // Bern, on the ellipsoid
 const BERN = Cartesian3.fromDegrees(7.4474, 46.948);
 
-/** A viewer without a globe, its camera looking straight down at Bern, its canvas 800 x 600. */
-const fakeViewer = () => {
+/**
+ * A viewer without a globe, its camera looking straight down at Bern, heading the way given, in degrees; its canvas
+ * 800 x 600, its listeners kept by type.
+ */
+const fakeViewer = (heading = 0) => {
   const frustum = {width: 1, clone: () => ({...frustum, original: true})};
+  /** @type {Record<string, (e: any) => void>} */
+  const listeners = {};
   return {
+    listeners,
     scene: {
-      canvas: {clientWidth: 800, clientHeight: 600, addEventListener: () => {}, removeEventListener: () => {}},
+      canvas: {
+        clientWidth: 800, clientHeight: 600,
+        addEventListener: (/** @type {string} */ type, /** @type {(e: any) => void} */ listener) => (listeners[type] = listener),
+        removeEventListener: (/** @type {string} */ type) => delete listeners[type],
+        setPointerCapture: () => {},
+        getBoundingClientRect: () => ({left: 0, top: 0}),
+      },
       ellipsoid: Ellipsoid.WGS84,
       pickPositionSupported: false,
       screenSpaceCameraController: {enableInputs: true},
       requestRender: () => {},
       camera: {
-        heading: 0,
+        heading: CesiumMath.toRadians(heading),
+        getPickRay: () => undefined,
         position: new Cartesian3(), direction: new Cartesian3(), up: new Cartesian3(), right: new Cartesian3(),
         positionWC: BERN,
         frustum,
@@ -38,18 +51,33 @@ const local = (/** @type {Cartesian3} */ vector, /** @type {Cartesian3} */ at) =
 const near = (/** @type {number} */ a, /** @type {number} */ b, epsilon = 1e-9) =>
   assert.ok(Math.abs(a - b) < epsilon, `${a} is not ${b}`);
 
-test('the corners are a quarter turn apart, the first at 45 degrees by default', () => {
-  const iso = new CesiumIso(fakeViewer());
-  near(iso.cornerAfter_(0, 0), CesiumMath.toRadians(45));
-  near(iso.cornerAfter_(CesiumMath.toRadians(100), 0), CesiumMath.toRadians(135));
-  near(iso.cornerAfter_(CesiumMath.toRadians(45), 1), CesiumMath.toRadians(135));
-  near(iso.cornerAfter_(CesiumMath.toRadians(45), -1), CesiumMath.toRadians(-45));
+/** Animation frames run at once, a second after now: an eased turn or glide over by the first; none left pending. */
+const framesAtOnce = () => {
+  globalThis.requestAnimationFrame = /** @type {any} */ (callback => void callback(performance.now() + 1000));
+};
+
+/** The view active on a camera heading the way given, in degrees. */
+const activeAt = (/** @type {number} */ heading, options = {}) => {
+  const iso = new CesiumIso(fakeViewer(heading), options);
+  iso.active = true;
+  return iso;
+};
+
+test('the corners are a quarter turn apart, the first at 45 degrees by default: active, the nearest; a turn, the next', () => {
+  near(activeAt(0).heading, 45);
+  near(activeAt(100).heading, 135);
+  framesAtOnce();
+  const iso = activeAt(45);
+  iso.turn(-1);
+  near(iso.heading, 135);
+  iso.turn(1);
+  iso.turn(1);
+  near(iso.heading, -45);
 });
 
 test('the corners follow the heading given, square to a place\'s streets', () => {
-  const iso = new CesiumIso(fakeViewer(), {heading: 88.75});
-  near(iso.cornerAfter_(0, 0), CesiumMath.toRadians(-1.25));
-  near(iso.cornerAfter_(CesiumMath.toRadians(80), 0), CesiumMath.toRadians(88.75));
+  near(activeAt(0, {heading: 88.75}).heading, -1.25);
+  near(activeAt(80, {heading: 88.75}).heading, 88.75);
 });
 
 test('active, the camera looks down at the pitch from the nearest corner, without a globe', () => {
@@ -156,6 +184,7 @@ test('a pointer let go that the view never saw go down is left alone: no anchori
   let picked = 0;
   viewer.scene.pickPositionSupported = true;
   viewer.scene.pickPosition = () => (picked++, Cartesian3.clone(BERN));
-  iso.up_(/** @type {any} */ ({pointerId: 7, timeStamp: 0}));
+  viewer.listeners.pointerup({pointerId: 7, timeStamp: 0});
   assert.equal(picked, 0);
 });
+

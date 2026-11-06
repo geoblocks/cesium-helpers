@@ -40,6 +40,9 @@ iso.heading = 90;      // at once, in degrees, no easing
 iso.size = 300;        // at once, in meters across the screen's shorter side, within minSize and maxSize
 ```
 
+A subclass may place the camera its own way: it overrides `place_()` (protected), calling `super.place_()`
+first, and reads the view's width in meters from `width_()`.
+
 ## Options
 
 | Name      | Default | Description
