@@ -2,6 +2,7 @@
 // global instead of bundling a second copy of @cesium/core and @cesium/engine with the helpers.
 // Keep this list in sync with the helpers' imports; the build fails otherwise.
 export const {
+  ArcType,
   Axis,
   BoundingSphere,
   CameraEventType,
@@ -20,8 +21,6 @@ export const {
   FixedFrameTransforms,
   Framebuffer,
   GeometryInstance,
-  GroundPolylineGeometry,
-  GroundPolylinePrimitive,
   HeadingPitchRange,
   IntersectionTests,
   KeyboardEventModifier,
@@ -34,11 +33,14 @@ export const {
   Plane,
   PointPrimitiveCollection,
   PolygonPipeline,
+  PolylineGeometry,
   PolylineMaterialAppearance,
   PostProcessStage,
   PostProcessStageComposite,
   PostProcessStageLibrary,
   PostProcessStageSampleMode,
+  Primitive,
+  PrimitiveCollection,
   PrimitiveType,
   Quaternion,
   Ray,

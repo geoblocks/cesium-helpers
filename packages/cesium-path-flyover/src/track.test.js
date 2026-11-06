@@ -1,7 +1,7 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {Cartesian3, Ellipsoid} from "@cesium/core";
-import {damp, dampAngle, decimate, easedProgress, easedProgressInverse, fetchTrackText, forwardHeading, parseTrack, parseTrackName, breathe} from "./track.js";
+import {Cartesian3, Color, Ellipsoid, Math as CesiumMath} from "@cesium/core";
+import {damp, dampAngle, decimate, densify, easedProgress, easedProgressInverse, fetchTrackText, forwardHeading, parseTrack, parseTrackName, roundCorners, trailColor, trailAlong, trailPath, fillGaps, breathe} from "./track.js";
 
 const gpx = `<?xml version="1.0"?>
 <gpx><trk><trkseg>
@@ -73,6 +73,90 @@ test("decimate keeps the first point and points at least minDistance apart", () 
 test("decimate of a standing log leaves a single point", () => {
   const coords = [[6, 46], [6, 46.00001], [6.00001, 46]];
   assert.deepEqual(decimate(coords, 10, Ellipsoid.WGS84), [[6, 46]]);
+});
+
+test("densify cuts each segment into equal parts no longer than the step", () => {
+  const points = [new Cartesian3(0, 0, 0), new Cartesian3(12, 0, 0), new Cartesian3(12, 4, 0)];
+  assert.deepEqual(densify(points, 5).map((p) => [p.x, p.y]), [[0, 0], [4, 0], [8, 0], [12, 0], [12, 4]]);
+});
+
+test("roundCorners turns a right angle in equal small steps within the trim, and leaves a straight line", () => {
+  const corner = [new Cartesian3(-20, 0, 0), new Cartesian3(0, 0, 0), new Cartesian3(0, 20, 0)];
+  const points = roundCorners(corner, 5, CesiumMath.toRadians(10));
+  // 90 degrees in turns of 10: 9 pieces from 5 m before the corner to 5 m after it
+  assert.equal(points.length, 2 + 10);
+  assert.ok(Cartesian3.equalsEpsilon(points[1], new Cartesian3(-5, 0, 0), 0, 1e-9));
+  assert.ok(Cartesian3.equalsEpsilon(points[10], new Cartesian3(0, 5, 0), 0, 1e-9));
+  for (let i = 1; i < points.length - 1; i++) {
+    const turn = Math.PI - Cartesian3.angleBetween(Cartesian3.subtract(points[i - 1], points[i], new Cartesian3()), Cartesian3.subtract(points[i + 1], points[i], new Cartesian3()));
+    assert.ok(turn <= CesiumMath.toRadians(10) + 1e-9, `turn ${CesiumMath.toDegrees(turn)} at ${i}`);
+  }
+  const straight = [new Cartesian3(0, 0, 0), new Cartesian3(10, 0, 0), new Cartesian3(20, 0, 0)];
+  assert.deepEqual(roundCorners(straight, 5, CesiumMath.toRadians(10)), straight);
+});
+
+test("roundCorners turns a hairpin in steps of at most the max turn, ending on the way out", () => {
+  const turn = CesiumMath.toRadians(170);
+  const hairpin = [new Cartesian3(-20, 0, 0), new Cartesian3(0, 0, 0), new Cartesian3(20 * Math.cos(turn), 20 * Math.sin(turn), 0)];
+  const points = roundCorners(hairpin, 5, CesiumMath.toRadians(10));
+  for (let i = 1; i < points.length - 1; i++) {
+    const step = Cartesian3.angleBetween(Cartesian3.subtract(points[i], points[i - 1], new Cartesian3()), Cartesian3.subtract(points[i + 1], points[i], new Cartesian3()));
+    assert.ok(step <= CesiumMath.toRadians(10) + 1e-9, `step ${CesiumMath.toDegrees(step)} at ${i}`);
+  }
+  const end = new Cartesian3(5 * Math.cos(turn), 5 * Math.sin(turn), 0);
+  assert.ok(Cartesian3.equalsEpsilon(points[points.length - 2], end, 0, 1e-9));
+});
+
+test("trailPath rounds the track's corners, then cuts its segments to the step", () => {
+  const straight = [new Cartesian3(0, 0, 0), new Cartesian3(10, 0, 0), new Cartesian3(30, 0, 0)];
+  assert.deepEqual(trailPath(straight, 5, CesiumMath.toRadians(10), 5, 1000).map((p) => p.x), [0, 5, 10, 15, 20, 25, 30]);
+  const corner = [new Cartesian3(-20, 0, 0), new Cartesian3(0, 0, 0), new Cartesian3(0, 20, 0)];
+  const points = trailPath(corner, 5, CesiumMath.toRadians(10), 5, 1000);
+  // the right angle's arc, 5 m each way, passes 5 (sqrt 2 - 1) m from the corner at its nearest
+  const nearest = Math.min(...points.map((p) => Cartesian3.magnitude(p)));
+  assert.ok(Math.abs(nearest - 5 * (Math.SQRT2 - 1)) < 0.1, `${nearest} m from the corner`);
+});
+
+test("trailAlong gives st.s by the distance along the line, or by the points' count", () => {
+  // the crowded points of an arc, then a long stretch
+  const distances = new Float64Array([0, 1, 2, 30]);
+  assert.deepEqual(Array.from(trailAlong(distances, true)), [0, 1 / 30, 2 / 30, 1]);
+  assert.deepEqual(Array.from(trailAlong(distances, false)), [0, 1 / 3, 2 / 3, 1]);
+});
+
+test("fillGaps takes a missing value from its neighbors, the nearest one at an end", () => {
+  assert.deepEqual(fillGaps([undefined, 10, undefined, undefined, 40, undefined]), [10, 10, 20, 30, 40, 40]);
+  assert.deepEqual(fillGaps([undefined, undefined]), [0, 0]);
+  assert.deepEqual(fillGaps([1, 2]), [1, 2]);
+});
+
+test("trailPath keeps to its points, the arcs coarser and the step longer", () => {
+  // a zigzag of 30 degree turns every 10 m, 10 km long
+  const zigzag = Array.from({length: 1001}, (_, i) => new Cartesian3(10 * i, i % 2 ? 2.7 : 0, 0));
+  const points = trailPath(zigzag, 5, CesiumMath.toRadians(10), 5, 2000);
+  assert.ok(points.length <= 2000, `${points.length} points`);
+});
+
+test("trailColor carries a fraction in 24 bits, as the trail's shader reads it", () => {
+  for (const along of [0, 1e-7, 0.123456789, 0.5, 1]) {
+    const color = trailColor(along);
+    const bytes = [color.red, color.green, color.blue].map(Color.floatToByte);
+    assert.ok(Math.abs((bytes[0] * 65536 + bytes[1] * 256 + bytes[2]) / 0xffffff - along) < 1e-7, `${along}`);
+  }
+});
+
+test("roundCorners trims at most 0.4 of a short segment", () => {
+  const points = [new Cartesian3(-4, 0, 0), new Cartesian3(0, 0, 0), new Cartesian3(0, 20, 0)];
+  const rounded = roundCorners(points, 5, CesiumMath.toRadians(10));
+  assert.ok(Cartesian3.equalsEpsilon(rounded[1], new Cartesian3(-1.6, 0, 0), 0, 1e-9));
+});
+
+test("roundCorners leaves no two points in one place, two corners at the ends of a segment of twice the trim", () => {
+  const points = [new Cartesian3(0, -20, 0), new Cartesian3(0, 0, 0), new Cartesian3(10, 0, 0), new Cartesian3(10, 20, 0)];
+  const rounded = roundCorners(points, 5, CesiumMath.toRadians(10));
+  for (let i = 1; i < rounded.length; i++) {
+    assert.ok(Cartesian3.distance(rounded[i - 1], rounded[i]) > 0.1, `points ${i - 1} and ${i} in one place`);
+  }
 });
 
 const at = (lon, lat) => Cartesian3.fromDegrees(lon, lat, 500);

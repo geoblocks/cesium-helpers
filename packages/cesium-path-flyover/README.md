@@ -1,6 +1,6 @@
 # Cesium Path Flyover
 
-A camera animation that follows a GPX or GeoJSON track, draped on terrain, with the track and a moving marker drawn in the scene.
+A camera animation that follows a GPX or GeoJSON track over the terrain, with the track and a moving marker drawn in the scene.
 
 ## Installation
 
@@ -42,7 +42,7 @@ await flyover.play();            // resolves at the end of the track
 flyover.progress = 0.5;          // scrub: jump to the middle, playing or not
 flyover.progressChanged.addEventListener((p) => slider.value = p); // follow playback
 flyover.position;                // the marker, for example the focus of an effect
-flyover.points;                  // the marker's positions along the track, once loaded
+flyover.points;                  // the track's points, at the marker's height, once loaded
 flyover.name;                    // the track's name, when the file has one
 flyover.times;                   // the recorded time of each point, when the file has them
 flyover.distance;                // the marker's meters along the track
@@ -57,5 +57,7 @@ While a run plays, drag on the globe to look around the marker and use the wheel
 Heights in the file are ignored; the track is sampled on the scene's terrain provider. Without one (the default `EllipsoidTerrainProvider`), heights are 0.
 
 At load the camera path is planned against the terrain: where the chase position would be inside a slope or lose sight of the marker, the camera turns toward the open side and lifts, whichever is cheaper.
+
+The trail is a 3D line through the track's points, a few meters above the terrain: a glowing tail behind the marker, a thin white line ahead, as wide on screen whatever the slope. The line hides behind the terrain only with the globe's `depthTestAgainstTerrain` on: the flyover turns it on, shared with `@geoblocks/cesium-post-process`'s effects through its `acquireTerrainDepth`, and on `destroy()` puts it back once nothing else needs it.
 
 With `screenSpaceError` set, the globe's `maximumScreenSpaceError` is raised to it while playing so terrain and imagery keep up with a fast camera, and restored when playback stops. By default the globe's detail is left alone.

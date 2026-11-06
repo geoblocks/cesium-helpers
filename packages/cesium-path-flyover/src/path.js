@@ -36,7 +36,6 @@ const pairScratch = sampleScratches.slice(0, 2);
  * @property {number[]} range meters, per sample: the run's range, wider in bends
  * @property {number[]} lift meters, per sample: the terrain planner's lift, the climb toward the surrounding relief and the breathing drift
  * @property {number[]} roll radians, per sample: the bank into the turns of the heading plus the breathing drift, positive leans right
- * @property {number[]} ground per spline point, its fraction of the track's length on the ground, where the trail measures it
  */
 
 /**
@@ -138,24 +137,7 @@ export async function computePath(track, options, sampler, planSampler = sampler
       rise[k] += plan.lift[k];
     });
   }
-  return {targets, headings, range, lift: rise, roll: rollProfile(headings, dt, run, length), ground: groundFractions(spline, ellipsoid)};
-}
-
-/**
- * Each spline point's fraction of the track's length on the ground: the marker
- * runs on the climbs too, the trail's length along the line is flat.
- * @param {CatmullRomSpline} spline
- * @param {Ellipsoid} ellipsoid
- * @return {number[]}
- */
-function groundFractions(spline, ellipsoid) {
-  const flat = spline.points.map((p) => ellipsoid.scaleToGeodeticSurface(p, new Cartesian3()));
-  const distances = [0];
-  for (let i = 1; i < flat.length; i++) {
-    distances.push(distances[i - 1] + Cartesian3.distance(flat[i - 1], flat[i]));
-  }
-  const total = distances[distances.length - 1];
-  return distances.map((d) => d / total);
+  return {targets, headings, range, lift: rise, roll: rollProfile(headings, dt, run, length)};
 }
 
 /**
