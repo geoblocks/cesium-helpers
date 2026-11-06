@@ -28,7 +28,9 @@ signature, before using it.
 Keep custom code only when Cesium has no public equivalent or its behavior differs on purpose, and say why in a short
 comment. Known cases: smoothstep, damping and Gaussian smoothing, the quantized-mesh terrain sampler
 (`cesium-path-flyover/src/terrain.js`), the hand-built orthographic ENU placement in `cesium-iso` (Cesium's `setView` reads
-the depth buffer), `requestAnimationFrame` loops that must run under `requestRenderMode`, and anything marked `@private`
+the depth buffer), `requestAnimationFrame` loops that must run under `requestRenderMode`, the trail's polyline vertex shader in
+`cesium-path-flyover` (Cesium's own with two lines replaced: Cesium has no public miter limit, and its st.s counts points
+rather than distance), and anything marked `@private`
 or `@internal` in Cesium. Do not use private or internal Cesium APIs.
 
 ## Write ES2025

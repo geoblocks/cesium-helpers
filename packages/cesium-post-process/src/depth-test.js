@@ -1,7 +1,8 @@
 /** @import {Globe, Scene} from '@cesium/engine' */
 
-// The post-process stages only get the depth of the terrain when it is depth tested. Several
-// effects may need it at once: the first one turns depth testing on, the last one restores it.
+// The post-process stages only get the depth of the terrain when it is depth tested, and primitives drawn
+// without it show through the terrain. Several users may need it at once (effects, a lens, a trail): the
+// first one turns depth testing on, the last one restores it.
 
 /** @type {WeakMap<Globe, {count: number, previous: boolean}>} */
 const users = new WeakMap();

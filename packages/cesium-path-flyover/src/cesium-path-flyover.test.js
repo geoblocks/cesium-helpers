@@ -10,10 +10,12 @@ import {
   ScreenSpaceEventType,
   Transforms,
 } from "@cesium/engine";
+import {acquireTerrainDepth, releaseTerrainDepth} from "@geoblocks/cesium-post-process";
 import Flyover from "./cesium-path-flyover.js";
 import {computePath, runDuration} from "./path.js";
 import {deriveRun} from "./run.js";
-import {easedProgress} from "./track.js";
+import {CORNER_TRIM, CORNER_TURN, TRAIL_MAX_POINTS, TRAIL_STEP, easedProgress, trailPath} from "./track.js";
+import {MARKER_HEIGHT} from "./path.js";
 import {sampleProfile} from "./planner.js";
 import TerrainSampler from "./terrain.js";
 
@@ -77,6 +79,19 @@ const trackThrough = (points) => {
   return {spline: new CatmullRomSpline({points, times: distances.map((d) => d / length)}), length};
 };
 
+// the line a load makes its marker follow on the ellipsoid: the trail through the track's points, at the marker's height
+const trailThrough = (points) =>
+  trailPath(
+    points.map((p) => Ellipsoid.WGS84.scaleToGeodeticSurface(p, new Cartesian3())),
+    CORNER_TRIM,
+    CORNER_TURN,
+    TRAIL_STEP,
+    TRAIL_MAX_POINTS
+  ).map((p) => {
+    const c = Cartographic.fromCartesian(p);
+    return Cartesian3.fromRadians(c.longitude, c.latitude, MARKER_HEIGHT);
+  });
+
 // the path a flyover with these options plans through the points, on the
 // ellipsoid, and the seconds between its samples
 const planPath = async (points, options = {}) => {
@@ -105,6 +120,27 @@ test("play coarsens the globe's screen-space error and stop restores what the sc
   flyover.stop();
   flyover.stop();
   assert.equal(viewer.scene.globe.maximumScreenSpaceError, 1.5);
+});
+
+test("the flyover keeps the terrain's depth for its trail until destroyed, then puts back what the scene had", () => {
+  const viewer = fakeViewer();
+  viewer.scene.globe.depthTestAgainstTerrain = false;
+  const flyover = new CesiumPathFlyover(viewer, {freeLook: false});
+  assert.equal(viewer.scene.globe.depthTestAgainstTerrain, true);
+  flyover.destroy();
+  assert.equal(viewer.scene.globe.depthTestAgainstTerrain, false);
+});
+
+test("the flyover shares the terrain's depth with others, released once however often destroyed", () => {
+  const viewer = fakeViewer();
+  viewer.scene.globe.depthTestAgainstTerrain = false;
+  const flyover = new CesiumPathFlyover(viewer, {freeLook: false});
+  acquireTerrainDepth(viewer.scene);
+  flyover.destroy();
+  flyover.destroy();
+  assert.equal(viewer.scene.globe.depthTestAgainstTerrain, true);
+  releaseTerrainDepth(viewer.scene);
+  assert.equal(viewer.scene.globe.depthTestAgainstTerrain, false);
 });
 
 test("the screen-space error option can be changed or switched off", async () => {
@@ -392,7 +428,7 @@ test("the frame twists the camera right by the sampled roll on a right turn", as
   flyover.progress = 0.5;
   assert.equal(twists.length, 1);
   // the path the flyover planned, planned again on its points
-  const {path} = await planPath(flyover.points, {speed: 90, style: 0});
+  const {path} = await planPath(trailThrough(flyover.points), {speed: 90, style: 0});
   const roll = sampleProfile(path.roll, 0.5);
   assert.ok(roll > 0, "the hairpin turns right");
   assert.ok(Math.abs(twists[0] - roll) < 1e-6, `twist ${twists[0]} for roll ${roll}`);
@@ -590,7 +626,7 @@ test("setting progress while stopped places the camera there and raises progress
   assert.equal(flyover.progress, 0.3);
   assert.equal(calls.length, 1);
   assert.deepEqual(seen, [0.3]);
-  const expected = trackThrough(flyover.points).spline.evaluate(easedProgress(0.3, 3 / flyover.duration), new Cartesian3());
+  const expected = trackThrough(trailThrough(flyover.points)).spline.evaluate(easedProgress(0.3, 3 / flyover.duration), new Cartesian3());
   assert.ok(Cartesian3.distance(flyover.position, expected) < 1e-6, "marker at 30% of the run");
   flyover.progress = 2;
   assert.equal(flyover.progress, 1);
@@ -610,7 +646,7 @@ test("setting progress while playing rebases the clock and playback goes on from
   flyover.stop();
 });
 
-test("the trail splits at the marker's place along the ground, not along the climb", async () => {
+test("the trail splits at the marker's place along the line it draws, the climb included", async () => {
   // 100 m east climbing 100 m, then 100 m east on the flat
   const heightAt = (longitude) => 800 + 100 * CesiumMath.clamp((CesiumMath.toDegrees(longitude) - 6.5) / 0.0013, 0, 1);
   const viewer = fakeViewer();
@@ -621,13 +657,17 @@ test("the trail splits at the marker's place along the ground, not along the cli
   };
   const flyover = new CesiumPathFlyover(viewer, {freeLook: false});
   await loadLine(flyover, [[6.5, 46.8], [6.5013, 46.8], [6.5026, 46.8]]);
-  const trail = viewer.scene.primitives.added.find((p) => p.appearance).appearance.material;
+  const layers = viewer.scene.primitives.added.at(-1);
   flyover.progress = 0.5;
+  // the marker's fraction of the run, the trail's own length
+  const expected = easedProgress(0.5, 3 / flyover.duration);
   const marker = Cartographic.fromCartesian(flyover.position);
-  const expected = (CesiumMath.toDegrees(marker.longitude) - 6.5) / 0.0026;
-  const actual = trail.uniforms.progress;
-  assert.ok(expected < 0.46, `the climb holds more than half of the 3D length: ${expected}`);
-  assert.ok(Math.abs(actual - expected) < 0.01, `trail split at ${actual}, marker at ${expected}`);
+  const flat = (CesiumMath.toDegrees(marker.longitude) - 6.5) / 0.0026;
+  assert.ok(flat < expected - 0.05, `the climb holds more than half of the line: ${flat} on the flat, ${expected} along`);
+  for (let i = 0; i < layers.length; i++) {
+    const actual = layers.get(i).appearance.material.uniforms.progress;
+    assert.ok(Math.abs(actual - expected) < 1e-6, `trail split at ${actual}, marker at ${expected}`);
+  }
 });
 
 test("a finished load puts the trail's split back at the start with the marker", async () => {
@@ -639,7 +679,7 @@ test("a finished load puts the trail's split back at the start with the marker",
   let trail;
   let scrubbed;
   viewer.scene.primitives.add = (primitive) => {
-    trail = primitive.appearance.material;
+    trail = primitive.get(0).appearance.material;
     flyover.progress = 0.7;
     scrubbed = trail.uniforms.progress;
     return primitive;
