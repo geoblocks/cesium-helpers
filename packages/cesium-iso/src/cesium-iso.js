@@ -274,6 +274,25 @@ export default class CesiumIso {
   }
 
   /**
+   * The view stopped where it is: a drift after a drag, a turn or a glide under way, dropped, and
+   * the view turning about the ground in the middle again, as when one ends.
+   */
+  stop() {
+    const moving = this.#drift || this.#turning || this.#gliding;
+    this.#drift = this.#drifted = this.#turning = this.#gliding = undefined;
+    if (moving) {
+      this.#anchor();
+    }
+  }
+
+  /**
+   * How many pointers are down on the view: two or more, a pinch.
+   */
+  get pointers() {
+    return this.#pointers.size;
+  }
+
+  /**
    * The camera on its orbit about the target, the frustum as wide as the size on the shorter side. Set straight: in
    * the target's east-north-up frame, looking along the heading, down by the pitch; Cesium's lookAt and setView would
    * read the depth under the middle back from the GPU to size an orthographic frustum, a stall at each move.

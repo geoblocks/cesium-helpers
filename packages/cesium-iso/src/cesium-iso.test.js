@@ -56,6 +56,14 @@ const framesAtOnce = () => {
   globalThis.requestAnimationFrame = /** @type {any} */ (callback => void callback(performance.now() + 1000));
 };
 
+/** Animation frames kept, to run when the test says. */
+const framesKept = () => {
+  /** @type {FrameRequestCallback[]} */
+  const frames = [];
+  globalThis.requestAnimationFrame = callback => frames.push(callback);
+  return () => frames.splice(0).forEach(frame => frame(performance.now() + 1000));
+};
+
 /** The view active on a camera heading the way given, in degrees. */
 const activeAt = (/** @type {number} */ heading, options = {}) => {
   const iso = new CesiumIso(fakeViewer(heading), options);
@@ -188,3 +196,46 @@ test('a pointer let go that the view never saw go down is left alone: no anchori
   assert.equal(picked, 0);
 });
 
+test('the pointers down on the view are counted: two, a pinch; none once let go', () => {
+  const viewer = fakeViewer();
+  const iso = new CesiumIso(viewer);
+  iso.active = true;
+  assert.equal(iso.pointers, 0);
+  for (const pointerId of [1, 2]) {
+    viewer.listeners.pointerdown({pointerId, pointerType: 'touch', clientX: 100 * pointerId, clientY: 100, timeStamp: 0});
+  }
+  assert.equal(iso.pointers, 2);
+  for (const pointerId of [1, 2]) {
+    viewer.listeners.pointerup({pointerId, timeStamp: 1000});
+  }
+  assert.equal(iso.pointers, 0);
+});
+
+test('stopped, a turn under way goes no further', () => {
+  const run = framesKept();
+  const iso = activeAt(45);
+  iso.turn(1);
+  iso.stop();
+  run();
+  near(iso.heading, 45);
+  iso.turn(1);
+  run();
+  near(iso.heading, -45);
+});
+
+test('stopped, a glide leaves the view about the ground in the middle; at rest, nothing is picked', () => {
+  const run = framesKept();
+  const viewer = fakeViewer();
+  const iso = new CesiumIso(viewer);
+  iso.active = true;
+  const ground = Cartesian3.fromDegrees(7.45, 46.95, 520);
+  let picked = 0;
+  viewer.scene.pickPositionSupported = true;
+  viewer.scene.pickPosition = () => (picked++, Cartesian3.clone(ground));
+  iso.stop();
+  assert.equal(picked, 0);
+  iso.glideTo(Cartesian3.fromDegrees(7.46, 46.96));
+  iso.stop();
+  run();
+  assert.ok(Cartesian3.equals(iso.target, ground));
+});
