@@ -48,6 +48,7 @@ export default class SnowLine extends Effect {
 
   /**
    * @override
+   * @protected
    * @param {Scene} scene
    */
   createStage_(scene) {
@@ -77,6 +78,7 @@ export default class SnowLine extends Effect {
 
   /**
    * @override
+   * @protected
    * @param {Scene} scene
    */
   activated_(scene) {

@@ -28,6 +28,7 @@ export default class SpeedLines extends Effect {
 
   /**
    * @override
+   * @protected
    * @param {Scene} scene
    */
   createStage_(scene) {

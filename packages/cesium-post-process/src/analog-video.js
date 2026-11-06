@@ -85,7 +85,10 @@ export default class AnalogVideo extends Effect {
     };
   }
 
-  /** @override */
+  /**
+   * @override
+   * @protected
+   */
   createStage_() {
     return new PostProcessStage({
       fragmentShader: Hash + AnalogVideoShader,
@@ -100,6 +103,7 @@ export default class AnalogVideo extends Effect {
 
   /**
    * @override
+   * @protected
    * @param {Scene} scene
    */
   activated_(scene) {
@@ -108,6 +112,7 @@ export default class AnalogVideo extends Effect {
 
   /**
    * @override
+   * @protected
    * @param {Scene} scene
    */
   deactivating_(scene) {

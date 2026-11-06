@@ -17,7 +17,10 @@ export default class Infrared extends Effect {
     this.strength_ = options.strength ?? 1;
   }
 
-  /** @override */
+  /**
+   * @override
+   * @protected
+   */
   createStage_() {
     return new PostProcessStage({
       fragmentShader: InfraredShader,

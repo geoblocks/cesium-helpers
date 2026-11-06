@@ -40,7 +40,10 @@ export default class DigitalVideo extends Effect {
     this.onPreRender_ = () => this.update_();
   }
 
-  /** @override */
+  /**
+   * @override
+   * @protected
+   */
   createStage_() {
     return new PostProcessStage({
       fragmentShader: Hash + DigitalVideoShader,
@@ -54,6 +57,7 @@ export default class DigitalVideo extends Effect {
 
   /**
    * @override
+   * @protected
    * @param {Scene} scene
    */
   activated_(scene) {
@@ -63,6 +67,7 @@ export default class DigitalVideo extends Effect {
 
   /**
    * @override
+   * @protected
    * @param {Scene} scene
    */
   deactivating_(scene) {

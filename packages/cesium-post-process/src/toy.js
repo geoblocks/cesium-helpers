@@ -42,6 +42,7 @@ export default class Toy extends Effect {
 
   /**
    * @override
+   * @protected
    * @param {Scene} _scene
    */
   createStage_(_scene) {

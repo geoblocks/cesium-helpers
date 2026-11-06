@@ -31,6 +31,7 @@ export default class TiltShift extends Effect {
 
   /**
    * @override
+   * @protected
    * @param {Scene} scene
    */
   createStage_(scene) {

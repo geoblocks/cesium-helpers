@@ -29,6 +29,7 @@ export default class ValleyFog extends Effect {
 
   /**
    * @override
+   * @protected
    * @param {Scene} scene
    */
   createStage_(scene) {

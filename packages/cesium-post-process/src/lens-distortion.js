@@ -19,7 +19,10 @@ export default class LensDistortion extends Effect {
     this.vignette_ = options.vignette ?? 0.5;
   }
 
-  /** @override */
+  /**
+   * @override
+   * @protected
+   */
   createStage_() {
     const stage = new PostProcessStage({
       fragmentShader: LensDistortionShader,

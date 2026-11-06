@@ -34,6 +34,7 @@ export default class MotionBlur extends Effect {
 
   /**
    * @override
+   * @protected
    * @param {Scene} scene
    */
   createStage_(scene) {
@@ -72,6 +73,7 @@ export default class MotionBlur extends Effect {
 
   /**
    * @override
+   * @protected
    * @param {Scene} scene
    */
   activated_(scene) {
@@ -81,6 +83,7 @@ export default class MotionBlur extends Effect {
 
   /**
    * @override
+   * @protected
    * @param {Scene} scene
    */
   deactivating_(scene) {

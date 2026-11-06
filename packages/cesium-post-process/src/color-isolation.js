@@ -19,7 +19,10 @@ export default class ColorIsolation extends Effect {
     this.strength_ = options.strength ?? 1;
   }
 
-  /** @override */
+  /**
+   * @override
+   * @protected
+   */
   createStage_() {
     return new PostProcessStage({
       fragmentShader: ColorIsolationShader,

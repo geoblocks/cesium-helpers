@@ -269,6 +269,7 @@ export default class CesiumIso {
    * The camera on its orbit about the target, the frustum as wide as the size on the shorter side. Set straight: in
    * the target's east-north-up frame, looking along the heading, down by the pitch; Cesium's lookAt and setView would
    * read the depth under the middle back from the GPU to size an orthographic frustum, a stall at each move.
+   * @protected
    */
   place_() {
     if (!this.active_) {
@@ -296,6 +297,7 @@ export default class CesiumIso {
 
   /**
    * The view's width, in meters: the size on the screen's shorter side.
+   * @protected
    */
   width_() {
     const {canvas} = this.viewer.scene;

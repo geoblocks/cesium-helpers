@@ -20,7 +20,10 @@ export default class Technicolor extends Effect {
     this.aspectRatio_ = options.aspectRatio ?? 0;
   }
 
-  /** @override */
+  /**
+   * @override
+   * @protected
+   */
   createStage_() {
     return new PostProcessStage({
       fragmentShader: Frame + TechnicolorShader,

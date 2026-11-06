@@ -38,7 +38,10 @@ export default class Super8 extends Effect {
     this.aspectRatio_ = options.aspectRatio ?? 4 / 3;
   }
 
-  /** @override */
+  /**
+   * @override
+   * @protected
+   */
   createStage_() {
     // a single level of composite: Cesium's texture cache hands the stage after a nested series
     // of stages the output of that series instead of the scene

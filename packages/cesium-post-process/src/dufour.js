@@ -54,6 +54,7 @@ export default class Dufour extends Effect {
 
   /**
    * @override
+   * @protected
    * @param {Scene} scene
    */
   createStage_(scene) {

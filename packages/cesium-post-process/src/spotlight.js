@@ -43,6 +43,7 @@ export default class Spotlight extends Effect {
 
   /**
    * @override
+   * @protected
    * @param {Scene} scene
    */
   createStage_(scene) {

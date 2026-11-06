@@ -195,6 +195,7 @@ export default class Lightning extends Effect {
 
   /**
    * @override
+   * @protected
    * @param {Scene} _scene
    */
   createStage_(_scene) {
@@ -215,6 +216,7 @@ export default class Lightning extends Effect {
 
   /**
    * @override
+   * @protected
    * @param {Scene} scene
    */
   activated_(scene) {
@@ -227,6 +229,7 @@ export default class Lightning extends Effect {
 
   /**
    * @override
+   * @protected
    * @param {Scene} scene
    */
   deactivating_(scene) {

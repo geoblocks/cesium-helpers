@@ -61,7 +61,10 @@ export default class Jello extends Effect {
     };
   }
 
-  /** @override */
+  /**
+   * @override
+   * @protected
+   */
   createStage_() {
     const stage = new PostProcessStage({
       fragmentShader: JelloShader,
@@ -83,6 +86,7 @@ export default class Jello extends Effect {
 
   /**
    * @override
+   * @protected
    * @param {Scene} scene
    */
   activated_(scene) {
@@ -94,6 +98,7 @@ export default class Jello extends Effect {
 
   /**
    * @override
+   * @protected
    * @param {Scene} scene
    */
   deactivating_(scene) {

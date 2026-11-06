@@ -11,16 +11,27 @@ import {acquireFrames, releaseFrames} from './frame-clock.js';
  */
 export default class Effect {
   /**
+   * The stage while active.
+   * @protected
+   * @type {PostProcessStage | PostProcessStageComposite | undefined}
+   */
+  stage_ = undefined;
+  /**
+   * Whether the effect reads the terrain's depth: the scene keeps it for as long as the effect is active.
+   * @protected
+   */
+  terrainDepth_ = false;
+  /**
+   * The renders a second the effect needs in requestRenderMode while active, 0 for none.
+   * @protected
+   */
+  frameRate_ = 0;
+
+  /**
    * @param {CesiumWidget} viewer
    */
   constructor(viewer) {
     this.viewer = viewer;
-    /** @type {PostProcessStage | PostProcessStageComposite | undefined} */
-    this.stage_ = undefined;
-    /** Whether the effect reads the terrain's depth: the scene keeps it for as long as the effect is active. */
-    this.terrainDepth_ = false;
-    /** The renders a second the effect needs in requestRenderMode while active, 0 for none. */
-    this.frameRate_ = 0;
   }
 
   get active() {
@@ -63,6 +74,7 @@ export default class Effect {
   /**
    * @param {Scene} _scene
    * @return {PostProcessStage | PostProcessStageComposite}
+   * @protected
    */
   createStage_(_scene) {
     throw new Error(`${this.constructor.name} does not implement createStage_`);
@@ -71,12 +83,14 @@ export default class Effect {
   /**
    * Called once the stage is added to the scene.
    * @param {Scene} _scene
+   * @protected
    */
   activated_(_scene) {}
 
   /**
    * Called before the stage is removed from the scene.
    * @param {Scene} _scene
+   * @protected
    */
   deactivating_(_scene) {}
 
