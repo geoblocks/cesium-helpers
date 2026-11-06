@@ -77,6 +77,16 @@ export function deadZone(x, y, size = DEAD_ZONE) {
  * @template {Record<string, Binding>} [B=Record<string, Binding>]
  */
 export default class Controls {
+  #active = false;
+  // the keys, by event.code, and the mouse buttons, as mouse0 to mouse4: held, and pressed since the last read
+  /** @type {Set<string>} */
+  #held = new Set();
+  /** @type {Set<string>} */
+  #pressed = new Set();
+  #handleKeyFunction;
+  #handleMouseFunction;
+  #releaseFunction;
+
   /**
    * @param {B} bindings
    * @param {{deadZone?: number, sources?: Source<B>[]}} [options]
@@ -99,20 +109,13 @@ export default class Controls {
      */
     this.sources = [...options.sources ?? []];
 
-    this.active_ = false;
-    // the keys, by event.code, and the mouse buttons, as mouse0 to mouse4: held, and pressed since the last read
-    /** @type {Set<string>} */
-    this.held_ = new Set();
-    /** @type {Set<string>} */
-    this.pressed_ = new Set();
-
-    this.handleKeyFunction_ = this.handleKey_.bind(this);
-    this.handleMouseFunction_ = this.handleMouse_.bind(this);
-    this.releaseFunction_ = () => this.held_.clear();
+    this.#handleKeyFunction = this.#handleKey.bind(this);
+    this.#handleMouseFunction = this.#handleMouse.bind(this);
+    this.#releaseFunction = () => this.#held.clear();
   }
 
   get active() {
-    return this.active_;
+    return this.#active;
   }
 
   /**
@@ -120,24 +123,24 @@ export default class Controls {
    * @param {boolean} active
    */
   set active(active) {
-    if (active === this.active_) {
+    if (active === this.#active) {
       return;
     }
-    this.active_ = active;
+    this.#active = active;
     if (active) {
-      document.addEventListener("keydown", this.handleKeyFunction_);
-      document.addEventListener("keyup", this.handleKeyFunction_);
-      document.addEventListener("mousedown", this.handleMouseFunction_);
-      document.addEventListener("mouseup", this.handleMouseFunction_);
-      window.addEventListener("blur", this.releaseFunction_);
+      document.addEventListener("keydown", this.#handleKeyFunction);
+      document.addEventListener("keyup", this.#handleKeyFunction);
+      document.addEventListener("mousedown", this.#handleMouseFunction);
+      document.addEventListener("mouseup", this.#handleMouseFunction);
+      window.addEventListener("blur", this.#releaseFunction);
     } else {
-      document.removeEventListener("keydown", this.handleKeyFunction_);
-      document.removeEventListener("keyup", this.handleKeyFunction_);
-      document.removeEventListener("mousedown", this.handleMouseFunction_);
-      document.removeEventListener("mouseup", this.handleMouseFunction_);
-      window.removeEventListener("blur", this.releaseFunction_);
-      this.held_.clear();
-      this.pressed_.clear();
+      document.removeEventListener("keydown", this.#handleKeyFunction);
+      document.removeEventListener("keyup", this.#handleKeyFunction);
+      document.removeEventListener("mousedown", this.#handleMouseFunction);
+      document.removeEventListener("mouseup", this.#handleMouseFunction);
+      window.removeEventListener("blur", this.#releaseFunction);
+      this.#held.clear();
+      this.#pressed.clear();
     }
   }
 
@@ -145,7 +148,7 @@ export default class Controls {
    * @param {string} code
    * @return {boolean}
    */
-  bound_(code) {
+  #bound(code) {
     for (const binding of Object.values(this.bindings)) {
       const keys = binding.keys;
       if (Array.isArray(keys) ? keys.includes(code) : Object.values(keys ?? {}).some(codes => codes?.includes(code))) {
@@ -161,13 +164,13 @@ export default class Controls {
   /**
    * @param {KeyboardEvent} event
    */
-  handleKey_(event) {
-    if (!this.bound_(event.code)) {
+  #handleKey(event) {
+    if (!this.#bound(event.code)) {
       return;
     }
     if (event.type === "keyup") {
       // always, or a key released with a modifier held would stay pressed
-      this.held_.delete(event.code);
+      this.#held.delete(event.code);
       return;
     }
     // leave the shortcuts (Ctrl+R, Cmd+F...) and the typing alone
@@ -177,23 +180,23 @@ export default class Controls {
     }
     // nor scroll the page, nor activate the focused control, a switch toggled by Space
     event.preventDefault();
-    this.held_.add(event.code);
-    this.pressed_.add(event.code);
+    this.#held.add(event.code);
+    this.#pressed.add(event.code);
   }
 
   /**
    * @param {MouseEvent} event
    */
-  handleMouse_(event) {
+  #handleMouse(event) {
     const code = `mouse${event.button}`;
-    if (!this.bound_(code)) {
+    if (!this.#bound(code)) {
       return;
     }
     if (event.type === "mouseup") {
-      this.held_.delete(code);
+      this.#held.delete(code);
     } else {
-      this.held_.add(code);
-      this.pressed_.add(code);
+      this.#held.add(code);
+      this.#pressed.add(code);
     }
   }
 
@@ -201,8 +204,8 @@ export default class Controls {
    * @param {string[] | undefined} codes
    * @return {boolean}
    */
-  down_(codes) {
-    return codes?.some(code => this.held_.has(code) || this.pressed_.has(code)) ?? false;
+  #down(codes) {
+    return codes?.some(code => this.#held.has(code) || this.#pressed.has(code)) ?? false;
   }
 
   /**
@@ -210,7 +213,7 @@ export default class Controls {
    * @param {'left' | 'right'} stick
    * @return {[number, number]} x right and y up, the round dead zone taken out
    */
-  stick_(pad, stick) {
+  #stick(pad, stick) {
     const [x, y] = STICKS[stick];
     const [right, down] = deadZone(pad?.axes[x] ?? 0, pad?.axes[y] ?? 0, this.deadZone);
     return [right, -down];
@@ -222,7 +225,7 @@ export default class Controls {
    * @param {'x' | 'y'} along
    * @return {number} right or up, its own dead zone taken out
    */
-  stickAxis_(pad, stick, along) {
+  #stickAxis(pad, stick, along) {
     const [x, y] = STICKS[stick];
     const value = along === "y" ? -(pad?.axes[y] ?? 0) : pad?.axes[x] ?? 0;
     return deadZone(value, 0, this.deadZone)[0];
@@ -241,27 +244,27 @@ export default class Controls {
     const actions = {};
     for (const [name, binding] of Object.entries(this.bindings)) {
       if (binding.type === "button") {
-        actions[name] = this.down_(binding.keys) ||
-          this.down_(binding.mouse?.map(button => `mouse${button}`)) ||
+        actions[name] = this.#down(binding.keys) ||
+          this.#down(binding.mouse?.map(button => `mouse${button}`)) ||
           (binding.buttons?.some(index => pad?.buttons[index]?.pressed) ?? false) ||
           sources.some(source => source[name] === true);
       } else if (binding.type === "axis") {
         const value = (/** @type {number[] | undefined} */ indices) =>
           indices?.reduce((sum, index) => sum + (pad?.buttons[index]?.value ?? 0), 0) ?? 0;
-        let axis = Number(this.down_(binding.keys?.positive)) - Number(this.down_(binding.keys?.negative)) +
+        let axis = Number(this.#down(binding.keys?.positive)) - Number(this.#down(binding.keys?.negative)) +
           value(binding.buttons?.positive) - value(binding.buttons?.negative);
         for (const source of sources) {
           axis += Number(source[name]) || 0;
         }
         if (binding.stick) {
-          axis += this.stickAxis_(pad, binding.stick, binding.along ?? "x") * (binding.invert ? -1 : 1);
+          axis += this.#stickAxis(pad, binding.stick, binding.along ?? "x") * (binding.invert ? -1 : 1);
         }
         actions[name] = Math.min(1, Math.max(-1, axis));
       } else {
-        let x = Number(this.down_(binding.keys?.right)) - Number(this.down_(binding.keys?.left));
-        let y = Number(this.down_(binding.keys?.up)) - Number(this.down_(binding.keys?.down));
+        let x = Number(this.#down(binding.keys?.right)) - Number(this.#down(binding.keys?.left));
+        let y = Number(this.#down(binding.keys?.up)) - Number(this.#down(binding.keys?.down));
         if (binding.stick) {
-          const [right, up] = this.stick_(pad, binding.stick);
+          const [right, up] = this.#stick(pad, binding.stick);
           x += right;
           y += binding.invertY ? -up : up;
         }
@@ -275,7 +278,7 @@ export default class Controls {
         actions[name] = length > 1 ? {x: x / length, y: y / length} : {x, y};
       }
     }
-    this.pressed_.clear();
+    this.#pressed.clear();
     return /** @type {Actions<B>} */ (actions);
   }
 }
