@@ -245,7 +245,6 @@ export default class CesiumPathFlyover {
     if (coords.length < 2) {
       throw new Error(`A track needs at least two points more than ${MIN_POINT_DISTANCE} m apart`);
     }
-    this.#removeTrack();
 
     // one sampler per load: tiles fetched for the track serve the targets and, on
     // a track up to LONG_TRACK, the planner too
@@ -265,6 +264,8 @@ export default class CesiumPathFlyover {
     const positions = raised(ground, terrain.slice(cartographics.length), scene.ellipsoid);
     const distances = cumulativeDistances(positions);
     this.#totalLength = distances[distances.length - 1];
+    // the previous track stays on screen until this one is drawn
+    this.#removeTrack();
     this.#track = scene.primitives.add(this.#createTrack(positions, distances));
     scene.requestRender();
     this.#spline = new CatmullRomSpline({

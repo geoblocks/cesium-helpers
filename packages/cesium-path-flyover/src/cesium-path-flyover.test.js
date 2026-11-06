@@ -670,6 +670,35 @@ test("the trail splits at the marker's place along the line it draws, the climb 
   }
 });
 
+test("the previous track stays on screen until the next one's heights are in", async () => {
+  const viewer = fakeViewer();
+  const removed = [];
+  viewer.scene.primitives.remove = (primitive) => removed.push(primitive);
+  const flyover = new CesiumPathFlyover(viewer, {freeLook: false});
+  await loadLine(flyover, [[6.5, 46.8], [6.51, 46.8]]);
+  const first = viewer.scene.primitives.added.at(-1);
+  // the next track's terrain answers once released
+  const {promise: released, resolve: release} = Promise.withResolvers();
+  viewer.scene.terrainProvider = {
+    tilingScheme: new GeographicTilingScheme(),
+    getTileDataAvailable: () => true,
+    requestTileGeometry: () => released.then(() => ({interpolateHeight: () => 500})),
+  };
+  const fetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({type: "LineString", coordinates: [[6.5, 46.8], [6.5, 46.81]]}));
+  try {
+    const next = flyover.load("track.json");
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    assert.deepEqual(removed, [], "the first track was removed before the next one could be drawn");
+    release();
+    await next;
+  } finally {
+    globalThis.fetch = fetch;
+  }
+  assert.deepEqual(removed, [first]);
+  assert.notEqual(viewer.scene.primitives.added.at(-1), first);
+});
+
 test("a finished load puts the trail's split back at the start with the marker", async () => {
   const viewer = fakeViewer();
   const flyover = new CesiumPathFlyover(viewer);
