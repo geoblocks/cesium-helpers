@@ -28,6 +28,8 @@ export {default as EyeFromDepth} from './shaders/EyeFromDepth.js';
 export {default as Hash} from './shaders/Hash.js';
 export {default as Height} from './shaders/Height.js';
 export {heightUniforms} from './height.js';
+// the globe's depth testing, shared by whatever needs the terrain's depth
+export {acquireTerrainDepth, releaseTerrainDepth} from './depth-test.js';
 export {localFromEye} from './local-frame.js';
 // the scene's shared render clock, for an effect of your own that animates only part of the time it is active
 export {acquireFrames, releaseFrames} from './frame-clock.js';

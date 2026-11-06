@@ -10,6 +10,7 @@ import {
   PostProcessStageLibrary,
   ScreenSpaceEventType,
 } from "@cesium/engine";
+import {acquireTerrainDepth, releaseTerrainDepth} from "@geoblocks/cesium-post-process";
 import EyeFromDepth from "./shaders/EyeFromDepth.js";
 import Lens from "./shaders/Lens.js";
 
@@ -36,7 +37,6 @@ export default class CesiumBinoculars {
   #previousAction = undefined;
   /** @type {PostProcessStageComposite | undefined} */
   #lens = undefined;
-  #previousDepthTestAgainstTerrain = false;
   #reticle = false;
   #onPreRender;
   #onMouseWheel;
@@ -97,10 +97,7 @@ export default class CesiumBinoculars {
   #addLens() {
     const scene = this.viewer.scene;
     // the post-process stages only get the depth of the terrain when it is depth tested
-    if (scene.globe) {
-      this.#previousDepthTestAgainstTerrain = scene.globe.depthTestAgainstTerrain;
-      scene.globe.depthTestAgainstTerrain = true;
-    }
+    acquireTerrainDepth(scene);
     const blur = PostProcessStageLibrary.createBlurStage();
     this.#lens = new PostProcessStageComposite({
       stages: [
@@ -128,9 +125,7 @@ export default class CesiumBinoculars {
     // removing a stage also destroys it
     scene.postProcessStages.remove(/** @type {PostProcessStageComposite} */ (this.#lens));
     this.#lens = undefined;
-    if (scene.globe) {
-      scene.globe.depthTestAgainstTerrain = this.#previousDepthTestAgainstTerrain;
-    }
+    releaseTerrainDepth(scene);
   }
 
   /**
