@@ -1,11 +1,32 @@
-import {test} from "node:test";
+import {mock, test} from "node:test";
 import assert from "node:assert/strict";
 import {Cartesian3, Cartographic, Ellipsoid, Matrix4} from "@cesium/core";
 import {Transforms} from "@cesium/engine";
 import {createTriangleMesh} from "@geoblocks/cesium-obstacles";
 import CesiumWalk, {rayHeights, walkOn} from "./cesium-walk.js";
 
-// a camera on the equator at longitude 0, looking north: east is right; it records its moves
+// the time the walker reads, in milliseconds, moved on by the ticks
+let now = 0;
+mock.method(performance, "now", () => now);
+
+// a clock that records its tick listeners; tick() moves the time on, 0.1 s by default, and calls them
+const fakeClock = () => {
+  /** @type {Function[]} */
+  const listeners = [];
+  const clock = {
+    onTick: {
+      addEventListener: (/** @type {Function} */ listener) => listeners.push(listener),
+      removeEventListener: () => {},
+    },
+  };
+  const tick = (seconds = 0.1) => {
+    now += seconds * 1000;
+    listeners.forEach(listener => listener());
+  };
+  return {clock, tick};
+};
+
+// a camera on the equator at longitude 0, looking north: east is right, up its height; it records its moves
 const fakeViewer = (/** @type {number | undefined} */ ground = undefined) => {
   const position = Ellipsoid.WGS84.cartographicToCartesian({longitude: 0, latitude: 0, height: 2});
   /** @type {{direction: Cartesian3, amount: number}[]} */
@@ -16,25 +37,26 @@ const fakeViewer = (/** @type {number | undefined} */ ground = undefined) => {
     positionCartographic: {longitude: 0, latitude: 0, height: 2},
     direction: new Cartesian3(0, 0, 1),
     right: new Cartesian3(0, 1, 0),
-    move: (/** @type {Cartesian3} */ direction, /** @type {number} */ amount) =>
-      moves.push({direction: Cartesian3.clone(direction), amount}),
+    move: (/** @type {Cartesian3} */ direction, /** @type {number} */ amount) => {
+      moves.push({direction: Cartesian3.clone(direction), amount});
+      camera.positionCartographic.height += direction.x * amount;
+    },
   };
+  const {clock, tick} = fakeClock();
   const viewer = {
     camera,
-    scene: {camera, ellipsoid: Ellipsoid.WGS84, globe: {getHeight: () => ground}},
+    clock,
+    scene: {camera, ellipsoid: Ellipsoid.WGS84, globe: {getHeight: () => ground}, screenSpaceCameraController: {}},
   };
-  return {viewer: /** @type {any} */ (viewer), moves};
+  return {viewer: /** @type {any} */ (viewer), moves, tick};
 };
 
 test("turning the head bob off while walking lets the camera settle", () => {
-  const {viewer, moves} = fakeViewer(0);
+  const {viewer, moves, tick} = fakeViewer(0);
   const walk = new CesiumWalk(viewer);
   const intent = {move: {x: 0, y: 1}, sprint: false, jump: false};
   walk.input = {read: () => intent};
-  const tick = () => {
-    walk.lastTick_ = performance.now() - 100;
-    walk.handleTick_();
-  };
+  walk.active = true;
   walk.headBob = true;
   tick();
   intent.move = {x: 0, y: 0};
@@ -48,39 +70,38 @@ test("turning the head bob off while walking lets the camera settle", () => {
 });
 
 test("without a globe, the walker waits for a ground height", () => {
-  const {viewer, moves} = fakeViewer();
+  const {viewer, moves, tick} = fakeViewer();
   delete viewer.scene.globe;
   const walk = new CesiumWalk(viewer, 1.6, 2);
   walk.input = {read: () => ({move: {x: 0, y: 0}, sprint: false, jump: false})};
-  walk.lastTick_ = performance.now() - 100;
-  walk.handleTick_();
+  walk.active = true;
+  tick();
   assert.equal(moves.length, 0);
 });
 
 test("the walker stands on the ground height it is given, not on the terrain", () => {
-  const {viewer, moves} = fakeViewer(0);
+  const {viewer, moves, tick} = fakeViewer(0);
   const walk = new CesiumWalk(viewer, 1.6, 2);
   walk.groundHeight = () => 5;
   walk.input = {read: () => ({move: {x: 0, y: 0}, sprint: false, jump: false})};
-  walk.lastTick_ = performance.now() - 100;
-  walk.handleTick_();
+  walk.active = true;
+  tick();
   // from 2 m up to 5 m of ground plus 2 m of eyes
   assert.equal(moves.length, 1);
   assert.ok(Math.abs(moves[0].amount - 5) < 1e-9);
 });
 
-// a walker on the fake viewer, its intent and ground set by the test, ticking 0.1 s at a time
+// a walker on the fake viewer, its intent and ground set by the test, ticking 0.1 s at a time; aloft() is how high
+// it is above its height over the ground, in a jump or a fall
 const testWalker = () => {
-  const {viewer, moves} = fakeViewer(0);
+  const {viewer, moves, tick} = fakeViewer(0);
   const walk = new CesiumWalk(viewer, 4, 2);
   const state = {intent: {move: {x: 0, y: 0}, sprint: false, jump: false}, ground: 0};
   walk.input = {read: () => state.intent};
   walk.groundHeight = () => state.ground;
-  const tick = () => {
-    walk.lastTick_ = performance.now() - 100;
-    walk.handleTick_();
-  };
-  return {walk, moves, state, tick};
+  walk.active = true;
+  const aloft = () => viewer.camera.positionCartographic.height - state.ground - walk.height;
+  return {walk, moves, state, tick, aloft};
 };
 // the length of the steps forward, along the fake camera's direction
 const forwardSteps = (/** @type {{direction: Cartesian3, amount: number}[]} */ moves) =>
@@ -88,7 +109,7 @@ const forwardSteps = (/** @type {{direction: Cartesian3, amount: number}[]} */ m
 
 test("the gravity sets how long a jump lasts", () => {
   const airborneAfter = (/** @type {number | undefined} */ gravity) => {
-    const {walk, state, tick} = testWalker();
+    const {walk, state, tick, aloft} = testWalker();
     if (gravity !== undefined) {
       walk.gravity = gravity;
     }
@@ -98,7 +119,7 @@ test("the gravity sets how long a jump lasts", () => {
     for (let i = 0; i < 4; i++) {
       tick();
     }
-    return walk.jumpOffset_ > 0;
+    return aloft() > 0;
   };
   // a jump at 4 m/s lasts 0.82 s on Earth, 0.4 s at 20 m/s²
   assert.equal(airborneAfter(undefined), true);
@@ -115,7 +136,7 @@ test("the walker follows a drop of the ground at once by default", () => {
 });
 
 test("with a step height, the walker falls down a deeper drop", () => {
-  const {walk, moves, state, tick} = testWalker();
+  const {walk, moves, state, tick, aloft} = testWalker();
   walk.stepHeight = 0.5;
   tick();
   state.ground = -5;
@@ -123,29 +144,29 @@ test("with a step height, the walker falls down a deeper drop", () => {
   tick();
   // a tenth of a second of falling, not the whole drop
   assert.ok(moves.every(({amount}) => amount > -1));
-  assert.ok(walk.jumpOffset_ > 4);
+  assert.ok(aloft() > 4);
 });
 
 test("with a step height, the walker follows a shallower drop", () => {
-  const {moves, state, walk, tick} = testWalker();
+  const {moves, state, walk, tick, aloft} = testWalker();
   walk.stepHeight = 0.5;
   tick();
   state.ground = -0.3;
   moves.length = 0;
   tick();
   assert.ok(moves.some(({amount}) => Math.abs(amount + 0.3) < 1e-9));
-  assert.equal(walk.jumpOffset_, 0);
+  assert.ok(Math.abs(aloft()) < 1e-9);
 });
 
 test("in the air, the walker keeps its height when the ground drops under it", () => {
-  const {walk, state, tick} = testWalker();
+  const {state, tick, aloft} = testWalker();
   state.intent.jump = true;
   tick();
-  const offset = walk.jumpOffset_;
+  const offset = aloft();
   state.ground = -1;
   tick();
   // a tenth of a second higher in the jump, and a meter higher above the ground
-  assert.ok(walk.jumpOffset_ > offset + 0.9);
+  assert.ok(aloft() > offset + 0.9);
 });
 
 test("the walker is at its speed at once by default", () => {
@@ -233,15 +254,34 @@ const walkingViewer = () => {
     get positionWC() {
       return this.position;
     },
+    get positionCartographic() {
+      return Cartographic.fromCartesian(this.position);
+    },
     move: (/** @type {Cartesian3} */ direction, /** @type {number} */ amount) =>
       Cartesian3.add(camera.position, Cartesian3.multiplyByScalar(direction, amount, new Cartesian3()), camera.position),
   };
+  const {clock, tick} = fakeClock();
   const viewer = {
     camera,
-    scene: {camera, ellipsoid: Ellipsoid.WGS84, globe: undefined, canvas: {}},
-    clock: {onTick: {addEventListener: () => {}, removeEventListener: () => {}}},
+    scene: {camera, ellipsoid: Ellipsoid.WGS84, globe: undefined, canvas: {}, screenSpaceCameraController: {}},
+    clock,
   };
-  return {viewer: /** @type {any} */ (viewer), frame};
+  return {viewer: /** @type {any} */ (viewer), frame, tick};
+};
+
+/**
+ * Sets a walker walking forward on the clock's ticks, at its speed, its camera looking level along a direction of the
+ * mesh's frame.
+ * @param {CesiumWalk} walk
+ * @param {Matrix4} frame
+ * @param {Cartesian3} toward In the frame, level.
+ */
+const walkingForward = (walk, frame, toward) => {
+  const camera = walk.viewer.camera;
+  Matrix4.multiplyByPointAsVector(frame, toward, camera.direction);
+  Matrix4.multiplyByPointAsVector(frame, Cartesian3.cross(toward, Cartesian3.UNIT_Z, new Cartesian3()), camera.right);
+  walk.input = {read: () => ({move: {x: 0, y: 1}, sprint: false, jump: false})};
+  walk.active = true;
 };
 
 // a 10 m square room: four walls 3 m high, and its floor; a 1 m square column in it at (4, 4) if asked
@@ -265,7 +305,7 @@ const squareRoom = (column = false) => {
 };
 
 test("at a concave corner the slide along one wall does not go through the other", () => {
-  const {viewer, frame} = walkingViewer();
+  const {viewer, frame, tick} = walkingViewer();
   const mesh = createTriangleMesh(squareRoom().groups, frame);
   const walk = new CesiumWalk(viewer, 2.5, 1.65);
   walk.collision = true;
@@ -274,9 +314,9 @@ test("at a concave corner the slide along one wall does not go through the other
   // little off the diagonal, the walker meets one wall first (aimed at the corner's edge itself, its rays would pass
   // between the two walls' triangles)
   mesh.position(8, 7.9, 1.65, viewer.camera.position);
-  const toward = Matrix4.multiplyByPointAsVector(frame, new Cartesian3(Math.SQRT1_2, Math.SQRT1_2, 0), new Cartesian3());
-  for (let tick = 0; tick < 1200; tick++) {
-    walk.step_(toward, 2.5 / 60, "forward");
+  walkingForward(walk, frame, new Cartesian3(Math.SQRT1_2, Math.SQRT1_2, 0));
+  for (let i = 0; i < 1200; i++) {
+    tick(1 / 60);
   }
   const {x, y} = mesh.local(viewer.camera.position);
   assert.ok(x < 9.7 && y < 9.7, `through a wall: (${x.toFixed(3)}, ${y.toFixed(3)})`);
@@ -284,17 +324,17 @@ test("at a concave corner the slide along one wall does not go through the other
 });
 
 test("the walker's body keeps it off the side and the corner of a column it walks past", () => {
-  const {viewer, frame} = walkingViewer();
+  const {viewer, frame, tick} = walkingViewer();
   const mesh = createTriangleMesh(squareRoom(true).groups, frame);
   const walk = new CesiumWalk(viewer, 2.5, 1.65);
   walk.collision = true;
   walkOn(walk, mesh, {eye: 1.65, step: 0.25, reach: 1, radius: 0.4});
   // north along x 5.2, a hair's breadth past the column's east side and corners, which no ray ahead meets
   mesh.position(5.2, 2, 1.65, viewer.camera.position);
-  const north = Matrix4.multiplyByPointAsVector(frame, Cartesian3.UNIT_Y, new Cartesian3());
+  walkingForward(walk, frame, Cartesian3.UNIT_Y);
   let nearest = Infinity;
-  for (let tick = 0; tick < 300; tick++) {
-    walk.step_(north, 2.5 / 60, "forward");
+  for (let i = 0; i < 300; i++) {
+    tick(1 / 60);
     const {x, y} = mesh.local(viewer.camera.position);
     nearest = Math.min(nearest, Math.hypot(Math.max(4 - x, 0, x - 5), Math.max(4 - y, 0, y - 5)));
   }
@@ -304,21 +344,21 @@ test("the walker's body keeps it off the side and the corner of a column it walk
 });
 
 test("the walker's body keeps it off a wall it walks along", () => {
-  const {viewer, frame} = walkingViewer();
+  const {viewer, frame, tick} = walkingViewer();
   const mesh = createTriangleMesh(squareRoom().groups, frame);
   const walk = new CesiumWalk(viewer, 2.5, 1.65);
   walk.collision = true;
   walkOn(walk, mesh, {eye: 1.65, step: 0.25, reach: 1, radius: 0.4});
   mesh.position(9.9, 2, 1.65, viewer.camera.position);
-  const north = Matrix4.multiplyByPointAsVector(frame, Cartesian3.UNIT_Y, new Cartesian3());
-  walk.step_(north, 2.5 / 60, "forward");
+  walkingForward(walk, frame, Cartesian3.UNIT_Y);
+  tick(1 / 60);
   const {x, y} = mesh.local(viewer.camera.position);
   assert.ok(Math.abs(x - 9.6) < 1e-6, `at x ${x.toFixed(3)}`);
   assert.ok(y > 2, "the step taken");
 });
 
 test("a step's riser under the knees does not push the walker back", () => {
-  const {viewer, frame} = walkingViewer();
+  const {viewer, frame, tick} = walkingViewer();
   const {groups, wall} = squareRoom();
   // a step 0.2 m high across the room at x 5, its tread the floor behind it
   wall(5, 0, 5, 10, 0.2);
@@ -328,9 +368,9 @@ test("a step's riser under the knees does not push the walker back", () => {
   walk.collision = true;
   walkOn(walk, mesh, {eye: 1.65, step: 0.25, reach: 1, radius: 0.4});
   mesh.position(4.7, 5, 1.65, viewer.camera.position);
-  const east = Matrix4.multiplyByPointAsVector(frame, Cartesian3.UNIT_X, new Cartesian3());
-  for (let tick = 0; tick < 30; tick++) {
-    walk.step_(east, 2.5 / 60, "forward");
+  walkingForward(walk, frame, Cartesian3.UNIT_X);
+  for (let i = 0; i < 30; i++) {
+    tick(1 / 60);
   }
   const {x} = mesh.local(viewer.camera.position);
   assert.ok(x > 5.5, `held back at x ${x.toFixed(3)}`);
