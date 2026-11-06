@@ -49,6 +49,29 @@ export function flightDuration(from, to) {
  * stops at a given distance from it.
  */
 export default class CesiumFlyTo {
+  #active = false;
+  /**
+   * @type {ReturnType<ScreenSpaceEventHandler['getInputAction']> | undefined}
+   */
+  #previousAction = undefined;
+  #onInputAction;
+  /** @type {MotionBlur | undefined} */
+  #motionBlur = undefined;
+  /** @type {PostProcessStageComposite | undefined} */
+  #depthOfField = undefined;
+  // the depth of field focuses on the target of the flight
+  #target = new Cartesian3();
+  // the effects fade in during a flight and out after it, then are removed
+  #fade = 0;
+  #fadeTarget = 0;
+  #fadeTime = 0;
+  // restored when the effects end
+  #msaaSamples = 1;
+  // increments with each flight, so only the latest flight ends the blur
+  #flight = 0;
+  #onPreRender;
+  #onPostRender;
+
   /**
    * @param {CesiumWidget} viewer
    * @param {ScreenSpaceEventType} [eventType=ScreenSpaceEventType.LEFT_DOUBLE_CLICK]
@@ -68,47 +91,28 @@ export default class CesiumFlyTo {
     this.range = range;
     this.duration = duration;
     this.easingFunction = easingFunction;
-    this.active_ = false;
 
-    /**
-     * @type {ReturnType<ScreenSpaceEventHandler['getInputAction']> | undefined}
-     */
-    this.previousAction_ = undefined;
-    this.onInputAction_ = this.onInputAction.bind(this);
+    this.#onInputAction = this.onInputAction.bind(this);
 
-    /** @type {MotionBlur | undefined} */
-    this.motionBlur_ = undefined;
-    /** @type {PostProcessStageComposite | undefined} */
-    this.depthOfField_ = undefined;
-    // the depth of field focuses on the target of the flight
-    this.target_ = new Cartesian3();
-    // the effects fade in during a flight and out after it, then are removed
-    this.fade_ = 0;
-    this.fadeTarget_ = 0;
-    this.fadeTime_ = 0;
-    // restored when the effects end
-    this.msaaSamples_ = 1;
-    // increments with each flight, so only the latest flight ends the blur
-    this.flight_ = 0;
-    this.onPreRender_ = this.onPreRender.bind(this);
-    this.onPostRender_ = this.onPostRender.bind(this);
+    this.#onPreRender = this.onPreRender.bind(this);
+    this.#onPostRender = this.onPostRender.bind(this);
   }
 
   get active() {
-    return this.active_;
+    return this.#active;
   }
 
   set active(active) {
-    if (active === this.active_) {
+    if (active === this.#active) {
       return;
     }
-    this.active_ = active;
+    this.#active = active;
     const handler = this.viewer.screenSpaceEventHandler;
     if (active) {
-      this.previousAction_ = handler.getInputAction(this.eventType);
-      handler.setInputAction(this.onInputAction_, this.eventType);
-    } else if (this.previousAction_) {
-      handler.setInputAction(this.previousAction_, this.eventType);
+      this.#previousAction = handler.getInputAction(this.eventType);
+      handler.setInputAction(this.#onInputAction, this.eventType);
+    } else if (this.#previousAction) {
+      handler.setInputAction(this.#previousAction, this.eventType);
     } else {
       handler.removeInputAction(this.eventType);
     }
@@ -139,12 +143,12 @@ export default class CesiumFlyTo {
     const heading = Math.atan2(local.x, local.y);
     const pitch = Math.asin(local.z);
 
-    Cartesian3.clone(target, this.target_);
-    this.startEffects_();
-    const flight = ++this.flight_;
+    Cartesian3.clone(target, this.#target);
+    this.#startEffects();
+    const flight = ++this.#flight;
     const end = () => {
-      if (flight === this.flight_) {
-        this.fadeTarget_ = 0;
+      if (flight === this.#flight) {
+        this.#fadeTarget = 0;
         // requestRenderMode: keep rendering while the effects fade out
         this.viewer.scene.requestRender();
       }
@@ -161,27 +165,27 @@ export default class CesiumFlyTo {
   }
 
   // motion blur and depth of field, during the flight
-  startEffects_() {
+  #startEffects() {
     const scene = this.viewer.scene;
-    this.fadeTarget_ = 1;
-    if (this.motionBlur_ || !PostProcessStageLibrary.isDepthOfFieldSupported(scene)) {
+    this.#fadeTarget = 1;
+    if (this.#motionBlur || !PostProcessStageLibrary.isDepthOfFieldSupported(scene)) {
       return;
     }
-    this.fade_ = 0;
-    this.fadeTime_ = performance.now();
+    this.#fade = 0;
+    this.#fadeTime = performance.now();
     // the post-process stages only get the depth of the terrain when it is depth tested: the
     // motion blur, which lives as long as the depth of field, turns it on for both, and shares
     // it with the other effects of cesium-post-process
     const blur = PostProcessStageLibrary.createBlurStage();
-    this.depthOfField_ = new PostProcessStageComposite({
+    this.#depthOfField = new PostProcessStageComposite({
       stages: [
         blur,
         new PostProcessStage({
           fragmentShader: EyeFromDepth + DepthOfField,
           uniforms: {
             blurTexture: blur.name,
-            focalDistance: () => Cartesian3.distance(scene.camera.positionWC, this.target_),
-            fade: () => this.fade_,
+            focalDistance: () => Cartesian3.distance(scene.camera.positionWC, this.#target),
+            fade: () => this.#fade,
           },
         }),
       ],
@@ -189,56 +193,56 @@ export default class CesiumFlyTo {
       inputPreviousStageTexture: false,
       uniforms: blur.uniforms,
     });
-    this.depthOfField_.uniforms.sigma = FOCUS_BLUR;
-    scene.postProcessStages.add(this.depthOfField_);
-    this.motionBlur_ = new MotionBlur(this.viewer, {exposure: EXPOSURE, strength: this.fade_});
-    this.motionBlur_.active = true;
+    this.#depthOfField.uniforms.sigma = FOCUS_BLUR;
+    scene.postProcessStages.add(this.#depthOfField);
+    this.#motionBlur = new MotionBlur(this.viewer, {exposure: EXPOSURE, strength: this.#fade});
+    this.#motionBlur.active = true;
     // multisampling costs a good share of the frame on integrated GPUs, and the blur hides
     // the aliasing anyway
-    this.msaaSamples_ = scene.msaaSamples;
+    this.#msaaSamples = scene.msaaSamples;
     scene.msaaSamples = 1;
-    scene.preRender.addEventListener(this.onPreRender_);
-    scene.postRender.addEventListener(this.onPostRender_);
+    scene.preRender.addEventListener(this.#onPreRender);
+    scene.postRender.addEventListener(this.#onPostRender);
   }
 
-  stopEffects_() {
+  #stopEffects() {
     const scene = this.viewer.scene;
-    if (!this.motionBlur_) {
+    if (!this.#motionBlur) {
       return;
     }
-    scene.preRender.removeEventListener(this.onPreRender_);
-    scene.postRender.removeEventListener(this.onPostRender_);
+    scene.preRender.removeEventListener(this.#onPreRender);
+    scene.postRender.removeEventListener(this.#onPostRender);
     // removing a stage also destroys it
-    this.motionBlur_.destroy();
-    scene.postProcessStages.remove(/** @type {PostProcessStageComposite} */ (this.depthOfField_));
-    this.motionBlur_ = undefined;
-    this.depthOfField_ = undefined;
-    scene.msaaSamples = this.msaaSamples_;
+    this.#motionBlur.destroy();
+    scene.postProcessStages.remove(/** @type {PostProcessStageComposite} */ (this.#depthOfField));
+    this.#motionBlur = undefined;
+    this.#depthOfField = undefined;
+    scene.msaaSamples = this.#msaaSamples;
     // requestRenderMode: render the last frame without the blur
     scene.requestRender();
   }
 
   onPreRender() {
     const now = performance.now();
-    const step = (now - this.fadeTime_) / 1000 / FADE_TIME;
-    this.fadeTime_ = now;
-    if (this.fadeTarget_ > this.fade_) {
-      this.fade_ = Math.min(this.fade_ + step, 1);
-    } else if (this.fadeTarget_ < this.fade_) {
-      this.fade_ = Math.max(this.fade_ - step, 0);
+    const step = (now - this.#fadeTime) / 1000 / FADE_TIME;
+    this.#fadeTime = now;
+    if (this.#fadeTarget > this.#fade) {
+      this.#fade = Math.min(this.#fade + step, 1);
+    } else if (this.#fadeTarget < this.#fade) {
+      this.#fade = Math.max(this.#fade - step, 0);
     }
-    if (this.motionBlur_ && this.motionBlur_.strength !== this.fade_) {
-      this.motionBlur_.strength = this.fade_;
+    if (this.#motionBlur && this.#motionBlur.strength !== this.#fade) {
+      this.#motionBlur.strength = this.#fade;
     }
-    if (this.fade_ !== this.fadeTarget_) {
+    if (this.#fade !== this.#fadeTarget) {
       this.viewer.scene.requestRender();
     }
   }
 
   onPostRender() {
     // faded out: remove the effects after the frame, not while it renders
-    if (this.motionBlur_ && this.fadeTarget_ === 0 && this.fade_ === 0) {
-      this.stopEffects_();
+    if (this.#motionBlur && this.#fadeTarget === 0 && this.#fade === 0) {
+      this.#stopEffects();
     }
   }
 }
