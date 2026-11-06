@@ -21,6 +21,14 @@ const FRAME_RATE = 18;
  * active the scene renders at its 18 frames per second, also in requestRenderMode.
  */
 export default class Super8 extends Effect {
+  #fade;
+  #halation;
+  #grain;
+  #weave;
+  #flicker;
+  #lightLeaks;
+  #aspectRatio;
+
   /**
    * @param {CesiumWidget} viewer
    * @param {{fade?: number, halation?: number, grain?: number, weave?: number, flicker?: number, lightLeaks?: number, aspectRatio?: number}} [options]
@@ -29,13 +37,13 @@ export default class Super8 extends Effect {
     super(viewer);
     // a new picture only with each film frame, not with each frame of the display
     this.frameRate_ = FRAME_RATE;
-    this.fade_ = options.fade ?? 0.5;
-    this.halation_ = options.halation ?? 0.5;
-    this.grain_ = options.grain ?? 0.15;
-    this.weave_ = options.weave ?? 1.5;
-    this.flicker_ = options.flicker ?? 0.08;
-    this.lightLeaks_ = options.lightLeaks ?? 0.5;
-    this.aspectRatio_ = options.aspectRatio ?? 4 / 3;
+    this.#fade = options.fade ?? 0.5;
+    this.#halation = options.halation ?? 0.5;
+    this.#grain = options.grain ?? 0.15;
+    this.#weave = options.weave ?? 1.5;
+    this.#flicker = options.flicker ?? 0.08;
+    this.#lightLeaks = options.lightLeaks ?? 0.5;
+    this.#aspectRatio = options.aspectRatio ?? 4 / 3;
   }
 
   /**
@@ -54,13 +62,13 @@ export default class Super8 extends Effect {
           uniforms: {
             blurTexture: blur.name,
             time: () => performance.now() / 1000,
-            fade: () => this.fade_,
-            halation: () => this.halation_,
-            grain: () => this.grain_,
-            weave: () => this.weave_,
-            flicker: () => this.flicker_,
-            lightLeaks: () => this.lightLeaks_,
-            aspectRatio: () => this.aspectRatio_,
+            fade: () => this.#fade,
+            halation: () => this.#halation,
+            grain: () => this.#grain,
+            weave: () => this.#weave,
+            flicker: () => this.#flicker,
+            lightLeaks: () => this.#lightLeaks,
+            aspectRatio: () => this.#aspectRatio,
           },
         }),
       ],
@@ -77,66 +85,66 @@ export default class Super8 extends Effect {
    * Faded colors: less saturation, lifted blacks, a warm cast; 0 to 1.
    */
   get fade() {
-    return this.fade_;
+    return this.#fade;
   }
 
   set fade(value) {
-    this.fade_ = value;
+    this.#fade = value;
   }
 
   /**
    * Warm glow bleeding around the highlights, 0 to 1.
    */
   get halation() {
-    return this.halation_;
+    return this.#halation;
   }
 
   set halation(value) {
-    this.halation_ = value;
+    this.#halation = value;
   }
 
   /**
    * Film grain, 0 to 1.
    */
   get grain() {
-    return this.grain_;
+    return this.#grain;
   }
 
   set grain(value) {
-    this.grain_ = value;
+    this.#grain = value;
   }
 
   /**
    * Drift of the picture in the gate, in CSS pixels.
    */
   get weave() {
-    return this.weave_;
+    return this.#weave;
   }
 
   set weave(value) {
-    this.weave_ = value;
+    this.#weave = value;
   }
 
   /**
    * Change of brightness from frame to frame, 0 to 1.
    */
   get flicker() {
-    return this.flicker_;
+    return this.#flicker;
   }
 
   set flicker(value) {
-    this.flicker_ = value;
+    this.#flicker = value;
   }
 
   /**
    * Warm light leaks along the edge, 0 to 1.
    */
   get lightLeaks() {
-    return this.lightLeaks_;
+    return this.#lightLeaks;
   }
 
   set lightLeaks(value) {
-    this.lightLeaks_ = value;
+    this.#lightLeaks = value;
   }
 
   /**
@@ -144,10 +152,10 @@ export default class Super8 extends Effect {
    * whole canvas.
    */
   get aspectRatio() {
-    return this.aspectRatio_;
+    return this.#aspectRatio;
   }
 
   set aspectRatio(value) {
-    this.aspectRatio_ = value;
+    this.#aspectRatio = value;
   }
 }

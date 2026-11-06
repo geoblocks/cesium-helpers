@@ -23,6 +23,15 @@ const skyBottomScratch = new Cartesian4();
  * the sky gradient is painted over it; keep the logarithmic depth, or a near plane that keeps the scene in one frustum.
  */
 export default class Toy extends Effect {
+  #light;
+  #shade;
+  #bevel;
+  #outline;
+  #jump;
+  #saturation;
+  #warm;
+  #sky;
+
   /**
    * @param {CesiumWidget} viewer
    * @param {{light?: number, shade?: number, bevel?: number, outline?: number, jump?: number, saturation?: number, warm?: [number, number, number], sky?: [Color, Color]}} [options]
@@ -30,14 +39,14 @@ export default class Toy extends Effect {
   constructor(viewer, options = {}) {
     super(viewer);
     this.terrainDepth_ = true;
-    this.light_ = options.light ?? 0.22;
-    this.shade_ = options.shade ?? 0.18;
-    this.bevel_ = options.bevel ?? 0;
-    this.outline_ = options.outline ?? 0.4;
-    this.jump_ = options.jump ?? 20;
-    this.saturation_ = options.saturation ?? 1.04;
-    this.warm_ = options.warm ?? [1.03, 1, 0.95];
-    this.sky_ = options.sky;
+    this.#light = options.light ?? 0.22;
+    this.#shade = options.shade ?? 0.18;
+    this.#bevel = options.bevel ?? 0;
+    this.#outline = options.outline ?? 0.4;
+    this.#jump = options.jump ?? 20;
+    this.#saturation = options.saturation ?? 1.04;
+    this.#warm = options.warm ?? [1.03, 1, 0.95];
+    this.#sky = options.sky;
   }
 
   /**
@@ -66,15 +75,15 @@ export default class Toy extends Effect {
   uniforms_() {
     const color = (/** @type {Color} */ c, /** @type {Cartesian4} */ result) => Cartesian4.fromElements(c.red, c.green, c.blue, 1, result);
     return {
-      light: () => this.light_,
-      shade: () => this.shade_,
-      bevel: () => this.bevel_,
-      outline: () => this.outline_,
-      jump: () => this.jump_,
-      saturation: () => this.saturation_,
-      warm: () => Cartesian3.fromArray(this.warm_, 0, warmScratch),
-      skyTop: () => this.sky_ ? color(this.sky_[0], skyTopScratch) : NO_SKY,
-      skyBottom: () => this.sky_ ? color(this.sky_[1], skyBottomScratch) : NO_SKY,
+      light: () => this.#light,
+      shade: () => this.#shade,
+      bevel: () => this.#bevel,
+      outline: () => this.#outline,
+      jump: () => this.#jump,
+      saturation: () => this.#saturation,
+      warm: () => Cartesian3.fromArray(this.#warm, 0, warmScratch),
+      skyTop: () => this.#sky ? color(this.#sky[0], skyTopScratch) : NO_SKY,
+      skyBottom: () => this.#sky ? color(this.#sky[1], skyBottomScratch) : NO_SKY,
     };
   }
 
@@ -82,11 +91,11 @@ export default class Toy extends Effect {
    * How much brighter a convex edge gets, 0 for none.
    */
   get light() {
-    return this.light_;
+    return this.#light;
   }
 
   set light(value) {
-    this.light_ = value;
+    this.#light = value;
     this.viewer.scene.requestRender();
   }
 
@@ -94,11 +103,11 @@ export default class Toy extends Effect {
    * How much darker a concave edge gets, 0 for none.
    */
   get shade() {
-    return this.shade_;
+    return this.#shade;
   }
 
   set shade(value) {
-    this.shade_ = value;
+    this.#shade = value;
     this.viewer.scene.requestRender();
   }
 
@@ -109,11 +118,11 @@ export default class Toy extends Effect {
    * behind.
    */
   get bevel() {
-    return this.bevel_;
+    return this.#bevel;
   }
 
   set bevel(value) {
-    this.bevel_ = value;
+    this.#bevel = value;
     this.viewer.scene.requestRender();
   }
 
@@ -122,11 +131,11 @@ export default class Toy extends Effect {
    * color; 0 for none.
    */
   get outline() {
-    return this.outline_;
+    return this.#outline;
   }
 
   set outline(value) {
-    this.outline_ = value;
+    this.#outline = value;
     this.viewer.scene.requestRender();
   }
 
@@ -136,11 +145,11 @@ export default class Toy extends Effect {
    * thin thing standing on the ground (a chair's leg) would light its foot.
    */
   get jump() {
-    return this.jump_;
+    return this.#jump;
   }
 
   set jump(value) {
-    this.jump_ = value;
+    this.#jump = value;
     this.viewer.scene.requestRender();
   }
 
@@ -148,11 +157,11 @@ export default class Toy extends Effect {
    * The colors' saturation, 1 to keep it.
    */
   get saturation() {
-    return this.saturation_;
+    return this.#saturation;
   }
 
   set saturation(value) {
-    this.saturation_ = value;
+    this.#saturation = value;
     this.viewer.scene.requestRender();
   }
 
@@ -160,11 +169,11 @@ export default class Toy extends Effect {
    * A factor each of red, green and blue; [1, 1, 1] to keep the colors.
    */
   get warm() {
-    return this.warm_;
+    return this.#warm;
   }
 
   set warm(value) {
-    this.warm_ = value;
+    this.#warm = value;
     this.viewer.scene.requestRender();
   }
 
@@ -173,11 +182,11 @@ export default class Toy extends Effect {
    * undefined to keep the sky.
    */
   get sky() {
-    return this.sky_;
+    return this.#sky;
   }
 
   set sky(value) {
-    this.sky_ = value;
+    this.#sky = value;
     this.viewer.scene.requestRender();
   }
 }

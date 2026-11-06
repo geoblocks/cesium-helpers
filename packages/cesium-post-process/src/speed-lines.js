@@ -16,14 +16,17 @@ const focusScratch = new Cartesian4();
  * by themselves.
  */
 export default class SpeedLines extends Effect {
+  #focus;
+  #strength;
+
   /**
    * @param {CesiumWidget} viewer
    * @param {{focus?: Focus, strength?: number}} [options]
    */
   constructor(viewer, options = {}) {
     super(viewer);
-    this.focus_ = options.focus;
-    this.strength_ = options.strength ?? 1;
+    this.#focus = options.focus;
+    this.#strength = options.strength ?? 1;
   }
 
   /**
@@ -35,13 +38,13 @@ export default class SpeedLines extends Effect {
     const stage = new PostProcessStage({
       fragmentShader: Hash + SpeedLinesShader,
       uniforms: {
-        focus: () => eyeFocus(scene, this.focus_, focusScratch),
-        strength: () => this.strength_,
+        focus: () => eyeFocus(scene, this.#focus, focusScratch),
+        strength: () => this.#strength,
         time: () => performance.now() / 1000,
       },
     });
     // no pass at all without strength
-    stage.enabled = this.strength_ > 0;
+    stage.enabled = this.#strength > 0;
     return stage;
   }
 
@@ -50,11 +53,11 @@ export default class SpeedLines extends Effect {
    * undefined for the middle of the screen.
    */
   get focus() {
-    return this.focus_;
+    return this.#focus;
   }
 
   set focus(value) {
-    this.focus_ = value;
+    this.#focus = value;
     this.viewer.scene.requestRender();
   }
 
@@ -62,11 +65,11 @@ export default class SpeedLines extends Effect {
    * Strength of the blur and the streaks, 0 to 1.
    */
   get strength() {
-    return this.strength_;
+    return this.#strength;
   }
 
   set strength(value) {
-    this.strength_ = value;
+    this.#strength = value;
     if (this.stage_) {
       this.stage_.enabled = value > 0;
     }

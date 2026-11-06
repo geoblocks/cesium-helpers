@@ -31,31 +31,38 @@ const COMPONENTS = ['x', 'y', 'z', 'w'];
  * at 30 frames per second, also in requestRenderMode.
  */
 export default class Jello extends Effect {
+  #amount;
+  #frequency;
+  #offsets;
+  // the uniforms, updated when the amount or the frequency change (the shape) and
+  // once per frame (the phases)
+  #shakeHz = new Cartesian4();
+  #amplitudes;
+  #zoom = 1;
+  #phases;
+  #onPreRender;
+
   /**
    * @param {CesiumWidget} viewer
    * @param {{amount?: number, frequency?: number}} [options]
    */
   constructor(viewer, options = {}) {
     super(viewer);
-    this.amount_ = options.amount ?? 0.1;
-    this.frequency_ = options.frequency ?? 30;
+    this.#amount = options.amount ?? 0.1;
+    this.#frequency = options.frequency ?? 30;
     // a random starting phase for each sinusoid and axis
-    this.offsets_ = HARMONICS.map(() => [Math.random(), Math.random(), Math.random()].map((r) => r * TAU));
-    // the uniforms, updated when the amount or the frequency change (the shape) and
-    // once per frame (the phases)
-    this.shakeHz_ = new Cartesian4();
-    this.amplitudes_ = [new Cartesian4(), new Cartesian4(), new Cartesian4()];
-    this.zoom_ = 1;
-    this.phases_ = [new Cartesian4(), new Cartesian4(), new Cartesian4()];
-    this.updateShape_();
+    this.#offsets = HARMONICS.map(() => [Math.random(), Math.random(), Math.random()].map((r) => r * TAU));
+    this.#amplitudes = [new Cartesian4(), new Cartesian4(), new Cartesian4()];
+    this.#phases = [new Cartesian4(), new Cartesian4(), new Cartesian4()];
+    this.#updateShape();
     // the phases of the sinusoids at the frame's time, reduced in double precision:
     // a float would lose the time's fraction of a second
-    this.onPreRender_ = () => {
+    this.#onPreRender = () => {
       const seconds = performance.now() / 1000;
       HARMONICS.forEach((h, i) => {
-        const phase = TAU * ((h * this.frequency_ * seconds) % 1);
-        this.phases_.forEach((phases, axis) => {
-          phases[COMPONENTS[i]] = (phase + this.offsets_[i][axis]) % TAU;
+        const phase = TAU * ((h * this.#frequency * seconds) % 1);
+        this.#phases.forEach((phases, axis) => {
+          phases[COMPONENTS[i]] = (phase + this.#offsets[i][axis]) % TAU;
         });
       });
     };
@@ -69,18 +76,18 @@ export default class Jello extends Effect {
     const stage = new PostProcessStage({
       fragmentShader: JelloShader,
       uniforms: {
-        shakeHz: () => this.shakeHz_,
-        phaseX: () => this.phases_[0],
-        phaseY: () => this.phases_[1],
-        phaseRotation: () => this.phases_[2],
-        amplitudeX: () => this.amplitudes_[0],
-        amplitudeY: () => this.amplitudes_[1],
-        amplitudeRotation: () => this.amplitudes_[2],
-        zoom: () => this.zoom_,
+        shakeHz: () => this.#shakeHz,
+        phaseX: () => this.#phases[0],
+        phaseY: () => this.#phases[1],
+        phaseRotation: () => this.#phases[2],
+        amplitudeX: () => this.#amplitudes[0],
+        amplitudeY: () => this.#amplitudes[1],
+        amplitudeRotation: () => this.#amplitudes[2],
+        zoom: () => this.#zoom,
       },
     });
     // no pass, and no frames, without an amount
-    stage.enabled = this.amount_ > 0;
+    stage.enabled = this.#amount > 0;
     return stage;
   }
 
@@ -90,8 +97,8 @@ export default class Jello extends Effect {
    * @param {Scene} scene
    */
   activated_(scene) {
-    scene.preRender.addEventListener(this.onPreRender_);
-    if (this.amount_ > 0) {
+    scene.preRender.addEventListener(this.#onPreRender);
+    if (this.#amount > 0) {
       acquireFrames(scene, FRAME_RATE);
     }
   }
@@ -102,35 +109,35 @@ export default class Jello extends Effect {
    * @param {Scene} scene
    */
   deactivating_(scene) {
-    if (this.amount_ > 0) {
+    if (this.#amount > 0) {
       releaseFrames(scene, FRAME_RATE);
     }
-    scene.preRender.removeEventListener(this.onPreRender_);
+    scene.preRender.removeEventListener(this.#onPreRender);
   }
 
-  updateShape_() {
+  #updateShape() {
     HARMONICS.forEach((h, i) => {
-      this.shakeHz_[COMPONENTS[i]] = h * this.frequency_;
-      this.amplitudes_.forEach((amplitudes, axis) => {
-        amplitudes[COMPONENTS[i]] = WEIGHTS[i] * MAX_AMPLITUDES[axis] * this.amount_;
+      this.#shakeHz[COMPONENTS[i]] = h * this.#frequency;
+      this.#amplitudes.forEach((amplitudes, axis) => {
+        amplitudes[COMPONENTS[i]] = WEIGHTS[i] * MAX_AMPLITUDES[axis] * this.#amount;
       });
     });
     // enough to hide the edges when all the sinusoids peak together: the shift, and the
     // rotation of the corners, about a picture height from the middle
-    this.zoom_ = 1 + 2 * PEAK * this.amount_ * (MAX_SHIFT + MAX_ROTATION);
+    this.#zoom = 1 + 2 * PEAK * this.#amount * (MAX_SHIFT + MAX_ROTATION);
   }
 
   /**
    * Strength of the shake, 0 to 1.
    */
   get amount() {
-    return this.amount_;
+    return this.#amount;
   }
 
   set amount(value) {
-    const shaking = this.amount_ > 0;
-    this.amount_ = value;
-    this.updateShape_();
+    const shaking = this.#amount > 0;
+    this.#amount = value;
+    this.#updateShape();
     if (this.stage_ && shaking !== value > 0) {
       this.stage_.enabled = value > 0;
       (value > 0 ? acquireFrames : releaseFrames)(this.viewer.scene, FRAME_RATE);
@@ -143,11 +150,11 @@ export default class Jello extends Effect {
    * see a fifth of a wave at 10 Hz, more than a whole one at 60 Hz.
    */
   get frequency() {
-    return this.frequency_;
+    return this.#frequency;
   }
 
   set frequency(value) {
-    this.frequency_ = value;
-    this.updateShape_();
+    this.#frequency = value;
+    this.#updateShape();
   }
 }

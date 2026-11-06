@@ -8,15 +8,19 @@ import ColorIsolationShader from './shaders/ColorIsolation.js';
  * Color isolation: one hue keeps its color, the rest of the scene turns gray.
  */
 export default class ColorIsolation extends Effect {
+  #hue;
+  #range;
+  #strength;
+
   /**
    * @param {CesiumWidget} viewer
    * @param {{hue?: number, range?: number, strength?: number}} [options]
    */
   constructor(viewer, options = {}) {
     super(viewer);
-    this.hue_ = options.hue ?? 0;
-    this.range_ = options.range ?? 60;
-    this.strength_ = options.strength ?? 1;
+    this.#hue = options.hue ?? 0;
+    this.#range = options.range ?? 60;
+    this.#strength = options.strength ?? 1;
   }
 
   /**
@@ -27,9 +31,9 @@ export default class ColorIsolation extends Effect {
     return new PostProcessStage({
       fragmentShader: ColorIsolationShader,
       uniforms: {
-        hue: () => this.hue_ / 360,
-        range: () => this.range_ / 360,
-        strength: () => this.strength_,
+        hue: () => this.#hue / 360,
+        range: () => this.#range / 360,
+        strength: () => this.#strength,
       },
     });
   }
@@ -39,11 +43,11 @@ export default class ColorIsolation extends Effect {
    * 240 blue, 300 magenta.
    */
   get hue() {
-    return this.hue_;
+    return this.#hue;
   }
 
   set hue(value) {
-    this.hue_ = value;
+    this.#hue = value;
     this.viewer.scene.requestRender();
   }
 
@@ -51,11 +55,11 @@ export default class ColorIsolation extends Effect {
    * Half width of the hues kept, in degrees.
    */
   get range() {
-    return this.range_;
+    return this.#range;
   }
 
   set range(value) {
-    this.range_ = value;
+    this.#range = value;
     this.viewer.scene.requestRender();
   }
 
@@ -63,11 +67,11 @@ export default class ColorIsolation extends Effect {
    * How gray the rest turns, 0 to 1.
    */
   get strength() {
-    return this.strength_;
+    return this.#strength;
   }
 
   set strength(value) {
-    this.strength_ = value;
+    this.#strength = value;
     this.viewer.scene.requestRender();
   }
 }

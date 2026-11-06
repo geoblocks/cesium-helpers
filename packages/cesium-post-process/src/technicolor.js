@@ -10,14 +10,17 @@ import TechnicolorShader from './shaders/Technicolor.js';
  * 1930s to 1950s.
  */
 export default class Technicolor extends Effect {
+  #strength;
+  #aspectRatio;
+
   /**
    * @param {CesiumWidget} viewer
    * @param {{strength?: number, aspectRatio?: number}} [options]
    */
   constructor(viewer, options = {}) {
     super(viewer);
-    this.strength_ = options.strength ?? 1;
-    this.aspectRatio_ = options.aspectRatio ?? 0;
+    this.#strength = options.strength ?? 1;
+    this.#aspectRatio = options.aspectRatio ?? 0;
   }
 
   /**
@@ -28,8 +31,8 @@ export default class Technicolor extends Effect {
     return new PostProcessStage({
       fragmentShader: Frame + TechnicolorShader,
       uniforms: {
-        strength: () => this.strength_,
-        aspectRatio: () => this.aspectRatio_,
+        strength: () => this.#strength,
+        aspectRatio: () => this.#aspectRatio,
       },
     });
   }
@@ -38,11 +41,11 @@ export default class Technicolor extends Effect {
    * How far from the original colors, 0 to 1.
    */
   get strength() {
-    return this.strength_;
+    return this.#strength;
   }
 
   set strength(value) {
-    this.strength_ = value;
+    this.#strength = value;
     this.viewer.scene.requestRender();
   }
 
@@ -51,11 +54,11 @@ export default class Technicolor extends Effect {
    * whole canvas. 1.37 is the Academy ratio of the era.
    */
   get aspectRatio() {
-    return this.aspectRatio_;
+    return this.#aspectRatio;
   }
 
   set aspectRatio(value) {
-    this.aspectRatio_ = value;
+    this.#aspectRatio = value;
     this.viewer.scene.requestRender();
   }
 }

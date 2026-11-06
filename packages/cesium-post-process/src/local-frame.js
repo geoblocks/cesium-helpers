@@ -21,22 +21,24 @@ export function localFromEye(frame, viewMatrix, result = new Matrix4()) {
  * position when the frame is first anchored.
  */
 export class LocalFrame {
+  #origin;
+  /** @type {Matrix4 | undefined} */
+  #frame = undefined;
+  #scratch = new Matrix4();
+
   /** @param {Cartesian3} [origin] */
   constructor(origin) {
-    this.origin_ = origin && Cartesian3.clone(origin);
-    /** @type {Matrix4 | undefined} */
-    this.frame_ = undefined;
-    this.scratch_ = new Matrix4();
+    this.#origin = origin && Cartesian3.clone(origin);
   }
 
   /** The point of the world the frame is laid about; undefined until anchored if none was given. */
   get origin() {
-    return this.origin_;
+    return this.#origin;
   }
 
   set origin(value) {
-    this.origin_ = value && Cartesian3.clone(value);
-    this.frame_ = undefined;
+    this.#origin = value && Cartesian3.clone(value);
+    this.#frame = undefined;
   }
 
   /**
@@ -44,8 +46,8 @@ export class LocalFrame {
    * @param {Scene} scene
    */
   anchor(scene) {
-    this.origin_ ??= Cartesian3.clone(scene.camera.positionWC);
-    return this.origin_;
+    this.#origin ??= Cartesian3.clone(scene.camera.positionWC);
+    return this.#origin;
   }
 
   /**
@@ -53,7 +55,7 @@ export class LocalFrame {
    * @param {Scene} scene
    */
   fromEye(scene) {
-    this.frame_ ??= FixedFrameTransforms.eastNorthUpToFixedFrame(this.anchor(scene), scene.ellipsoid, new Matrix4());
-    return localFromEye(this.frame_, scene.camera.viewMatrix, this.scratch_);
+    this.#frame ??= FixedFrameTransforms.eastNorthUpToFixedFrame(this.anchor(scene), scene.ellipsoid, new Matrix4());
+    return localFromEye(this.#frame, scene.camera.viewMatrix, this.#scratch);
   }
 }

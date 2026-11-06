@@ -101,19 +101,31 @@ function maxPool(images) {
  * it by the blend, as the radar from one hour to the next.
  */
 export default class WeatherMap {
+  #empty;
+  /** @type {WeatherMapOptions | undefined} */
+  #map = undefined;
+  /** @type {{width: number, height: number, data: Uint8ClampedArray} | undefined} */
+  #data = undefined;
+  /** @type {WeatherMapOptions | undefined} */
+  #nextMap = undefined;
+  /** @type {{width: number, height: number, data: Uint8ClampedArray} | undefined} */
+  #nextData = undefined;
+  // made when the shaders first need it: a stage given an image makes its texture a frame after
+  // it is set, and draws without one in between
+  /** @type {any} */
+  #texture = undefined;
+  /** @type {any} */
+  #nextTexture = undefined;
+  /** @type {{width: number, height: number, data: Uint8Array} | undefined} */
+  #maxImage = undefined;
+  /** @type {any} */
+  #maxTexture = undefined;
+
   /**
    * @param {number} empty the intensity everywhere without a map
    */
   constructor(empty) {
-    this.empty_ = empty;
-    /** @type {WeatherMapOptions | undefined} */
-    this.map_ = undefined;
-    /** @type {{width: number, height: number, data: Uint8ClampedArray} | undefined} */
-    this.data_ = undefined;
-    /** @type {WeatherMapOptions | undefined} */
-    this.nextMap_ = undefined;
-    /** @type {{width: number, height: number, data: Uint8ClampedArray} | undefined} */
-    this.nextData_ = undefined;
+    this.#empty = empty;
     /**
      * From the map, 0, to the next one, 1.
      */
@@ -129,31 +141,21 @@ export default class WeatherMap {
      */
     this.maxIntensity = empty;
     this.maxValues = [empty, empty, empty, empty];
-    // made when the shaders first need it: a stage given an image makes its texture a frame after
-    // it is set, and draws without one in between
-    /** @type {any} */
-    this.texture_ = undefined;
-    /** @type {any} */
-    this.nextTexture_ = undefined;
-    /** @type {{width: number, height: number, data: Uint8Array} | undefined} */
-    this.maxImage_ = undefined;
-    /** @type {any} */
-    this.maxTexture_ = undefined;
   }
 
   get map() {
-    return this.map_;
+    return this.#map;
   }
 
   set map(value) {
-    this.map_ = value;
+    this.#map = value;
     if (!value) {
-      this.data_ = undefined;
+      this.#data = undefined;
       Cartesian4.fromElements(0, 0, 1, 1, this.bounds);
-      this.maxIntensity = this.empty_;
+      this.maxIntensity = this.#empty;
     } else {
       const {image, rectangle} = value;
-      this.data_ = imageData(image);
+      this.#data = imageData(image);
       Cartesian4.fromElements(
         rectangle.west / TWO_PI + 0.5,
         rectangle.south / CesiumMath.PI + 0.5,
@@ -162,27 +164,27 @@ export default class WeatherMap {
         this.bounds,
       );
     }
-    this.updateMaxIntensity_();
+    this.#updateMaxIntensity();
     // made again from the new image when the shaders next need it
-    this.texture_ = this.texture_?.destroy();
-    this.clearMaxImage_();
+    this.#texture = this.#texture?.destroy();
+    this.#clearMaxImage();
   }
 
   get nextMap() {
-    return this.nextMap_;
+    return this.#nextMap;
   }
 
   set nextMap(value) {
-    this.nextMap_ = value;
-    this.nextData_ = value && imageData(value.image);
-    this.updateMaxIntensity_();
-    this.nextTexture_ = this.nextTexture_?.destroy();
-    this.clearMaxImage_();
+    this.#nextMap = value;
+    this.#nextData = value && imageData(value.image);
+    this.#updateMaxIntensity();
+    this.#nextTexture = this.#nextTexture?.destroy();
+    this.#clearMaxImage();
   }
 
-  clearMaxImage_() {
-    this.maxImage_ = undefined;
-    this.maxTexture_ = this.maxTexture_?.destroy();
+  #clearMaxImage() {
+    this.#maxImage = undefined;
+    this.#maxTexture = this.#maxTexture?.destroy();
   }
 
   /**
@@ -190,16 +192,16 @@ export default class WeatherMap {
    * made when first needed: undefined without a map.
    */
   maxImage() {
-    if (this.map_ && !this.maxImage_) {
-      this.maxImage_ = maxPool([this.data_, this.nextData_]);
+    if (this.#map && !this.#maxImage) {
+      this.#maxImage = maxPool([this.#data, this.#nextData]);
     }
-    return this.maxImage_;
+    return this.#maxImage;
   }
 
-  updateMaxIntensity_() {
-    const map = highest(this.data_);
-    const next = highest(this.nextMap_ ? this.nextData_ : undefined);
-    this.maxValues = this.map_ ? map.map((value, channel) => Math.max(value, next[channel])) : [this.empty_, this.empty_, this.empty_, this.empty_];
+  #updateMaxIntensity() {
+    const map = highest(this.#data);
+    const next = highest(this.#nextMap ? this.#nextData : undefined);
+    this.maxValues = this.#map ? map.map((value, channel) => Math.max(value, next[channel])) : [this.#empty, this.#empty, this.#empty, this.#empty];
     this.maxIntensity = this.maxValues[0];
   }
 
@@ -210,20 +212,20 @@ export default class WeatherMap {
    * @param {number} latitude radians
    */
   intensityAt(longitude, latitude) {
-    if (!this.map_ || !this.data_) {
-      return this.empty_;
+    if (!this.#map || !this.#data) {
+      return this.#empty;
     }
-    const {west, south, east, north} = this.map_.rectangle;
+    const {west, south, east, north} = this.#map.rectangle;
     const u = (longitude - west) / (east - west);
     const v = (latitude - south) / (north - south);
     if (u < 0 || u > 1 || v < 0 || v > 1) {
       return 0;
     }
-    const intensity = this.sample_(this.data_, u, v);
-    if (!this.nextData_) {
+    const intensity = this.#sample(this.#data, u, v);
+    if (!this.#nextData) {
       return intensity;
     }
-    return intensity + (this.sample_(this.nextData_, u, v) - intensity) * this.blend;
+    return intensity + (this.#sample(this.#nextData, u, v) - intensity) * this.blend;
   }
 
   /**
@@ -232,7 +234,7 @@ export default class WeatherMap {
    * @param {number} u
    * @param {number} v
    */
-  sample_(image, u, v) {
+  #sample(image, u, v) {
     const {width, height, data} = image;
     // the image's rows go down from the north
     const x = CesiumMath.clamp(u * width - 0.5, 0, width - 1);
@@ -252,11 +254,11 @@ export default class WeatherMap {
    * @param {any} context the scene's context
    */
   texture(context) {
-    if (!this.texture_) {
-      const value = 255 * this.empty_;
-      this.texture_ = new Texture({context, source: textureSource(this.map_?.image ?? new ImageData(new Uint8ClampedArray([value, value, value, 255]), 1, 1))});
+    if (!this.#texture) {
+      const value = 255 * this.#empty;
+      this.#texture = this.createTexture_({context, source: textureSource(this.#map?.image ?? new ImageData(new Uint8ClampedArray([value, value, value, 255]), 1, 1))});
     }
-    return this.texture_;
+    return this.#texture;
   }
 
   /**
@@ -264,11 +266,11 @@ export default class WeatherMap {
    * @param {any} context the scene's context
    */
   nextTexture(context) {
-    if (!this.nextMap_) {
+    if (!this.#nextMap) {
       return this.texture(context);
     }
-    this.nextTexture_ ??= new Texture({context, source: textureSource(this.nextMap_.image)});
-    return this.nextTexture_;
+    this.#nextTexture ??= this.createTexture_({context, source: textureSource(this.#nextMap.image)});
+    return this.#nextTexture;
   }
 
   /**
@@ -276,17 +278,27 @@ export default class WeatherMap {
    * @param {any} context the scene's context
    */
   maxTexture(context) {
-    if (!this.maxTexture_) {
-      const value = 255 * this.empty_;
+    if (!this.#maxTexture) {
+      const value = 255 * this.#empty;
       const {width, height, data} = this.maxImage() ?? {width: 1, height: 1, data: new Uint8Array([value, value, value, 255])};
-      this.maxTexture_ = new Texture({context, source: {width, height, arrayBufferView: data}});
+      this.#maxTexture = this.createTexture_({context, source: {width, height, arrayBufferView: data}});
     }
-    return this.maxTexture_;
+    return this.#maxTexture;
   }
 
   destroy() {
-    this.texture_ = this.texture_?.destroy();
-    this.nextTexture_ = this.nextTexture_?.destroy();
-    this.maxTexture_ = this.maxTexture_?.destroy();
+    this.#texture = this.#texture?.destroy();
+    this.#nextTexture = this.#nextTexture?.destroy();
+    this.#maxTexture = this.#maxTexture?.destroy();
+  }
+
+  /**
+   * A texture of the maps: a test without WebGL makes its own.
+   * @protected
+   * @param {any} options the Texture's options
+   * @return {Texture}
+   */
+  createTexture_(options) {
+    return new Texture(options);
   }
 }

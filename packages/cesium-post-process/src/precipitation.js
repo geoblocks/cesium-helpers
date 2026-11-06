@@ -134,6 +134,30 @@ function releaseOvercast(scene) {
  * above the cloud base.
  */
 export default class Precipitation extends Effect {
+  #intensity;
+  #wind;
+  #speed;
+  #cloudBase;
+  #snow;
+  // without a map, it rains everywhere
+  #weatherMap = new WeatherMap(1);
+  // the map's intensity at the camera, read each frame
+  #localIntensity = 1;
+  // the scroll of the grid, added up from frame to frame: the speed changes with the snow, and
+  // time times the speed would move all the drops when it does
+  #offset = 0;
+  #lastTime = 0;
+  #layerShape;
+  #layerLook;
+  #onPreRender;
+  // the clear sky the haze scatters, drawn at each frame (SkyTable.glsl)
+  /** @type {any} */
+  #skyTable = undefined;
+  /** @type {any} */
+  #skyTableFramebuffer = undefined;
+  /** @type {any} */
+  #skyTableCommand = undefined;
+
   /**
    * @param {CesiumWidget} viewer
    * @param {{intensity?: number, wind?: number, speed?: number, cloudBase?: number, snow?: number, map?: PrecipitationMapOptions}} [options]
@@ -141,94 +165,79 @@ export default class Precipitation extends Effect {
   constructor(viewer, options = {}) {
     super(viewer);
     this.terrainDepth_ = true;
-    this.intensity_ = options.intensity ?? 0.5;
-    this.wind_ = options.wind ?? 10;
-    this.speed_ = options.speed ?? 1;
-    this.cloudBase_ = options.cloudBase ?? 2500;
-    this.snow_ = options.snow ?? 0;
-    // without a map, it rains everywhere
-    this.weatherMap_ = new WeatherMap(1);
-    this.weatherMap_.map = options.map;
-    // the map's intensity at the camera, read each frame
-    this.localIntensity_ = 1;
-    // the scroll of the grid, added up from frame to frame: the speed changes with the snow, and
-    // time times the speed would move all the drops when it does
-    this.offset_ = 0;
-    this.lastTime_ = 0;
+    this.#intensity = options.intensity ?? 0.5;
+    this.#wind = options.wind ?? 10;
+    this.#speed = options.speed ?? 1;
+    this.#cloudBase = options.cloudBase ?? 2500;
+    this.#snow = options.snow ?? 0;
+    this.#weatherMap.map = options.map;
     // what the layers share in the shader, computed here once rather than for each pixel
-    this.layerShape_ = Array.from({length: LAYERS}, () => new Cartesian4());
-    this.layerLook_ = Array.from({length: LAYERS}, () => new Cartesian4());
-    this.onPreRender_ = () => {
+    this.#layerShape = Array.from({length: LAYERS}, () => new Cartesian4());
+    this.#layerLook = Array.from({length: LAYERS}, () => new Cartesian4());
+    this.#onPreRender = () => {
       const now = performance.now() / 1000;
-      const dt = Math.min(now - this.lastTime_, MAX_STEP);
-      this.lastTime_ = now;
-      this.offset_ = (this.offset_ + (dt * this.fallSpeed_() * this.cellsAlong_()) / NEAREST) % PERIOD;
-      this.updateLayers_();
+      const dt = Math.min(now - this.#lastTime, MAX_STEP);
+      this.#lastTime = now;
+      this.#offset = (this.#offset + (dt * this.#fallSpeed() * this.#cellsAlong()) / NEAREST) % PERIOD;
+      this.#updateLayers();
       const {longitude, latitude, height} = this.viewer.scene.camera.positionCartographic;
-      this.localIntensity_ = this.weatherMap_.intensityAt(longitude, latitude);
+      this.#localIntensity = this.#weatherMap.intensityAt(longitude, latitude);
       // above the clouds, the sun shines
-      const below = 1 - smoothstep(this.cloudBase_ - CLOUD_BASE_FADE, this.cloudBase_ + CLOUD_BASE_FADE, height);
-      shadeOvercast(this.viewer.scene, this.localIntensity_ * below);
-      this.drawSkyTable_(this.viewer.scene);
+      const below = 1 - smoothstep(this.#cloudBase - CLOUD_BASE_FADE, this.#cloudBase + CLOUD_BASE_FADE, height);
+      shadeOvercast(this.viewer.scene, this.#localIntensity * below);
+      this.#drawSkyTable(this.viewer.scene);
     };
-    // the clear sky the haze scatters, drawn at each frame (SkyTable.glsl)
-    /** @type {any} */
-    this.skyTable_ = undefined;
-    /** @type {any} */
-    this.skyTableFramebuffer_ = undefined;
-    /** @type {any} */
-    this.skyTableCommand_ = undefined;
   }
 
   /**
    * Draws the sky table into its own texture before the stages run.
    * @param {Scene} scene
    */
-  drawSkyTable_(scene) {
+  #drawSkyTable(scene) {
     // @ts-expect-error the scene's context is not typed
     const context = scene.context;
     if (!context) {
       return;
     }
-    if (!this.skyTable_) {
-      this.skyTable_ = new Texture({context, width: SKY_TABLE + 1, height: 1});
-      this.skyTableFramebuffer_ = new Framebuffer({context, colorTextures: [this.skyTable_], destroyAttachments: false});
-      this.skyTableCommand_ = context.createViewportQuadCommand(Height + Fog + Phase + RainHaze + SkyTable, {
-        framebuffer: this.skyTableFramebuffer_,
+    if (!this.#skyTable) {
+      this.#skyTable = new Texture({context, width: SKY_TABLE + 1, height: 1});
+      this.#skyTableFramebuffer = new Framebuffer({context, colorTextures: [this.#skyTable], destroyAttachments: false});
+      this.#skyTableCommand = context.createViewportQuadCommand(Height + Fog + Phase + RainHaze + SkyTable, {
+        framebuffer: this.#skyTableFramebuffer,
         renderState: RenderState.fromCache({viewport: {x: 0, y: 0, width: SKY_TABLE + 1, height: 1}}),
         uniformMap: {
           skyLightIntensity: () => scene.skyAtmosphere?.atmosphereLightIntensity ?? 50,
-          cloudBase: () => this.cloudBase_,
+          cloudBase: () => this.#cloudBase,
         },
       });
     }
-    this.skyTableCommand_.execute(context);
+    this.#skyTableCommand.execute(context);
   }
 
-  destroySkyTable_() {
-    this.skyTableCommand_?.shaderProgram?.destroy();
-    this.skyTableCommand_ = undefined;
-    this.skyTableFramebuffer_ = this.skyTableFramebuffer_?.destroy();
-    this.skyTable_ = this.skyTable_?.destroy();
+  #destroySkyTable() {
+    this.#skyTableCommand?.shaderProgram?.destroy();
+    this.#skyTableCommand = undefined;
+    this.#skyTableFramebuffer = this.#skyTableFramebuffer?.destroy();
+    this.#skyTable = this.#skyTable?.destroy();
   }
 
   /**
    * Speed of the drops or flakes, in m/s.
    */
-  fallSpeed_() {
-    return this.speed_ * RAIN_VELOCITY * (SNOW_VELOCITY / RAIN_VELOCITY) ** this.snow_;
+  #fallSpeed() {
+    return this.#speed * RAIN_VELOCITY * (SNOW_VELOCITY / RAIN_VELOCITY) ** this.#snow;
   }
 
   /**
    * The layers' uniforms from the snow and the cells along the fall.
    */
-  updateLayers_() {
-    const cellsAlong = this.cellsAlong_();
+  #updateLayers() {
+    const cellsAlong = this.#cellsAlong();
     for (let i = 0; i < LAYERS; i++) {
       const scale = 2 ** i;
       // a whole number of cells around, so that they close up
       const count = Math.floor(TWO_PI * CELLS_AROUND * scale + 0.5);
-      Cartesian4.fromElements(count / TWO_PI, cellsAlong * scale, count, NEAREST * scale, this.layerShape_[i]);
+      Cartesian4.fromElements(count / TWO_PI, cellsAlong * scale, count, NEAREST * scale, this.#layerShape[i]);
       const rainRadius = Math.max(0.5, 1 - 0.25 * i);
       const flakeRadius = Math.max(FLAKE_RADIUS / scale, 0.75);
       const rainBrightness = 0.45 - 0.07 * i;
@@ -236,11 +245,11 @@ export default class Precipitation extends Effect {
       // the largest flake and its soft edge, the nearest layer's wider, or the thin streak and its
       const flakeReach = i === 0 ? 1.4 * flakeRadius * 1.8 : 1.4 * flakeRadius + 0.5;
       Cartesian4.fromElements(
-        rainBrightness + (snowBrightness - rainBrightness) * this.snow_,
-        rainRadius + 0.5 + (flakeReach - rainRadius - 0.5) * this.snow_,
+        rainBrightness + (snowBrightness - rainBrightness) * this.#snow,
+        rainRadius + 0.5 + (flakeReach - rainRadius - 0.5) * this.#snow,
         rainRadius,
         flakeRadius,
-        this.layerLook_[i],
+        this.#layerLook[i],
       );
     }
   }
@@ -248,16 +257,16 @@ export default class Precipitation extends Effect {
   /**
    * The length of a drop's trail, in cells: its motion over the exposure.
    */
-  trail_() {
-    const exposure = RAIN_EXPOSURE * (SNOW_EXPOSURE / RAIN_EXPOSURE) ** this.snow_;
-    return Math.min((this.fallSpeed_() * exposure * this.cellsAlong_()) / NEAREST, MAX_TRAIL);
+  #trail() {
+    const exposure = RAIN_EXPOSURE * (SNOW_EXPOSURE / RAIN_EXPOSURE) ** this.#snow;
+    return Math.min((this.#fallSpeed() * exposure * this.#cellsAlong()) / NEAREST, MAX_TRAIL);
   }
 
   /**
    * The cells of the grid along the fall per radian, at the nearest layer's distance.
    */
-  cellsAlong_() {
-    return RAIN_CELLS_ALONG * (SNOW_CELLS_ALONG / RAIN_CELLS_ALONG) ** this.snow_;
+  #cellsAlong() {
+    return RAIN_CELLS_ALONG * (SNOW_CELLS_ALONG / RAIN_CELLS_ALONG) ** this.#snow;
   }
 
   /**
@@ -271,11 +280,11 @@ export default class Precipitation extends Effect {
       ...heightUniforms(scene),
       // reduced in double precision: a float would lose the time's fraction of a second
       time: () => (performance.now() / 1000) % TIME_PERIOD,
-      wind: () => this.wind_,
-      speed: () => this.speed_,
-      cloudBase: () => this.cloudBase_,
-      intensity: () => this.intensity_,
-      snow: () => this.snow_,
+      wind: () => this.#wind,
+      speed: () => this.#speed,
+      cloudBase: () => this.#cloudBase,
+      intensity: () => this.#intensity,
+      snow: () => this.#snow,
     };
     const shafts = new PostProcessStage({
       fragmentShader: EyeFromDepth + Noise + Height + PrecipitationWind + WeatherMapShader + Fog + Phase + RainHaze + CloudsShadow + PrecipitationShafts,
@@ -290,11 +299,11 @@ export default class Precipitation extends Effect {
         shadowBase: () => cloudShadow(scene)?.base() ?? 0,
         shadowTop: () => cloudShadow(scene)?.top() ?? 0,
         // @ts-expect-error the scene's context is not typed
-        map: () => this.weatherMap_.texture(scene.context),
+        map: () => this.#weatherMap.texture(scene.context),
         // @ts-expect-error the scene's context is not typed
-        nextMap: () => this.weatherMap_.nextTexture(scene.context),
-        mapBlend: () => this.weatherMap_.blend,
-        mapBounds: () => this.weatherMap_.bounds,
+        nextMap: () => this.#weatherMap.nextTexture(scene.context),
+        mapBlend: () => this.#weatherMap.blend,
+        mapBounds: () => this.#weatherMap.bounds,
       },
       textureScale: SHAFT_SCALE,
     });
@@ -313,15 +322,15 @@ export default class Precipitation extends Effect {
           uniforms: {
             ...shared,
             shaftTexture: blurredShafts.name,
-            localIntensity: () => this.localIntensity_,
+            localIntensity: () => this.#localIntensity,
             clouds: () => (hasCloudCover(scene) ? 1 : 0),
             shadowed: () => (cloudShadow(scene) ? 1 : 0),
             // @ts-expect-error the scene's context is not typed
-            skyTable: () => this.skyTable_ ?? scene.context.defaultTexture,
-            trail: () => this.trail_(),
-            layerShape: () => this.layerShape_,
-            layerLook: () => this.layerLook_,
-            offset: () => this.offset_,
+            skyTable: () => this.#skyTable ?? scene.context.defaultTexture,
+            trail: () => this.#trail(),
+            layerShape: () => this.#layerShape,
+            layerLook: () => this.#layerLook,
+            offset: () => this.#offset,
           },
         }),
       ],
@@ -329,7 +338,7 @@ export default class Precipitation extends Effect {
       inputPreviousStageTexture: false,
     });
     // no pass, and no frames, without an intensity
-    stage.enabled = this.intensity_ > 0;
+    stage.enabled = this.#intensity > 0;
     return stage;
   }
 
@@ -339,11 +348,11 @@ export default class Precipitation extends Effect {
    * @param {Scene} scene
    */
   activated_(scene) {
-    this.lastTime_ = performance.now() / 1000;
-    this.updateLayers_();
-    scene.preRender.addEventListener(this.onPreRender_);
+    this.#lastTime = performance.now() / 1000;
+    this.#updateLayers();
+    scene.preRender.addEventListener(this.#onPreRender);
     acquireOvercast(scene);
-    if (this.intensity_ > 0) {
+    if (this.#intensity > 0) {
       acquireFrames(scene, FRAME_RATE);
     }
   }
@@ -354,13 +363,13 @@ export default class Precipitation extends Effect {
    * @param {Scene} scene
    */
   deactivating_(scene) {
-    if (this.intensity_ > 0) {
+    if (this.#intensity > 0) {
       releaseFrames(scene, FRAME_RATE);
     }
     releaseOvercast(scene);
-    scene.preRender.removeEventListener(this.onPreRender_);
-    this.destroySkyTable_();
-    this.weatherMap_.destroy();
+    scene.preRender.removeEventListener(this.#onPreRender);
+    this.#destroySkyTable();
+    this.#weatherMap.destroy();
   }
 
   /**
@@ -370,7 +379,7 @@ export default class Precipitation extends Effect {
    * image. Set it again after drawing on the image, which is read then.
    */
   get map() {
-    return this.weatherMap_.map;
+    return this.#weatherMap.map;
   }
 
   /**
@@ -378,11 +387,11 @@ export default class Precipitation extends Effect {
    * 1 without a map.
    */
   get localIntensity() {
-    return this.localIntensity_;
+    return this.#localIntensity;
   }
 
   set map(value) {
-    this.weatherMap_.map = value;
+    this.#weatherMap.map = value;
     this.viewer.scene.requestRender();
   }
 
@@ -391,11 +400,11 @@ export default class Precipitation extends Effect {
    * rectangle, as the radar's next hour, or undefined for none.
    */
   get nextMap() {
-    return this.weatherMap_.nextMap;
+    return this.#weatherMap.nextMap;
   }
 
   set nextMap(value) {
-    this.weatherMap_.nextMap = value;
+    this.#weatherMap.nextMap = value;
     this.viewer.scene.requestRender();
   }
 
@@ -403,11 +412,11 @@ export default class Precipitation extends Effect {
    * From the map, 0, to the next map, 1.
    */
   get mapBlend() {
-    return this.weatherMap_.blend;
+    return this.#weatherMap.blend;
   }
 
   set mapBlend(value) {
-    this.weatherMap_.blend = value;
+    this.#weatherMap.blend = value;
     this.viewer.scene.requestRender();
   }
 
@@ -418,12 +427,12 @@ export default class Precipitation extends Effect {
    * the snow.
    */
   get intensity() {
-    return this.intensity_;
+    return this.#intensity;
   }
 
   set intensity(value) {
-    const raining = this.intensity_ > 0;
-    this.intensity_ = value;
+    const raining = this.#intensity > 0;
+    this.#intensity = value;
     if (this.stage_ && raining !== value > 0) {
       this.stage_.enabled = value > 0;
       (value > 0 ? acquireFrames : releaseFrames)(this.viewer.scene, FRAME_RATE);
@@ -435,11 +444,11 @@ export default class Precipitation extends Effect {
    * Tilt of the fall from the vertical, toward the east, in degrees.
    */
   get wind() {
-    return this.wind_;
+    return this.#wind;
   }
 
   set wind(value) {
-    this.wind_ = value;
+    this.#wind = value;
     this.viewer.scene.requestRender();
   }
 
@@ -448,11 +457,11 @@ export default class Precipitation extends Effect {
    * drops and 1 m/s for the flakes: faster drops draw longer streaks.
    */
   get speed() {
-    return this.speed_;
+    return this.#speed;
   }
 
   set speed(value) {
-    this.speed_ = value;
+    this.#speed = value;
     this.viewer.scene.requestRender();
   }
 
@@ -462,11 +471,11 @@ export default class Precipitation extends Effect {
    * above it.
    */
   get cloudBase() {
-    return this.cloudBase_;
+    return this.#cloudBase;
   }
 
   set cloudBase(value) {
-    this.cloudBase_ = value;
+    this.#cloudBase = value;
     this.viewer.scene.requestRender();
   }
 
@@ -477,11 +486,11 @@ export default class Precipitation extends Effect {
    * the short, soft streaks of sleet.
    */
   get snow() {
-    return this.snow_;
+    return this.#snow;
   }
 
   set snow(value) {
-    this.snow_ = value;
+    this.#snow = value;
     this.viewer.scene.requestRender();
   }
 }

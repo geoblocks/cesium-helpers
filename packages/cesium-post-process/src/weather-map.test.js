@@ -1,4 +1,4 @@
-import {test, mock} from 'node:test';
+import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {Cartesian4, Rectangle} from '@cesium/core';
 import WeatherMap from './weather-map.js';
@@ -15,6 +15,17 @@ const image = {
 };
 const map = {image, rectangle: Rectangle.fromDegrees(5, 46, 7, 48)};
 const radians = (/** @type {number} */ degrees) => (degrees * Math.PI) / 180;
+
+// a weather map whose textures, without WebGL, only say whether they were destroyed
+class TestMap extends WeatherMap {
+  /** @override @protected */
+  createTexture_() {
+    let destroyed = false;
+    return /** @type {any} */ ({isDestroyed: () => destroyed, destroy: () => void (destroyed = true)});
+  }
+}
+// the scene's context, which only the textures would read
+const context = {};
 
 test('without a map the intensity is the empty value everywhere', () => {
   assert.equal(new WeatherMap(1).intensityAt(radians(6), radians(47)), 1);
@@ -51,13 +62,12 @@ test('setting no map again restores the empty value and the bounds', () => {
 });
 
 test('setting a map again destroys the texture made from the previous one', () => {
-  const weatherMap = new WeatherMap(1);
-  const destroy = mock.fn();
-  // a texture as Cesium's, made by texture(context) in a browser
-  weatherMap.texture_ = {destroy};
+  const weatherMap = new TestMap(1);
   weatherMap.map = map;
-  assert.equal(destroy.mock.callCount(), 1);
-  assert.equal(weatherMap.texture_, undefined);
+  const texture = weatherMap.texture(context);
+  weatherMap.map = map;
+  assert.equal(texture.isDestroyed(), true);
+  assert.notEqual(weatherMap.texture(context), texture);
 });
 
 // one pixel raining at a red value, over the same rectangle as the map
@@ -100,14 +110,13 @@ test('the max map holds the highest rain around blocks of 4 x 4 pixels, spread t
 });
 
 test('the max map covers the next map, and is made again when either changes', () => {
-  const weatherMap = new WeatherMap(0);
+  const weatherMap = new TestMap(0);
   weatherMap.map = rainingPixel(0, 0, 0);
   weatherMap.nextMap = rainingPixel(30, 30, 100);
   assert.equal(maxAt(/** @type {any} */ (weatherMap.maxImage()), 7, 7), 100);
-  const destroy = mock.fn();
-  weatherMap.maxTexture_ = {destroy};
+  const maxTexture = weatherMap.maxTexture(context);
   weatherMap.nextMap = undefined;
-  assert.equal(destroy.mock.callCount(), 1);
+  assert.equal(maxTexture.isDestroyed(), true);
   assert.equal(maxAt(/** @type {any} */ (weatherMap.maxImage()), 7, 7), 0);
   weatherMap.map = rainingPixel(30, 30, 50);
   assert.equal(maxAt(/** @type {any} */ (weatherMap.maxImage()), 7, 7), 50);

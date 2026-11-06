@@ -23,6 +23,19 @@ const sunScratch = new Cartesian3();
  * the sun.
  */
 export default class SnowLine extends Effect {
+  #altitude;
+  #transition;
+  #maxSlope;
+  #coverage;
+  #patchiness;
+  #waterLevel;
+  #sunDirection;
+  #grain;
+  #sceneLight;
+  #steepCover;
+  #frame;
+  #openSky;
+
   /**
    * @param {CesiumWidget} viewer
    * @param {{altitude?: number, transition?: number, maxSlope?: number, coverage?: number, patchiness?: number, waterLevel?: number,
@@ -32,18 +45,18 @@ export default class SnowLine extends Effect {
   constructor(viewer, options = {}) {
     super(viewer);
     this.terrainDepth_ = true;
-    this.altitude_ = options.altitude ?? 2000;
-    this.transition_ = options.transition ?? 200;
-    this.maxSlope_ = options.maxSlope ?? 50;
-    this.coverage_ = options.coverage ?? 1;
-    this.patchiness_ = options.patchiness ?? 0;
-    this.waterLevel_ = options.waterLevel;
-    this.sunDirection_ = options.sunDirection && Cartesian3.normalize(options.sunDirection, new Cartesian3());
-    this.grain_ = options.grain ?? 90;
-    this.sceneLight_ = options.sceneLight ?? 0;
-    this.steepCover_ = options.steepCover ?? 0.35;
-    this.frame_ = new LocalFrame(options.origin);
-    this.openSky_ = options.openSky;
+    this.#altitude = options.altitude ?? 2000;
+    this.#transition = options.transition ?? 200;
+    this.#maxSlope = options.maxSlope ?? 50;
+    this.#coverage = options.coverage ?? 1;
+    this.#patchiness = options.patchiness ?? 0;
+    this.#waterLevel = options.waterLevel;
+    this.#sunDirection = options.sunDirection && Cartesian3.normalize(options.sunDirection, new Cartesian3());
+    this.#grain = options.grain ?? 90;
+    this.#sceneLight = options.sceneLight ?? 0;
+    this.#steepCover = options.steepCover ?? 0.35;
+    this.#frame = new LocalFrame(options.origin);
+    this.#openSky = options.openSky;
   }
 
   /**
@@ -56,23 +69,23 @@ export default class SnowLine extends Effect {
       fragmentShader: EyeFromDepth + Height + Normal + OpenSkyShader + SnowLineShader,
       uniforms: {
         ...heightUniforms(scene),
-        ...openSkyUniforms(scene, () => this.openSky_),
-        altitude: () => this.altitude_,
-        transition: () => this.transition_,
-        maxSlope: () => CesiumMath.toRadians(this.maxSlope_),
-        coverage: () => this.coverage_,
-        patchiness: () => this.patchiness_,
-        waterLevel: () => this.waterLevel_ ?? NO_WATER,
-        sunEC: () => this.sunDirection_ ? Matrix4.multiplyByPointAsVector(scene.camera.viewMatrix, this.sunDirection_, sunScratch) : sunScratch,
-        ownSun: () => this.sunDirection_ ? 1 : 0,
-        grain: () => this.grain_,
-        sceneLight: () => this.sceneLight_,
-        steepCover: () => this.steepCover_,
-        localFromEye: () => this.frame_.fromEye(scene),
+        ...openSkyUniforms(scene, () => this.#openSky),
+        altitude: () => this.#altitude,
+        transition: () => this.#transition,
+        maxSlope: () => CesiumMath.toRadians(this.#maxSlope),
+        coverage: () => this.#coverage,
+        patchiness: () => this.#patchiness,
+        waterLevel: () => this.#waterLevel ?? NO_WATER,
+        sunEC: () => this.#sunDirection ? Matrix4.multiplyByPointAsVector(scene.camera.viewMatrix, this.#sunDirection, sunScratch) : sunScratch,
+        ownSun: () => this.#sunDirection ? 1 : 0,
+        grain: () => this.#grain,
+        sceneLight: () => this.#sceneLight,
+        steepCover: () => this.#steepCover,
+        localFromEye: () => this.#frame.fromEye(scene),
       },
     });
     // with no coverage the pass would only copy: off
-    stage.enabled = this.coverage_ > 0;
+    stage.enabled = this.#coverage > 0;
     return stage;
   }
 
@@ -82,18 +95,18 @@ export default class SnowLine extends Effect {
    * @param {Scene} scene
    */
   activated_(scene) {
-    this.frame_.anchor(scene);
+    this.#frame.anchor(scene);
   }
 
   /**
    * Altitude of the snow line, in meters above the ellipsoid.
    */
   get altitude() {
-    return this.altitude_;
+    return this.#altitude;
   }
 
   set altitude(value) {
-    this.altitude_ = value;
+    this.#altitude = value;
     this.viewer.scene.requestRender();
   }
 
@@ -101,11 +114,11 @@ export default class SnowLine extends Effect {
    * Height of the band around the altitude over which the snow thins out, in meters.
    */
   get transition() {
-    return this.transition_;
+    return this.#transition;
   }
 
   set transition(value) {
-    this.transition_ = value;
+    this.#transition = value;
     this.viewer.scene.requestRender();
   }
 
@@ -113,11 +126,11 @@ export default class SnowLine extends Effect {
    * Steepest slope that holds snow, in degrees.
    */
   get maxSlope() {
-    return this.maxSlope_;
+    return this.#maxSlope;
   }
 
   set maxSlope(value) {
-    this.maxSlope_ = value;
+    this.#maxSlope = value;
     this.viewer.scene.requestRender();
   }
 
@@ -125,11 +138,11 @@ export default class SnowLine extends Effect {
    * Opacity of the snow, 0 (none: the stage is off) to 1.
    */
   get coverage() {
-    return this.coverage_;
+    return this.#coverage;
   }
 
   set coverage(value) {
-    this.coverage_ = value;
+    this.#coverage = value;
     if (this.stage_) {
       this.stage_.enabled = value > 0;
     }
@@ -141,11 +154,11 @@ export default class SnowLine extends Effect {
    * covers, the noise leaving the rest bare.
    */
   get patchiness() {
-    return this.patchiness_;
+    return this.#patchiness;
   }
 
   set patchiness(value) {
-    this.patchiness_ = value;
+    this.#patchiness = value;
     this.viewer.scene.requestRender();
   }
 
@@ -154,11 +167,11 @@ export default class SnowLine extends Effect {
    * so that a flat lake stays water.
    */
   get waterLevel() {
-    return this.waterLevel_;
+    return this.#waterLevel;
   }
 
   set waterLevel(value) {
-    this.waterLevel_ = value;
+    this.#waterLevel = value;
     this.viewer.scene.requestRender();
   }
 
@@ -167,11 +180,11 @@ export default class SnowLine extends Effect {
    * light of its own: `scene.light.direction` is the way the light travels, so give its negation.
    */
   get sunDirection() {
-    return this.sunDirection_;
+    return this.#sunDirection;
   }
 
   set sunDirection(value) {
-    this.sunDirection_ = value && Cartesian3.normalize(value, new Cartesian3());
+    this.#sunDirection = value && Cartesian3.normalize(value, new Cartesian3());
     this.viewer.scene.requestRender();
   }
 
@@ -180,11 +193,11 @@ export default class SnowLine extends Effect {
    * irregularities. A few meters for a garden, tens for a mountainside.
    */
   get grain() {
-    return this.grain_;
+    return this.#grain;
   }
 
   set grain(value) {
-    this.grain_ = value;
+    this.#grain = value;
     this.viewer.scene.requestRender();
   }
 
@@ -193,11 +206,11 @@ export default class SnowLine extends Effect {
    * keeps the scene's shadows and darkens with its light, for a scene lit by a light of its own that goes down at night.
    */
   get sceneLight() {
-    return this.sceneLight_;
+    return this.#sceneLight;
   }
 
   set sceneLight(value) {
-    this.sceneLight_ = value;
+    this.#sceneLight = value;
     this.viewer.scene.requestRender();
   }
 
@@ -205,11 +218,11 @@ export default class SnowLine extends Effect {
    * What is open to the sky, or undefined for all of it: the rest holds no snow (a deck under a roof, the ground under a tree, a cloud's top).
    */
   get openSky() {
-    return this.openSky_;
+    return this.#openSky;
   }
 
   set openSky(value) {
-    this.openSky_ = value;
+    this.#openSky = value;
     this.viewer.scene.requestRender();
   }
 
@@ -218,11 +231,11 @@ export default class SnowLine extends Effect {
    * for none on the walls of a building.
    */
   get steepCover() {
-    return this.steepCover_;
+    return this.#steepCover;
   }
 
   set steepCover(value) {
-    this.steepCover_ = value;
+    this.#steepCover = value;
     this.viewer.scene.requestRender();
   }
 
@@ -231,11 +244,11 @@ export default class SnowLine extends Effect {
    * position when the effect is activated if none is given. Keep it within a few kilometers of what is looked at for a grain of a few meters.
    */
   get origin() {
-    return this.frame_.origin;
+    return this.#frame.origin;
   }
 
   set origin(value) {
-    this.frame_.origin = value;
+    this.#frame.origin = value;
     this.viewer.scene.requestRender();
   }
 }
