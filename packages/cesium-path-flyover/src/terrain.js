@@ -29,25 +29,38 @@ const tileKey = (x, y, level) => (level * 2 ** 20 + x) * 2 ** 20 + y;
  * heights per tile. Reads the tile's private fields; check them on a Cesium upgrade.
  */
 class MeshIndex {
+  /** @type {Uint16Array} */
+  #u;
+  /** @type {Uint16Array} */
+  #v;
+  /** @type {Uint16Array} */
+  #h;
+  /** @type {Uint16Array | Uint32Array} */
+  #indices;
+  #minimumHeight;
+  #maximumHeight;
+  /** @type {Uint32Array} */
+  #starts;
+  /** @type {Uint16Array | Uint32Array} */
+  #triangles;
+
   /**
    * @param {any} data a QuantizedMeshTerrainData
    */
   constructor(data) {
-    /** @type {Uint16Array} */
-    this.u_ = data._uValues;
-    /** @type {Uint16Array} */
-    this.v_ = data._vValues;
-    /** @type {Uint16Array} */
-    this.h_ = data._heightValues;
-    /** @type {Uint16Array | Uint32Array} */
-    this.indices_ = data._indices;
-    this.minimumHeight_ = data._minimumHeight;
-    this.maximumHeight_ = data._maximumHeight;
+    this.#u = data._uValues;
+    this.#v = data._vValues;
+    this.#h = data._heightValues;
+    this.#indices = data._indices;
+    this.#minimumHeight = data._minimumHeight;
+    this.#maximumHeight = data._maximumHeight;
     // every bucket a triangle's bounding box touches lists it: the triangles of
-    // bucket b are triangles_[starts_[b] .. starts_[b + 1]), two typed arrays
+    // bucket b are #triangles[#starts[b] .. #starts[b + 1]), two typed arrays
     // rather than a thousand lists. Two passes over the triangles, the bucket
     // bounds of the first kept for the second
-    const {u_: u, v_: v, indices_: indices} = this;
+    const u = this.#u;
+    const v = this.#v;
+    const indices = this.#indices;
     const count = indices.length / 3;
     const bounds = new Uint8Array(4 * count);
     const counts = new Uint32Array(GRID * GRID + 1);
@@ -55,10 +68,10 @@ class MeshIndex {
       const i0 = indices[3 * t];
       const i1 = indices[3 * t + 1];
       const i2 = indices[3 * t + 2];
-      const x0 = this.bucket_(Math.min(u[i0], u[i1], u[i2]));
-      const x1 = this.bucket_(Math.max(u[i0], u[i1], u[i2]));
-      const y0 = this.bucket_(Math.min(v[i0], v[i1], v[i2]));
-      const y1 = this.bucket_(Math.max(v[i0], v[i1], v[i2]));
+      const x0 = this.#bucket(Math.min(u[i0], u[i1], u[i2]));
+      const x1 = this.#bucket(Math.max(u[i0], u[i1], u[i2]));
+      const y0 = this.#bucket(Math.min(v[i0], v[i1], v[i2]));
+      const y1 = this.#bucket(Math.max(v[i0], v[i1], v[i2]));
       bounds[4 * t] = x0;
       bounds[4 * t + 1] = x1;
       bounds[4 * t + 2] = y0;
@@ -72,15 +85,13 @@ class MeshIndex {
     for (let b = 1; b < counts.length; b++) {
       counts[b] += counts[b - 1];
     }
-    /** @type {Uint32Array} */
-    this.starts_ = counts.slice();
+    this.#starts = counts.slice();
     const total = counts[counts.length - 1];
-    /** @type {Uint16Array | Uint32Array} */
-    this.triangles_ = indices.length <= 65536 ? new Uint16Array(total) : new Uint32Array(total);
+    this.#triangles = indices.length <= 65536 ? new Uint16Array(total) : new Uint32Array(total);
     for (let t = 0; t < count; t++) {
       for (let x = bounds[4 * t]; x <= bounds[4 * t + 1]; x++) {
         for (let y = bounds[4 * t + 2]; y <= bounds[4 * t + 3]; y++) {
-          this.triangles_[counts[x * GRID + y]++] = 3 * t;
+          this.#triangles[counts[x * GRID + y]++] = 3 * t;
         }
       }
     }
@@ -90,7 +101,7 @@ class MeshIndex {
    * @param {number} q quantized coordinate, 0 to MAX_SHORT
    * @return {number}
    */
-  bucket_(q) {
+  #bucket(q) {
     return Math.min(Math.floor((q * GRID) / (MAX_SHORT + 1)), GRID - 1);
   }
 
@@ -104,10 +115,13 @@ class MeshIndex {
   heightAt(rectangle, longitude, latitude) {
     const u = CesiumMath.clamp((longitude - rectangle.west) / rectangle.width, 0, 1) * MAX_SHORT;
     const v = CesiumMath.clamp((latitude - rectangle.south) / rectangle.height, 0, 1) * MAX_SHORT;
-    const {u_: us, v_: vs, h_: hs, indices_: indices} = this;
-    const bucket = this.bucket_(u) * GRID + this.bucket_(v);
-    for (let k = this.starts_[bucket]; k < this.starts_[bucket + 1]; k++) {
-      const t = this.triangles_[k];
+    const us = this.#u;
+    const vs = this.#v;
+    const hs = this.#h;
+    const indices = this.#indices;
+    const bucket = this.#bucket(u) * GRID + this.#bucket(v);
+    for (let k = this.#starts[bucket]; k < this.#starts[bucket + 1]; k++) {
+      const t = this.#triangles[k];
       const i0 = indices[t];
       const i1 = indices[t + 1];
       const i2 = indices[t + 2];
@@ -123,7 +137,7 @@ class MeshIndex {
       const b1 = ((v2 - v0) * (u - u2) + (u0 - u2) * (v - v2)) * inverse;
       const b2 = 1 - b0 - b1;
       if (b0 >= -CesiumMath.EPSILON15 && b1 >= -CesiumMath.EPSILON15 && b2 >= -CesiumMath.EPSILON15) {
-        return CesiumMath.lerp(this.minimumHeight_, this.maximumHeight_, (b0 * hs[i0] + b1 * hs[i1] + b2 * hs[i2]) / MAX_SHORT);
+        return CesiumMath.lerp(this.#minimumHeight, this.#maximumHeight, (b0 * hs[i0] + b1 * hs[i1] + b2 * hs[i2]) / MAX_SHORT);
       }
     }
     return undefined;
@@ -140,20 +154,23 @@ class MeshIndex {
  * is left without a height. Requests are kept to a bounded number in flight.
  */
 export default class TerrainSampler {
+  #provider;
+  #level;
+  /** @type {Map<number, Promise<TerrainData | undefined>>} */
+  #tiles = new Map();
+  /** @type {Map<number, MeshIndex>} by tile key, built on the first lookup */
+  #indices = new Map();
+  #inFlight = 0;
+  /** @type {(() => void)[]} */
+  #waiting = [];
+
   /**
    * @param {TerrainProvider} terrainProvider
    * @param {number} level
    */
   constructor(terrainProvider, level) {
-    this.provider_ = terrainProvider;
-    this.level_ = level;
-    /** @type {Map<number, Promise<TerrainData | undefined>>} */
-    this.tiles_ = new Map();
-    /** @type {Map<number, MeshIndex>} by tile key, built on the first lookup */
-    this.indices_ = new Map();
-    this.inFlight_ = 0;
-    /** @type {(() => void)[]} */
-    this.waiting_ = [];
+    this.#provider = terrainProvider;
+    this.#level = level;
   }
 
   /**
@@ -163,13 +180,13 @@ export default class TerrainSampler {
    */
   async heightsAt(cartographics) {
     // other providers may list no availability, yet have terrain
-    if (this.provider_ instanceof EllipsoidTerrainProvider) {
+    if (this.#provider instanceof EllipsoidTerrainProvider) {
       return cartographics.map(() => undefined);
     }
-    const heights = await this.sampleAt_(cartographics, this.level_);
+    const heights = await this.#sampleAt(cartographics, this.#level);
     const missing = heights.keys().filter((i) => heights[i] === undefined).toArray();
     if (missing.length > 0) {
-      const coarse = await this.sampleAt_(missing.map((i) => cartographics[i]), FALLBACK_LEVEL);
+      const coarse = await this.#sampleAt(missing.map((i) => cartographics[i]), FALLBACK_LEVEL);
       missing.forEach((i, k) => {
         heights[i] = coarse[k];
       });
@@ -182,8 +199,8 @@ export default class TerrainSampler {
    * @param {number} level
    * @return {Promise<(number | undefined)[]>}
    */
-  async sampleAt_(cartographics, level) {
-    const scheme = this.provider_.tilingScheme;
+  async #sampleAt(cartographics, level) {
+    const scheme = this.#provider.tilingScheme;
     /** @type {Map<number, {x: number, y: number, indices: number[]}>} */
     const groups = new Map();
     cartographics.forEach((cartographic, i) => {
@@ -202,13 +219,13 @@ export default class TerrainSampler {
     const heights = new Array(cartographics.length).fill(undefined);
     await Promise.all(
       groups.entries().map(async ([key, group]) => {
-        await this.availability_(group.x, group.y, level);
-        const data = await this.tile_(key, group.x, group.y, level);
+        await this.#availability(group.x, group.y, level);
+        const data = await this.#tile(key, group.x, group.y, level);
         if (!data) {
           return;
         }
         const rectangle = scheme.tileXYToRectangle(group.x, group.y, level);
-        const index = this.index_(key, data);
+        const index = this.#index(key, data);
         for (const i of group.indices) {
           const height = index
             ? index.heightAt(rectangle, cartographics[i].longitude, cartographics[i].latitude)
@@ -231,8 +248,8 @@ export default class TerrainSampler {
    * @param {number} level
    * @return {Promise<unknown>}
    */
-  availability_(x, y, level) {
-    const every = /** @type {any} */ (this.provider_)._layers?.[0]?.availabilityLevels;
+  #availability(x, y, level) {
+    const every = /** @type {any} */ (this.#provider)._layers?.[0]?.availabilityLevels;
     if (!every) {
       return Promise.resolve();
     }
@@ -244,7 +261,7 @@ export default class TerrainSampler {
     }
     const px = x >> (level - parent);
     const py = y >> (level - parent);
-    return this.tile_(tileKey(px, py, parent), px, py, parent);
+    return this.#tile(tileKey(px, py, parent), px, py, parent);
   }
 
   /**
@@ -252,14 +269,14 @@ export default class TerrainSampler {
    * @param {any} data
    * @return {MeshIndex | undefined} undefined for terrain data that is not a quantized mesh, sampled the Cesium way
    */
-  index_(key, data) {
+  #index(key, data) {
     if (!data._indices || !data._uValues) {
       return undefined;
     }
-    let index = this.indices_.get(key);
+    let index = this.#indices.get(key);
     if (!index) {
       index = new MeshIndex(data);
-      this.indices_.set(key, index);
+      this.#indices.set(key, index);
     }
     return index;
   }
@@ -271,11 +288,11 @@ export default class TerrainSampler {
    * @param {number} level
    * @return {Promise<TerrainData | undefined>}
    */
-  tile_(key, x, y, level) {
-    let promise = this.tiles_.get(key);
+  #tile(key, x, y, level) {
+    let promise = this.#tiles.get(key);
     if (!promise) {
-      promise = this.fetch_(x, y, level);
-      this.tiles_.set(key, promise);
+      promise = this.#fetch(x, y, level);
+      this.#tiles.set(key, promise);
     }
     return promise;
   }
@@ -286,31 +303,31 @@ export default class TerrainSampler {
    * @param {number} level
    * @return {Promise<TerrainData | undefined>}
    */
-  async fetch_(x, y, level) {
-    if (this.provider_.getTileDataAvailable(x, y, level) === false) {
+  async #fetch(x, y, level) {
+    if (this.#provider.getTileDataAvailable(x, y, level) === false) {
       return undefined;
     }
-    await this.slot_();
+    await this.#slot();
     try {
-      const request = this.provider_.requestTileGeometry(x, y, level);
+      const request = this.#provider.requestTileGeometry(x, y, level);
       return request ? await request : undefined;
     } catch {
       return undefined;
     } finally {
-      this.inFlight_--;
-      this.waiting_.shift()?.();
+      this.#inFlight--;
+      this.#waiting.shift()?.();
     }
   }
 
   /** @return {Promise<void>} resolves once fewer than TILES_IN_FLIGHT requests are pending */
-  slot_() {
-    if (this.inFlight_ < TILES_IN_FLIGHT) {
-      this.inFlight_++;
+  #slot() {
+    if (this.#inFlight < TILES_IN_FLIGHT) {
+      this.#inFlight++;
       return Promise.resolve();
     }
     return new Promise((resolve) => {
-      this.waiting_.push(() => {
-        this.inFlight_++;
+      this.#waiting.push(() => {
+        this.#inFlight++;
         resolve();
       });
     });
