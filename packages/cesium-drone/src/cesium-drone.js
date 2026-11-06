@@ -23,7 +23,7 @@ const GRAVITY = 9.81;
 const DRAG = 0.3;
 // the distance ahead of the drone over which the slope of the terrain is measured, in meters
 const SLOPE_BASE = 5;
-// in meters: nearer the terrain's height, an obstacle in view is the terrain, which keepAboveTerrain_ handles;
+// in meters: nearer the terrain's height, an obstacle in view is the terrain, which #keepAboveTerrain handles;
 // the rendered terrain and its height differ by tens of centimeters
 const ON_TERRAIN = 1;
 
@@ -83,6 +83,23 @@ const upScratch = new Cartesian3();
  * with the keyboard (W, A, S, D and the arrows, as the two sticks of a "Mode 2" radio) or a gamepad.
  */
 export default class CesiumDrone {
+  #layout;
+  #active = false;
+  #crashed = false;
+  #lastTick = 0;
+  #position = new Cartesian3();
+  // in the east-north-up frame at the drone, in m/s
+  #velocity = new Cartesian3();
+  #heading = 0;
+  // the camera's tilt, and the body's pitch and roll, in radians
+  #tilt = 0;
+  #pitch = 0;
+  #roll = 0;
+  #lastSticks;
+  #lostFor = 0;
+  #obstacleProbe;
+  #handleTickFunction;
+
   /**
    * @param {CesiumWidget} viewer
    * @param {{speed?: number, boostSpeed?: number, climbSpeed?: number, turnRate?: number, clearance?: number, crashSpeed?: number, cameraTilt?: number, failsafeDelay?: number, layout?: 'game' | 'mode2', collision?: boolean}} [options]
@@ -105,7 +122,7 @@ export default class CesiumDrone {
     this.cameraTilt = options.cameraTilt ?? 20;
     /** the time the drone keeps its last command after losing its control link, in seconds, before its motors stop */
     this.failsafeDelay = options.failsafeDelay ?? 1.5;
-    this.layout_ = options.layout ?? 'game';
+    this.#layout = options.layout ?? 'game';
     /**
      * Where the drone's intent comes from, read on each tick unless the control link is lost: {move: {x, y},
      * climb, turn, tilt, boost}. The keyboard and the first gamepad by default, with DRONE_BINDINGS for the
@@ -113,7 +130,7 @@ export default class CesiumDrone {
      * its active on and off with its own: replace it while the drone is not active.
      * @type {{read(): Sticks, active?: boolean}}
      */
-    this.input = new Controls(DRONE_BINDINGS[this.layout_], {deadZone: DEAD_ZONE});
+    this.input = new Controls(DRONE_BINDINGS[this.#layout], {deadZone: DEAD_ZONE});
     /**
      * Whether the drone crashes into the obstacles in view, opaque 3D Tiles or primitives, at any speed;
      * the terrain is checked either way.
@@ -138,22 +155,10 @@ export default class CesiumDrone {
      */
     this.heightNow = undefined;
 
-    this.active_ = false;
-    this.crashed_ = false;
-    this.lastTick_ = 0;
-    this.position_ = new Cartesian3();
-    // in the east-north-up frame at the drone, in m/s
-    this.velocity_ = new Cartesian3();
-    this.heading_ = 0;
-    // the camera's tilt, and the body's pitch and roll, in radians
-    this.tilt_ = 0;
-    this.pitch_ = 0;
-    this.roll_ = 0;
     // the sticks before the control link was lost, and for how long it has been lost, in seconds
-    this.lastSticks_ = CENTERED;
-    this.lostFor_ = 0;
+    this.#lastSticks = CENTERED;
 
-    this.obstacleProbe_ = new ObstacleProbe(viewer.scene);
+    this.#obstacleProbe = new ObstacleProbe(viewer.scene);
 
     /**
      * The obstacle ahead of the drone in a direction, a point of its plane and its normal toward the drone, if
@@ -162,7 +167,7 @@ export default class CesiumDrone {
      * reaching as far as a step goes.
      * @type {(toward: Cartesian3, key: string) => Obstacle | undefined}
      */
-    this.obstacleAhead = (toward, key) => this.obstacleProbe_.ahead(toward, key);
+    this.obstacleAhead = (toward, key) => this.#obstacleProbe.ahead(toward, key);
 
     /**
      * The height of the ground under a position, in meters above the ellipsoid, or undefined when unknown yet:
@@ -172,11 +177,11 @@ export default class CesiumDrone {
      */
     this.groundHeight = position => this.viewer.scene.globe?.getHeight(position);
 
-    this.handleTickFunction_ = this.handleTick_.bind(this);
+    this.#handleTickFunction = this.#handleTick.bind(this);
   }
 
   get active() {
-    return this.active_;
+    return this.#active;
   }
 
   /**
@@ -184,47 +189,54 @@ export default class CesiumDrone {
    * @return {'game' | 'mode2'}
    */
   get layout() {
-    return this.layout_;
+    return this.#layout;
   }
 
   set layout(layout) {
-    this.layout_ = layout;
+    this.#layout = layout;
     if (this.input instanceof Controls) {
       this.input.bindings = DRONE_BINDINGS[layout];
     }
   }
 
   set active(active) {
-    if (active === this.active_) {
+    if (active === this.#active) {
       return;
     }
-    this.active_ = active;
+    this.#active = active;
     if (active) {
       const camera = this.viewer.camera;
-      Cartesian3.clone(camera.positionWC, this.position_);
-      Cartesian3.clone(Cartesian3.ZERO, this.velocity_);
-      this.heading_ = camera.heading;
-      this.tilt_ = CesiumMath.clamp(CesiumMath.toRadians(this.cameraTilt), MIN_TILT, MAX_TILT);
-      this.pitch_ = 0;
-      this.roll_ = 0;
-      this.crashed_ = false;
-      this.lastSticks_ = CENTERED;
-      this.lostFor_ = 0;
-      this.lastTick_ = performance.now();
+      Cartesian3.clone(camera.positionWC, this.#position);
+      Cartesian3.clone(Cartesian3.ZERO, this.#velocity);
+      this.#heading = camera.heading;
+      this.#tilt = CesiumMath.clamp(CesiumMath.toRadians(this.cameraTilt), MIN_TILT, MAX_TILT);
+      this.#pitch = 0;
+      this.#roll = 0;
+      this.#crashed = false;
+      this.#lastSticks = CENTERED;
+      this.#lostFor = 0;
+      this.#lastTick = performance.now();
       this.input.active = true;
-      this.viewer.clock.onTick.addEventListener(this.handleTickFunction_);
+      this.viewer.clock.onTick.addEventListener(this.#handleTickFunction);
     } else {
       this.input.active = false;
-      this.viewer.clock.onTick.removeEventListener(this.handleTickFunction_);
+      this.viewer.clock.onTick.removeEventListener(this.#handleTickFunction);
     }
-    this.enableNavigation_(!active);
+    this.#enableNavigation(!active);
   }
 
   /**
    * Current speed, in m/s.
    */
   get speedNow() {
-    return Cartesian3.magnitude(this.velocity_);
+    return Cartesian3.magnitude(this.#velocity);
+  }
+
+  /**
+   * Where the drone is, a copy.
+   */
+  get position() {
+    return Cartesian3.clone(this.#position);
   }
 
   /**
@@ -234,47 +246,47 @@ export default class CesiumDrone {
    * @param {Cartesian3} [position]
    */
   respawn(position) {
-    if (!this.active_) {
+    if (!this.#active) {
       return;
     }
-    const cartographic = Cartographic.fromCartesian(position ?? this.position_, undefined, cartographicScratch);
+    const cartographic = Cartographic.fromCartesian(position ?? this.#position, undefined, cartographicScratch);
     const ground = this.groundHeight(cartographic) ?? cartographic.height;
     cartographic.height = ground + RESPAWN_HEIGHT;
-    Cartographic.toCartesian(cartographic, undefined, this.position_);
-    Cartesian3.clone(Cartesian3.ZERO, this.velocity_);
-    this.pitch_ = 0;
-    this.roll_ = 0;
-    this.crashed_ = false;
-    this.lastSticks_ = CENTERED;
-    this.lostFor_ = 0;
+    Cartographic.toCartesian(cartographic, undefined, this.#position);
+    Cartesian3.clone(Cartesian3.ZERO, this.#velocity);
+    this.#pitch = 0;
+    this.#roll = 0;
+    this.#crashed = false;
+    this.#lastSticks = CENTERED;
+    this.#lostFor = 0;
   }
 
-  handleTick_() {
+  #handleTick() {
     const now = performance.now();
     // a hidden tab stops the ticks: do not jump over the time it was hidden
-    const dt = Math.min((now - this.lastTick_) / 1000, 0.1);
-    this.lastTick_ = now;
+    const dt = Math.min((now - this.#lastTick) / 1000, 0.1);
+    this.#lastTick = now;
     if (dt <= 0) {
       return;
     }
     // without its control link, the drone keeps its last command, then its motors stop
-    this.lostFor_ = this.rxLoss ? this.lostFor_ + dt : 0;
-    const failsafe = this.lostFor_ > this.failsafeDelay;
+    this.#lostFor = this.rxLoss ? this.#lostFor + dt : 0;
+    const failsafe = this.#lostFor > this.failsafeDelay;
     let sticks = CENTERED;
-    if (!this.crashed_ && !failsafe) {
-      sticks = this.rxLoss ? this.lastSticks_ : (this.lastSticks_ = this.input.read());
+    if (!this.#crashed && !failsafe) {
+      sticks = this.rxLoss ? this.#lastSticks : (this.#lastSticks = this.input.read());
     }
 
-    this.heading_ = CesiumMath.zeroToTwoPi(this.heading_ + sticks.turn * CesiumMath.toRadians(this.turnRate) * dt);
-    this.tilt_ = CesiumMath.clamp(this.tilt_ + sticks.tilt * TILT_RATE * dt, MIN_TILT, MAX_TILT);
+    this.#heading = CesiumMath.zeroToTwoPi(this.#heading + sticks.turn * CesiumMath.toRadians(this.turnRate) * dt);
+    this.#tilt = CesiumMath.clamp(this.#tilt + sticks.tilt * TILT_RATE * dt, MIN_TILT, MAX_TILT);
 
     // the target velocity, from the sticks in the drone's frame to east-north-up
-    const sin = Math.sin(this.heading_);
-    const cos = Math.cos(this.heading_);
+    const sin = Math.sin(this.#heading);
+    const cos = Math.cos(this.#heading);
     const speed = sticks.boost ? this.boostSpeed : this.speed;
     const targetForward = sticks.move.y * speed;
     const targetRight = sticks.move.x * speed;
-    const velocity = this.velocity_;
+    const velocity = this.#velocity;
     if (failsafe) {
       // the motors stopped: the drone falls, coasting
       const drag = Math.exp(-DRAG * dt);
@@ -298,22 +310,22 @@ export default class CesiumDrone {
     const attitudeEase = 1 - Math.exp(-dt / ATTITUDE_TAU);
     const targetPitch = -lean(targetForward, forward) * MAX_PITCH;
     const targetRoll = CesiumMath.clamp(lean(targetRight, right) + 0.5 * sticks.turn, -1, 1) * MAX_ROLL;
-    this.pitch_ += (targetPitch - this.pitch_) * attitudeEase;
-    this.roll_ += (targetRoll - this.roll_) * attitudeEase;
+    this.#pitch += (targetPitch - this.#pitch) * attitudeEase;
+    this.#roll += (targetRoll - this.#roll) * attitudeEase;
 
-    const enu = FixedFrameTransforms.eastNorthUpToFixedFrame(this.position_, undefined, enuScratch);
+    const enu = FixedFrameTransforms.eastNorthUpToFixedFrame(this.#position, undefined, enuScratch);
     const step = Matrix4.multiplyByPointAsVector(enu, Cartesian3.multiplyByScalar(velocity, dt, stepScratch), stepScratch);
-    Cartesian3.clone(this.position_, previousScratch);
-    if (!this.crashIntoObstacle_(step, dt)) {
-      Cartesian3.add(this.position_, step, this.position_);
+    Cartesian3.clone(this.#position, previousScratch);
+    if (!this.#crashIntoObstacle(step, dt)) {
+      Cartesian3.add(this.#position, step, this.#position);
     }
 
-    this.keepAboveTerrain_(previousScratch, enu, dt, failsafe);
+    this.#keepAboveTerrain(previousScratch, enu, dt, failsafe);
 
     const scene = this.viewer.scene;
     scene.camera.setView({
-      destination: this.position_,
-      orientation: {heading: this.heading_, pitch: this.pitch_ + this.tilt_, roll: this.roll_},
+      destination: this.#position,
+      orientation: {heading: this.#heading, pitch: this.#pitch + this.#tilt, roll: this.#roll},
     });
     scene.requestRender();
   }
@@ -324,15 +336,15 @@ export default class CesiumDrone {
    * @param {number} dt seconds
    * @return {boolean} whether the drone crashed
    */
-  crashIntoObstacle_(step, dt) {
+  #crashIntoObstacle(step, dt) {
     const length = Cartesian3.magnitude(step);
-    if (!this.collision || this.crashed_ || length === 0) {
+    if (!this.collision || this.#crashed || length === 0) {
       return false;
     }
     const toward = Cartesian3.divideByScalar(step, length, towardScratch);
     const obstacle = this.obstacleAhead(toward, 'flight');
     // a step shorter than asked for reaches the obstacle
-    if (!obstacle?.point || !obstacle.normal || blockedStep(toward, length, this.position_, obstacle, allowedScratch).length >= length) {
+    if (!obstacle?.point || !obstacle.normal || blockedStep(toward, length, this.#position, obstacle, allowedScratch).length >= length) {
       return false;
     }
     const point = Cartographic.fromCartesian(obstacle.point, undefined, obstacleCartographicScratch);
@@ -340,10 +352,10 @@ export default class CesiumDrone {
     if (ground !== undefined && point.height - ground < ON_TERRAIN) {
       return false;
     }
-    this.crashed_ = true;
-    Cartesian3.clone(Cartesian3.ZERO, this.velocity_);
+    this.#crashed = true;
+    Cartesian3.clone(Cartesian3.ZERO, this.#velocity);
     // its speed into the obstacle
-    this.crashed.raiseEvent(Cartesian3.clone(this.position_), -Cartesian3.dot(step, obstacle.normal) / dt);
+    this.crashed.raiseEvent(Cartesian3.clone(this.#position), -Cartesian3.dot(step, obstacle.normal) / dt);
     return true;
   }
 
@@ -355,8 +367,8 @@ export default class CesiumDrone {
    * @param {number} dt seconds
    * @param {boolean} failsafe whether the motors are stopped
    */
-  keepAboveTerrain_(previous, enu, dt, failsafe) {
-    const cartographic = Cartographic.fromCartesian(this.position_, undefined, cartographicScratch);
+  #keepAboveTerrain(previous, enu, dt, failsafe) {
+    const cartographic = Cartographic.fromCartesian(this.#position, undefined, cartographicScratch);
     const ground = this.groundHeight(cartographic);
     if (ground === undefined) {
       // the terrain is not loaded yet under the drone
@@ -367,14 +379,14 @@ export default class CesiumDrone {
     if (this.heightNow >= this.clearance) {
       return;
     }
-    const velocity = this.velocity_;
+    const velocity = this.#velocity;
     const horizontal = Math.hypot(velocity.x, velocity.y);
     // the slope ahead, over a few meters: the height of the rendered terrain jumps by tens of
     // centimeters between its triangles and as finer tiles load, too much to compare from frame to frame
     let slope = 0;
     if (horizontal > 0.1) {
       const ahead = Cartesian3.fromElements((velocity.x / horizontal) * SLOPE_BASE, (velocity.y / horizontal) * SLOPE_BASE, 0, aheadScratch);
-      Cartesian3.add(this.position_, Matrix4.multiplyByPointAsVector(enu, ahead, ahead), ahead);
+      Cartesian3.add(this.#position, Matrix4.multiplyByPointAsVector(enu, ahead, ahead), ahead);
       const groundAhead = this.groundHeight(Cartographic.fromCartesian(ahead, undefined, aheadCartographicScratch));
       if (groundAhead !== undefined) {
         slope = Math.max(groundAhead - ground, 0) / SLOPE_BASE;
@@ -383,31 +395,31 @@ export default class CesiumDrone {
     // how fast the drone runs into the terrain: its velocity across the slope it flies into, from
     // its descent on flat ground to its speed against a wall
     const impact = (Math.max(-velocity.z, 0) + horizontal * slope) / Math.sqrt(1 + slope * slope);
-    if (!this.crashed_ && (impact >= this.crashSpeed || failsafe)) {
+    if (!this.#crashed && (impact >= this.crashSpeed || failsafe)) {
       cartographic.height = ground + this.clearance;
-      Cartographic.toCartesian(cartographic, undefined, this.position_);
+      Cartographic.toCartesian(cartographic, undefined, this.#position);
       this.heightNow = this.clearance;
-      this.crashed_ = true;
+      this.#crashed = true;
       Cartesian3.clone(Cartesian3.ZERO, velocity);
-      this.crashed.raiseEvent(Cartesian3.clone(this.position_), impact);
+      this.crashed.raiseEvent(Cartesian3.clone(this.#position), impact);
     } else if (slope > 1) {
       // steeper than 45 degrees: a wall, the drone stops against it rather than going through, and
       // keeps only its climb or descent
       velocity.x = 0;
       velocity.y = 0;
       const rise = Matrix4.multiplyByPointAsVector(enu, Cartesian3.fromElements(0, 0, velocity.z * dt, aheadScratch), aheadScratch);
-      Cartesian3.add(previous, rise, this.position_);
-      const back = Cartographic.fromCartesian(this.position_, undefined, cartographicScratch);
+      Cartesian3.add(previous, rise, this.#position);
+      const back = Cartographic.fromCartesian(this.#position, undefined, cartographicScratch);
       const groundBack = this.groundHeight(back) ?? ground;
       if (back.height < groundBack + this.clearance) {
         back.height = groundBack + this.clearance;
-        Cartographic.toCartesian(back, undefined, this.position_);
+        Cartographic.toCartesian(back, undefined, this.#position);
         velocity.z = Math.max(velocity.z, 0);
       }
       this.heightNow = back.height - groundBack;
     } else {
       cartographic.height = ground + this.clearance;
-      Cartographic.toCartesian(cartographic, undefined, this.position_);
+      Cartographic.toCartesian(cartographic, undefined, this.#position);
       this.heightNow = this.clearance;
       if (velocity.z < 0) {
         velocity.z = 0;
@@ -418,7 +430,7 @@ export default class CesiumDrone {
   /**
    * @param {boolean} enable
    */
-  enableNavigation_(enable) {
+  #enableNavigation(enable) {
     this.viewer.scene.screenSpaceCameraController.enableInputs = enable;
   }
 }
@@ -433,7 +445,7 @@ export default class CesiumDrone {
  *     default; how far ahead the walls are looked for, as far as a step goes at the top speed, 5 by default.
  */
 export function flyOn(drone, mesh, {radius = 0.25, reach = 5} = {}) {
-  const from = () => drone.position_;
+  const from = () => drone.position;
   const offsets = [
     Cartesian3.ZERO,
     new Cartesian3(radius, 0, 0), new Cartesian3(-radius, 0, 0),
@@ -443,7 +455,7 @@ export function flyOn(drone, mesh, {radius = 0.25, reach = 5} = {}) {
   const walls = meshObstacleAhead(mesh, from, {offsets, reach});
   const all = meshObstacleAhead(mesh, from, {offsets, reach, walls: false});
   drone.obstacleAhead = toward => {
-    const up = Ellipsoid.WGS84.geodeticSurfaceNormal(drone.position_, upScratch);
+    const up = Ellipsoid.WGS84.geodeticSurfaceNormal(drone.position, upScratch);
     if (Cartesian3.dot(toward, up) <= 0) {
       return walls(toward);
     }

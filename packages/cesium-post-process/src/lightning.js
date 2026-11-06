@@ -62,6 +62,23 @@ const eyeScratch = new Cartesian3();
  * requestRenderMode.
  */
 export default class Lightning extends Effect {
+  #intensity;
+  #cloudBase;
+  #radius;
+  #inFront;
+  // without a map, it strikes anywhere in the radius
+  #weatherMap = new WeatherMap(1);
+  /** @type {Strike[]} */
+  #strikes = [];
+  #strikeTop;
+  #strikeBottom;
+  #strikeBranches;
+  #strikeGlow;
+  // 0 below the cloud base to 1 above it, where the glow replaces the channel
+  #above = 0;
+  #lastTime = 0;
+  #onPreRender;
+
   /**
    * @param {CesiumWidget} viewer
    * @param {{intensity?: number, cloudBase?: number, radius?: number, inFront?: boolean, map?: WeatherMapOptions}} [options]
@@ -69,64 +86,57 @@ export default class Lightning extends Effect {
   constructor(viewer, options = {}) {
     super(viewer);
     this.terrainDepth_ = true;
-    this.intensity_ = options.intensity ?? 0.5;
-    this.cloudBase_ = options.cloudBase ?? 2500;
-    this.radius_ = options.radius ?? 5000;
-    this.inFront_ = options.inFront ?? false;
-    // without a map, it strikes anywhere in the radius
-    this.weatherMap_ = new WeatherMap(1);
-    this.weatherMap_.map = options.map;
-    /** @type {Strike[]} */
-    this.strikes_ = [];
+    this.#intensity = options.intensity ?? 0.5;
+    this.#cloudBase = options.cloudBase ?? 2500;
+    this.#radius = options.radius ?? 5000;
+    this.#inFront = options.inFront ?? false;
+    this.#weatherMap.map = options.map;
     // what the shader gets of each strike, in eye coordinates: the top of its channel and its seed,
     // its foot and its age, negative for a slot without a strike
-    this.strikeTop_ = Array.from({length: MAX_STRIKES}, () => new Cartesian4());
-    this.strikeBottom_ = Array.from({length: MAX_STRIKES}, () => new Cartesian4(0, 0, 0, -1));
+    this.#strikeTop = Array.from({length: MAX_STRIKES}, () => new Cartesian4());
+    this.#strikeBottom = Array.from({length: MAX_STRIKES}, () => new Cartesian4(0, 0, 0, -1));
     // and each one's branches: where along the channel they leave it, the cosine and the sine of their
     // angle from it, and their length as a share of the channel's, 0 for a branch that does not exist
-    this.strikeBranches_ = Array.from({length: MAX_STRIKES * BRANCHES}, () => new Cartesian4());
+    this.#strikeBranches = Array.from({length: MAX_STRIKES * BRANCHES}, () => new Cartesian4());
     // the glow of each strike in the clouds, in eye coordinates, and its intensity, 0 for none
-    this.strikeGlow_ = Array.from({length: MAX_STRIKES}, () => new Cartesian4());
-    // 0 below the cloud base to 1 above it, where the glow replaces the channel
-    this.above_ = 0;
-    this.lastTime_ = 0;
+    this.#strikeGlow = Array.from({length: MAX_STRIKES}, () => new Cartesian4());
     /**
      * Raised with the foot of each new strike on the ground, as it starts.
      * @type {Event<(ground: Cartesian3) => void>}
      */
     this.strikeEvent = new Event();
-    this.onPreRender_ = () => {
+    this.#onPreRender = () => {
       const scene = this.viewer.scene;
       const now = performance.now() / 1000;
-      const dt = Math.min(now - this.lastTime_, MAX_STEP);
-      this.lastTime_ = now;
-      const area = Math.min((this.usedRadius_() / this.radius_) ** 2, MAX_AREA);
-      advanceStrikes(this.strikes_, now, dt, this.intensity_ * MAX_RATE * area, Math.random, (start) => {
-        const strike = this.createStrike_(start);
+      const dt = Math.min(now - this.#lastTime, MAX_STEP);
+      this.#lastTime = now;
+      const area = Math.min((this.#usedRadius() / this.#radius) ** 2, MAX_AREA);
+      advanceStrikes(this.#strikes, now, dt, this.#intensity * MAX_RATE * area, Math.random, (start) => {
+        const strike = this.#createStrike(start);
         if (strike) {
           this.strikeEvent.raiseEvent(strike.ground);
         }
         return strike;
       });
-      this.above_ = CesiumMath.clamp((scene.camera.positionCartographic.height - this.cloudBase_ + ABOVE_FADE) / (2 * ABOVE_FADE), 0, 1);
+      this.#above = CesiumMath.clamp((scene.camera.positionCartographic.height - this.#cloudBase + ABOVE_FADE) / (2 * ABOVE_FADE), 0, 1);
       const view = scene.camera.viewMatrix;
       for (let i = 0; i < MAX_STRIKES; i++) {
-        const strike = this.strikes_[i];
+        const strike = this.#strikes[i];
         if (!strike) {
-          this.strikeBottom_[i].w = -1;
-          this.strikeGlow_[i].w = 0;
+          this.#strikeBottom[i].w = -1;
+          this.#strikeGlow[i].w = 0;
           continue;
         }
         Matrix4.multiplyByPoint(view, strike.top, eyeScratch);
-        Cartesian4.fromElements(eyeScratch.x, eyeScratch.y, eyeScratch.z, strike.seed, this.strikeTop_[i]);
+        Cartesian4.fromElements(eyeScratch.x, eyeScratch.y, eyeScratch.z, strike.seed, this.#strikeTop[i]);
         Matrix4.multiplyByPoint(view, strike.ground, eyeScratch);
-        Cartesian4.fromElements(eyeScratch.x, eyeScratch.y, eyeScratch.z, now - strike.start, this.strikeBottom_[i]);
+        Cartesian4.fromElements(eyeScratch.x, eyeScratch.y, eyeScratch.z, now - strike.start, this.#strikeBottom[i]);
         for (let j = 0; j < BRANCHES; j++) {
           const [at, angle, length] = strike.branches[j];
-          Cartesian4.fromElements(at, Math.cos(angle), Math.sin(angle), length, this.strikeBranches_[i * BRANCHES + j]);
+          Cartesian4.fromElements(at, Math.cos(angle), Math.sin(angle), length, this.#strikeBranches[i * BRANCHES + j]);
         }
         Matrix4.multiplyByPoint(view, strike.glow, eyeScratch);
-        Cartesian4.fromElements(eyeScratch.x, eyeScratch.y, eyeScratch.z, strike.glowIntensity, this.strikeGlow_[i]);
+        Cartesian4.fromElements(eyeScratch.x, eyeScratch.y, eyeScratch.z, strike.glowIntensity, this.#strikeGlow[i]);
       }
     };
   }
@@ -135,9 +145,9 @@ export default class Lightning extends Effect {
    * How far from the camera the strikes land: the radius, or the camera's
    * height when it is higher, so that they land around what it sees.
    */
-  usedRadius_() {
+  #usedRadius() {
     const height = this.viewer.scene.camera.positionCartographic.height;
-    return Math.min(Math.max(this.radius_, height), MAX_RADIUS);
+    return Math.min(Math.max(this.#radius, height), MAX_RADIUS);
   }
 
   /**
@@ -146,20 +156,20 @@ export default class Lightning extends Effect {
    * @param {number} start
    * @return {Strike | undefined}
    */
-  createStrike_(start) {
+  #createStrike(start) {
     const scene = this.viewer.scene;
     const {longitude, latitude} = scene.camera.positionCartographic;
     const radius = scene.ellipsoid.maximumRadius;
     // a few points tried, so that the strikes find the heavy rain within the radius rather than
     // mostly missing it
     for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
-      const azimuth = this.inFront_ ? scene.camera.heading + (Math.random() * 2 - 1) * AHEAD : Math.random() * TWO_PI;
-      const distance = MIN_DISTANCE + Math.max(this.usedRadius_() - MIN_DISTANCE, 0) * Math.sqrt(Math.random());
+      const azimuth = this.#inFront ? scene.camera.heading + (Math.random() * 2 - 1) * AHEAD : Math.random() * TWO_PI;
+      const distance = MIN_DISTANCE + Math.max(this.#usedRadius() - MIN_DISTANCE, 0) * Math.sqrt(Math.random());
       const strikeLongitude = longitude + (distance * Math.sin(azimuth)) / (radius * Math.cos(latitude));
       const strikeLatitude = latitude + (distance * Math.cos(azimuth)) / radius;
-      const glowIntensity = this.weatherMap_.intensityAt(strikeLongitude, strikeLatitude);
-      if (!this.weatherMap_.map || Math.random() < smoothstep(STORM[0], STORM[1], glowIntensity)) {
-        return this.strikeAt_(start, strikeLongitude, strikeLatitude, glowIntensity);
+      const glowIntensity = this.#weatherMap.intensityAt(strikeLongitude, strikeLatitude);
+      if (!this.#weatherMap.map || Math.random() < smoothstep(STORM[0], STORM[1], glowIntensity)) {
+        return this.#strikeAt(start, strikeLongitude, strikeLatitude, glowIntensity);
       }
     }
     return undefined;
@@ -173,7 +183,7 @@ export default class Lightning extends Effect {
    * @param {number} glowIntensity the map's intensity there
    * @return {Strike}
    */
-  strikeAt_(start, strikeLongitude, strikeLatitude, glowIntensity) {
+  #strikeAt(start, strikeLongitude, strikeLatitude, glowIntensity) {
     const scene = this.viewer.scene;
     const branches = Array.from({length: BRANCHES}, () => {
       const at = 0.1 + 0.7 * Math.random();
@@ -187,58 +197,61 @@ export default class Lightning extends Effect {
       seed: Math.random() * 100,
       branches,
       ground: Cartesian3.fromRadians(strikeLongitude, strikeLatitude, height, scene.ellipsoid),
-      top: Cartesian3.fromRadians(strikeLongitude, strikeLatitude, Math.max(this.cloudBase_, height + MIN_CHANNEL), scene.ellipsoid),
-      glow: Cartesian3.fromRadians(strikeLongitude, strikeLatitude, this.cloudBase_ + GLOW_HEIGHT, scene.ellipsoid),
+      top: Cartesian3.fromRadians(strikeLongitude, strikeLatitude, Math.max(this.#cloudBase, height + MIN_CHANNEL), scene.ellipsoid),
+      glow: Cartesian3.fromRadians(strikeLongitude, strikeLatitude, this.#cloudBase + GLOW_HEIGHT, scene.ellipsoid),
       glowIntensity,
     };
   }
 
   /**
    * @override
+   * @protected
    * @param {Scene} _scene
    */
   createStage_(_scene) {
     const stage = new PostProcessStage({
       fragmentShader: Hash + EyeFromDepth + LightningShader,
       uniforms: {
-        strikeTop: () => this.strikeTop_,
-        strikeBottom: () => this.strikeBottom_,
-        strikeBranches: () => this.strikeBranches_,
-        strikeGlow: () => this.strikeGlow_,
-        above: () => this.above_,
+        strikeTop: () => this.#strikeTop,
+        strikeBottom: () => this.#strikeBottom,
+        strikeBranches: () => this.#strikeBranches,
+        strikeGlow: () => this.#strikeGlow,
+        above: () => this.#above,
       },
     });
     // no pass, and no frames, without an intensity
-    stage.enabled = this.intensity_ > 0;
+    stage.enabled = this.#intensity > 0;
     return stage;
   }
 
   /**
    * @override
+   * @protected
    * @param {Scene} scene
    */
   activated_(scene) {
-    this.lastTime_ = performance.now() / 1000;
-    scene.preRender.addEventListener(this.onPreRender_);
-    if (this.intensity_ > 0) {
+    this.#lastTime = performance.now() / 1000;
+    scene.preRender.addEventListener(this.#onPreRender);
+    if (this.#intensity > 0) {
       acquireFrames(scene, FRAME_RATE);
     }
   }
 
   /**
    * @override
+   * @protected
    * @param {Scene} scene
    */
   deactivating_(scene) {
-    if (this.intensity_ > 0) {
+    if (this.#intensity > 0) {
       releaseFrames(scene, FRAME_RATE);
     }
-    scene.preRender.removeEventListener(this.onPreRender_);
-    this.strikes_.length = 0;
-    for (const bottom of this.strikeBottom_) {
+    scene.preRender.removeEventListener(this.#onPreRender);
+    this.#strikes.length = 0;
+    for (const bottom of this.#strikeBottom) {
       bottom.w = -1;
     }
-    for (const glow of this.strikeGlow_) {
+    for (const glow of this.#strikeGlow) {
       glow.w = 0;
     }
   }
@@ -248,12 +261,12 @@ export default class Lightning extends Effect {
    * every 2.5 seconds on average.
    */
   get intensity() {
-    return this.intensity_;
+    return this.#intensity;
   }
 
   set intensity(value) {
-    const striking = this.intensity_ > 0;
-    this.intensity_ = value;
+    const striking = this.#intensity > 0;
+    this.#intensity = value;
     if (this.stage_ && striking !== value > 0) {
       this.stage_.enabled = value > 0;
       (value > 0 ? acquireFrames : releaseFrames)(this.viewer.scene, FRAME_RATE);
@@ -266,11 +279,11 @@ export default class Lightning extends Effect {
    * start there, and none strike around a camera above it.
    */
   get cloudBase() {
-    return this.cloudBase_;
+    return this.#cloudBase;
   }
 
   set cloudBase(value) {
-    this.cloudBase_ = value;
+    this.#cloudBase = value;
     this.viewer.scene.requestRender();
   }
 
@@ -279,22 +292,22 @@ export default class Lightning extends Effect {
    * where it looks, rather than all around it.
    */
   get inFront() {
-    return this.inFront_;
+    return this.#inFront;
   }
 
   set inFront(value) {
-    this.inFront_ = value;
+    this.#inFront = value;
   }
 
   /**
    * How far from the camera the strikes land, in meters.
    */
   get radius() {
-    return this.radius_;
+    return this.#radius;
   }
 
   set radius(value) {
-    this.radius_ = value;
+    this.#radius = value;
     this.viewer.scene.requestRender();
   }
 
@@ -304,10 +317,10 @@ export default class Lightning extends Effect {
    * strike lands only on heavy rain, more surely as it is heavier.
    */
   get map() {
-    return this.weatherMap_.map;
+    return this.#weatherMap.map;
   }
 
   set map(value) {
-    this.weatherMap_.map = value;
+    this.#weatherMap.map = value;
   }
 }

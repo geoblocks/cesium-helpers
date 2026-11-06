@@ -37,6 +37,45 @@ const orbitScratch = new Cartesian3();
  * glides to the spot.
  */
 export default class CesiumIso {
+  #pitch;
+  #corner;
+  #size;
+  #minSize;
+  #maxSize;
+  #limit;
+  #orbit;
+  #active = false;
+  #target = new Cartesian3();
+  #heading = 0;
+  /** @type {Map<number, Cartesian2>} */
+  #pointers = new Map();
+  /** @type {{grab?: Cartesian3 | undefined, turn?: boolean, last?: {x: number, y: number}, distance?: number, angle?: number, twist?: number} | undefined} */
+  #drag = undefined;
+  /** @type {Set<string>} */
+  #held = new Set();
+  /** @type {{from: number, to: number, start: number} | undefined} */
+  #turning = undefined;
+  /** @type {{from: Cartesian3, to: Cartesian3, start: number} | undefined} */
+  #gliding = undefined;
+  /** @type {number | undefined} */
+  #frame = undefined;
+  /** @type {number | undefined} */
+  #slid = undefined;
+  /** @type {(() => void) | undefined} */
+  #settling = undefined;
+  // the view's last move during a drag, and how fast it moved then: turning in radians, sliding in meters, a ms
+  /** @type {{time: number, heading: number, target: Cartesian3, turn: number, slide: Cartesian3} | undefined} */
+  #moved = undefined;
+  /** @type {{turn: number, slide: Cartesian3} | undefined} */
+  #drift = undefined;
+  /** @type {number | undefined} */
+  #drifted = undefined;
+  // the camera's frustum before, given back on deactivation
+  /** @type {any} */
+  #frustum = undefined;
+  /** @type {[EventTarget, string, (e: any) => void][]} */
+  #listeners;
+
   /**
    * @param {CesiumWidget} viewer
    * @param {{pitch?: number, heading?: number, size?: number, minSize?: number, maxSize?: number,
@@ -47,71 +86,40 @@ export default class CesiumIso {
    */
   constructor(viewer, options = {}) {
     this.viewer = viewer;
-    this.pitch_ = CesiumMath.toRadians(options.pitch ?? 30);
-    this.corner_ = CesiumMath.toRadians(options.heading ?? 45);
-    this.size_ = options.size ?? 400;
-    this.minSize_ = options.minSize ?? 20;
-    this.maxSize_ = options.maxSize ?? 8000;
-    this.limit_ = options.limit;
-    this.orbit_ = options.orbit ?? ORBIT;
-    this.active_ = false;
-    /** @type {Cartesian3} */
-    this.target_ = new Cartesian3();
-    this.heading_ = 0;
-    /** @type {Map<number, Cartesian2>} */
-    this.pointers_ = new Map();
-    /** @type {{grab?: Cartesian3 | undefined, turn?: boolean, last?: {x: number, y: number}, distance?: number, angle?: number, twist?: number} | undefined} */
-    this.drag_ = undefined;
-    /** @type {Set<string>} */
-    this.held_ = new Set();
-    /** @type {{from: number, to: number, start: number} | undefined} */
-    this.turning_ = undefined;
-    /** @type {{from: Cartesian3, to: Cartesian3, start: number} | undefined} */
-    this.gliding_ = undefined;
-    /** @type {number | undefined} */
-    this.frame_ = undefined;
-    /** @type {number | undefined} */
-    this.slid_ = undefined;
-    /** @type {(() => void) | undefined} */
-    this.settling_ = undefined;
-    // the view's last move during a drag, and how fast it moved then: turning in radians, sliding in meters, a ms
-    /** @type {{time: number, heading: number, target: Cartesian3, turn: number, slide: Cartesian3} | undefined} */
-    this.moved_ = undefined;
-    /** @type {{turn: number, slide: Cartesian3} | undefined} */
-    this.drift_ = undefined;
-    /** @type {number | undefined} */
-    this.drifted_ = undefined;
-    // the camera's frustum before, given back on deactivation
-    /** @type {any} */
-    this.frustum_ = undefined;
-
-    this.listeners_ = /** @type {[EventTarget, string, (e: any) => void][]} */ ([
-      [viewer.scene.canvas, 'pointerdown', e => this.down_(e)],
-      [viewer.scene.canvas, 'pointermove', e => this.move_(e)],
-      [viewer.scene.canvas, 'pointerup', e => this.up_(e)],
-      [viewer.scene.canvas, 'pointercancel', e => this.up_(e)],
-      [viewer.scene.canvas, 'wheel', e => this.wheel_(e)],
-      [viewer.scene.canvas, 'dblclick', e => this.glideTo(this.pick_(this.at_(e)))],
+    this.#pitch = CesiumMath.toRadians(options.pitch ?? 30);
+    this.#corner = CesiumMath.toRadians(options.heading ?? 45);
+    this.#size = options.size ?? 400;
+    this.#minSize = options.minSize ?? 20;
+    this.#maxSize = options.maxSize ?? 8000;
+    this.#limit = options.limit;
+    this.#orbit = options.orbit ?? ORBIT;
+    this.#listeners = [
+      [viewer.scene.canvas, 'pointerdown', e => this.#down(e)],
+      [viewer.scene.canvas, 'pointermove', e => this.#move(e)],
+      [viewer.scene.canvas, 'pointerup', e => this.#up(e)],
+      [viewer.scene.canvas, 'pointercancel', e => this.#up(e)],
+      [viewer.scene.canvas, 'wheel', e => this.#wheel(e)],
+      [viewer.scene.canvas, 'dblclick', e => this.glideTo(this.#pick(this.#at(e)))],
       [viewer.scene.canvas, 'contextmenu', e => e.preventDefault()],
-      [window, 'keydown', e => this.keydown_(e)],
-      [window, 'keyup', e => this.held_.delete(e.key.toLowerCase())],
-      [window, 'blur', () => this.held_.clear()],
+      [window, 'keydown', e => this.#keydown(e)],
+      [window, 'keyup', e => this.#held.delete(e.key.toLowerCase())],
+      [window, 'blur', () => this.#held.clear()],
       [window, 'resize', () => this.place_()],
-    ]);
+    ];
   }
 
   get active() {
-    return this.active_;
+    return this.#active;
   }
 
   set active(active) {
-    if (active === this.active_) {
+    if (active === this.#active) {
       return;
     }
-    this.active_ = active;
+    this.#active = active;
     const {scene} = this.viewer;
     scene.screenSpaceCameraController.enableInputs = !active;
-    for (const [target, type, listener] of this.listeners_) {
+    for (const [target, type, listener] of this.#listeners) {
       if (active) {
         target.addEventListener(type, listener, type === 'wheel' ? {passive: false} : undefined);
       } else {
@@ -123,36 +131,36 @@ export default class CesiumIso {
       // ellipsoid there, raised to the terrain once its tiles are in, if the globe is shown
       const {canvas, camera, globe} = scene;
       const middle = new Cartesian2(canvas.clientWidth / 2, canvas.clientHeight / 2);
-      const picked = this.pick_(middle);
-      this.target_ = picked ?? camera.pickEllipsoid(middle, scene.ellipsoid) ?? Cartesian3.clone(camera.positionWC);
-      this.heading_ = this.cornerAfter_(camera.heading, 0);
-      this.frustum_ = camera.frustum.clone();
+      const picked = this.#pick(middle);
+      this.#target = picked ?? camera.pickEllipsoid(middle, scene.ellipsoid) ?? Cartesian3.clone(camera.positionWC);
+      this.#heading = this.#cornerAfter(camera.heading, 0);
+      this.#frustum = camera.frustum.clone();
       // off any transform the camera was fixed to (once: Cesium reads the depth back here)
       camera.lookAtTransform(Matrix4.IDENTITY);
       camera.switchToOrthographicFrustum();
       this.place_();
       if (!picked && globe?.show) {
-        this.settling_ = globe.tileLoadProgressEvent.addEventListener(queued => {
-          const spot = Cartographic.fromCartesian(this.target_, scene.ellipsoid);
+        this.#settling = globe.tileLoadProgressEvent.addEventListener(queued => {
+          const spot = Cartographic.fromCartesian(this.#target, scene.ellipsoid);
           const height = queued ? undefined : globe.getHeight(spot);
           if (height !== undefined) {
-            this.settle_();
-            this.target_ = Cartesian3.fromRadians(spot.longitude, spot.latitude, height, scene.ellipsoid);
+            this.#settle();
+            this.#target = Cartesian3.fromRadians(spot.longitude, spot.latitude, height, scene.ellipsoid);
             this.place_();
           }
         });
       }
     } else {
-      this.settle_();
-      cancelAnimationFrame(this.frame_ ?? 0);
-      this.frame_ = this.turning_ = this.gliding_ = this.drag_ = this.moved_ = this.drift_ = this.drifted_ = undefined;
-      this.pointers_.clear();
-      this.held_.clear();
+      this.#settle();
+      cancelAnimationFrame(this.#frame ?? 0);
+      this.#frame = this.#turning = this.#gliding = this.#drag = this.#moved = this.#drift = this.#drifted = undefined;
+      this.#pointers.clear();
+      this.#held.clear();
       const {canvas} = scene;
-      if (this.frustum_.aspectRatio !== undefined) {
-        this.frustum_.aspectRatio = canvas.clientWidth / canvas.clientHeight;
+      if (this.#frustum.aspectRatio !== undefined) {
+        this.#frustum.aspectRatio = canvas.clientWidth / canvas.clientHeight;
       }
-      scene.camera.frustum = this.frustum_;
+      scene.camera.frustum = this.#frustum;
       scene.requestRender();
     }
   }
@@ -161,13 +169,13 @@ export default class CesiumIso {
    * What the view turns about, in the middle of the screen, a copy; set once active, the view moves there at once.
    */
   get target() {
-    return Cartesian3.clone(this.target_);
+    return Cartesian3.clone(this.#target);
   }
 
   set target(position) {
-    this.settle_();
-    this.target_ = Cartesian3.clone(position);
-    if (this.active_) {
+    this.#settle();
+    this.#target = Cartesian3.clone(position);
+    if (this.#active) {
       this.place_();
     }
   }
@@ -175,16 +183,16 @@ export default class CesiumIso {
   /**
    * No more waiting for the terrain under the first target.
    */
-  settle_() {
-    this.settling_?.();
-    this.settling_ = undefined;
+  #settle() {
+    this.#settling?.();
+    this.#settling = undefined;
   }
 
   /**
    * The view's heading, in degrees, clockwise from the north, where the camera looks.
    */
   get heading() {
-    return CesiumMath.toDegrees(this.heading_);
+    return CesiumMath.toDegrees(this.#heading);
   }
 
   /**
@@ -193,8 +201,8 @@ export default class CesiumIso {
    * @param {number} heading
    */
   set heading(heading) {
-    this.turning_ = this.drift_ = this.drifted_ = undefined;
-    this.heading_ = CesiumMath.toRadians(heading);
+    this.#turning = this.#drift = this.#drifted = undefined;
+    this.#heading = CesiumMath.toRadians(heading);
     this.place_();
   }
 
@@ -203,11 +211,11 @@ export default class CesiumIso {
    * its target (zoom zooms about a point of the screen).
    */
   get size() {
-    return this.size_;
+    return this.#size;
   }
 
   set size(size) {
-    this.size_ = CesiumMath.clamp(size, this.minSize_, this.maxSize_);
+    this.#size = CesiumMath.clamp(size, this.#minSize, this.#maxSize);
     this.place_();
   }
 
@@ -216,12 +224,12 @@ export default class CesiumIso {
    * @param {number} heading
    */
   turnTo(heading) {
-    this.drift_ = this.drifted_ = undefined;
-    this.anchor_();
+    this.#drift = this.#drifted = undefined;
+    this.#anchor();
     const to = CesiumMath.toRadians(heading);
-    const delta = CesiumMath.negativePiToPi(to - this.heading_);
-    this.turning_ = {from: this.heading_, to: this.heading_ + delta, start: performance.now()};
-    this.animate_();
+    const delta = CesiumMath.negativePiToPi(to - this.#heading);
+    this.#turning = {from: this.#heading, to: this.#heading + delta, start: performance.now()};
+    this.#animate();
   }
 
   /**
@@ -230,10 +238,10 @@ export default class CesiumIso {
    * @param {number} sign
    */
   turn(sign) {
-    this.drift_ = this.drifted_ = undefined;
-    this.anchor_();
-    this.turning_ = {from: this.heading_, to: this.cornerAfter_(this.heading_, -sign), start: performance.now()};
-    this.animate_();
+    this.#drift = this.#drifted = undefined;
+    this.#anchor();
+    this.#turning = {from: this.#heading, to: this.#cornerAfter(this.#heading, -sign), start: performance.now()};
+    this.#animate();
   }
 
   /**
@@ -244,11 +252,11 @@ export default class CesiumIso {
   zoom(factor, at) {
     const {canvas} = this.viewer.scene;
     const point = at ?? new Cartesian2(canvas.clientWidth / 2, canvas.clientHeight / 2);
-    const before = this.ground_(point, this.target_);
-    this.size_ = CesiumMath.clamp(this.size_ * factor, this.minSize_, this.maxSize_);
+    const before = this.#ground(point, this.#target);
+    this.#size = CesiumMath.clamp(this.#size * factor, this.#minSize, this.#maxSize);
     this.place_();
     if (before) {
-      this.keep_(before, point);
+      this.#keep(before, point);
     }
   }
 
@@ -260,29 +268,49 @@ export default class CesiumIso {
     if (!position) {
       return;
     }
-    this.drift_ = this.drifted_ = undefined;
-    this.gliding_ = {from: Cartesian3.clone(this.target_), to: Cartesian3.clone(position), start: performance.now()};
-    this.animate_();
+    this.#drift = this.#drifted = undefined;
+    this.#gliding = {from: Cartesian3.clone(this.#target), to: Cartesian3.clone(position), start: performance.now()};
+    this.#animate();
+  }
+
+  /**
+   * The view stopped where it is: a drift after a drag, a turn or a glide under way, dropped, and
+   * the view turning about the ground in the middle again, as when one ends.
+   */
+  stop() {
+    const moving = this.#drift || this.#turning || this.#gliding;
+    this.#drift = this.#drifted = this.#turning = this.#gliding = undefined;
+    if (moving) {
+      this.#anchor();
+    }
+  }
+
+  /**
+   * How many pointers are down on the view: two or more, a pinch.
+   */
+  get pointers() {
+    return this.#pointers.size;
   }
 
   /**
    * The camera on its orbit about the target, the frustum as wide as the size on the shorter side. Set straight: in
    * the target's east-north-up frame, looking along the heading, down by the pitch; Cesium's lookAt and setView would
    * read the depth under the middle back from the GPU to size an orthographic frustum, a stall at each move.
+   * @protected
    */
   place_() {
-    if (!this.active_) {
+    if (!this.#active) {
       return;
     }
-    if (this.limit_) {
-      this.target_ = Cartesian3.clone(this.limit_(this.target_), this.target_);
+    if (this.#limit) {
+      this.#target = Cartesian3.clone(this.#limit(this.#target), this.#target);
     }
     const {camera, ellipsoid} = this.viewer.scene;
-    const [sh, ch, sp, cp] = [Math.sin(this.heading_), Math.cos(this.heading_), Math.sin(this.pitch_), Math.cos(this.pitch_)];
-    const frame = FixedFrameTransforms.eastNorthUpToFixedFrame(this.target_, ellipsoid, frameScratch);
+    const [sh, ch, sp, cp] = [Math.sin(this.#heading), Math.cos(this.#heading), Math.sin(this.#pitch), Math.cos(this.#pitch)];
+    const frame = FixedFrameTransforms.eastNorthUpToFixedFrame(this.#target, ellipsoid, frameScratch);
     const direction = Matrix4.multiplyByPointAsVector(frame, Cartesian3.fromElements(sh * cp, ch * cp, -sp, directionScratch), directionScratch);
     const up = Matrix4.multiplyByPointAsVector(frame, Cartesian3.fromElements(sh * sp, ch * sp, cp, upScratch), upScratch);
-    Matrix4.multiplyByPoint(frame, Cartesian3.fromElements(-sh * cp * this.orbit_, -ch * cp * this.orbit_, sp * this.orbit_, orbitScratch), camera.position);
+    Matrix4.multiplyByPoint(frame, Cartesian3.fromElements(-sh * cp * this.#orbit, -ch * cp * this.#orbit, sp * this.#orbit, orbitScratch), camera.position);
     Cartesian3.clone(direction, camera.direction);
     Cartesian3.clone(up, camera.up);
     Cartesian3.cross(direction, up, camera.right);
@@ -296,10 +324,11 @@ export default class CesiumIso {
 
   /**
    * The view's width, in meters: the size on the screen's shorter side.
+   * @protected
    */
   width_() {
     const {canvas} = this.viewer.scene;
-    return this.size_ * Math.max(1, canvas.clientWidth / canvas.clientHeight);
+    return this.#size * Math.max(1, canvas.clientWidth / canvas.clientHeight);
   }
 
   /**
@@ -307,16 +336,16 @@ export default class CesiumIso {
    * @param {number} heading
    * @param {number} sign
    */
-  cornerAfter_(heading, sign) {
+  #cornerAfter(heading, sign) {
     const quarter = CesiumMath.PI_OVER_TWO;
-    return this.corner_ + (Math.round((heading - this.corner_) / quarter) + sign) * quarter;
+    return this.#corner + (Math.round((heading - this.#corner) / quarter) + sign) * quarter;
   }
 
   /**
    * A point of the canvas, from a pointer event.
    * @param {MouseEvent} e
    */
-  at_(e) {
+  #at(e) {
     const rect = this.viewer.scene.canvas.getBoundingClientRect();
     return new Cartesian2(e.clientX - rect.left, e.clientY - rect.top);
   }
@@ -326,7 +355,7 @@ export default class CesiumIso {
    * @param {Cartesian2} point
    * @returns {Cartesian3 | undefined}
    */
-  pick_(point) {
+  #pick(point) {
     const {scene} = this.viewer;
     const position = scene.pickPositionSupported ? scene.pickPosition(point) : undefined;
     const ray = position || !scene.globe?.show ? undefined : scene.camera.getPickRay(point);
@@ -339,7 +368,7 @@ export default class CesiumIso {
    * @param {Cartesian3} through
    * @returns {Cartesian3 | undefined}
    */
-  ground_(point, through) {
+  #ground(point, through) {
     const {scene} = this.viewer;
     const normal = scene.ellipsoid.geodeticSurfaceNormal(through, normalScratch);
     const plane = Plane.fromPointNormal(through, normal, planeScratch);
@@ -352,10 +381,10 @@ export default class CesiumIso {
    * @param {Cartesian3} position
    * @param {Cartesian2} point
    */
-  keep_(position, point) {
-    const now = this.ground_(point, position);
+  #keep(position, point) {
+    const now = this.#ground(point, position);
     if (now) {
-      Cartesian3.add(this.target_, Cartesian3.subtract(position, now, deltaScratch), this.target_);
+      Cartesian3.add(this.#target, Cartesian3.subtract(position, now, deltaScratch), this.#target);
       this.place_();
     }
   }
@@ -364,11 +393,11 @@ export default class CesiumIso {
    * The target moved onto what is seen in the middle of the screen: the view does not change, being orthographic, but
    * it turns about the ground there.
    */
-  anchor_() {
+  #anchor() {
     const {canvas} = this.viewer.scene;
-    const ground = this.pick_(new Cartesian2(canvas.clientWidth / 2, canvas.clientHeight / 2));
+    const ground = this.#pick(new Cartesian2(canvas.clientWidth / 2, canvas.clientHeight / 2));
     if (ground) {
-      this.target_ = ground;
+      this.#target = ground;
       this.place_();
     }
   }
@@ -376,14 +405,14 @@ export default class CesiumIso {
   /**
    * @param {PointerEvent} e
    */
-  down_(e) {
+  #down(e) {
     const canvas = this.viewer.scene.canvas;
     canvas.setPointerCapture(e.pointerId);
-    this.settle_();
-    this.pointers_.set(e.pointerId, this.at_(e));
-    this.gliding_ = this.drift_ = this.drifted_ = undefined;
-    this.snapshot_(e.timeStamp);
-    this.drag_ = this.start_(e);
+    this.#settle();
+    this.#pointers.set(e.pointerId, this.#at(e));
+    this.#gliding = this.#drift = this.#drifted = undefined;
+    this.#snapshot(e.timeStamp);
+    this.#drag = this.#start(e);
   }
 
   /**
@@ -391,122 +420,122 @@ export default class CesiumIso {
    * turns it; two fingers pinch, slide and twist it.
    * @param {PointerEvent} e
    */
-  start_(e) {
-    const points = [...this.pointers_.values()];
+  #start(e) {
+    const points = [...this.#pointers.values()];
     if (points.length === 2) {
       const [a, b] = points;
       const middle = Cartesian2.lerp(a, b, 0.5, new Cartesian2());
-      return {grab: this.ground_(middle, this.target_), distance: Cartesian2.distance(a, b), angle: Math.atan2(b.y - a.y, b.x - a.x), twist: 0};
+      return {grab: this.#ground(middle, this.#target), distance: Cartesian2.distance(a, b), angle: Math.atan2(b.y - a.y, b.x - a.x), twist: 0};
     }
     const slide = e.pointerType === 'touch' || e.button === 2 || e.ctrlKey || e.shiftKey;
     const point = /** @type {{x: number, y: number}} */ (points[0]);
-    return slide ? {grab: this.ground_(new Cartesian2(point.x, point.y), this.target_)} : {turn: true, last: point};
+    return slide ? {grab: this.#ground(new Cartesian2(point.x, point.y), this.#target)} : {turn: true, last: point};
   }
 
   /**
    * @param {PointerEvent} e
    */
-  move_(e) {
-    if (!this.pointers_.has(e.pointerId) || !this.drag_) {
+  #move(e) {
+    if (!this.#pointers.has(e.pointerId) || !this.#drag) {
       return;
     }
-    this.pointers_.set(e.pointerId, this.at_(e));
-    const drag = this.drag_;
-    const points = [...this.pointers_.values()];
+    this.#pointers.set(e.pointerId, this.#at(e));
+    const drag = this.#drag;
+    const points = [...this.#pointers.values()];
     if (points.length === 2 && drag.distance !== undefined) {
       const [a, b] = /** @type {[Cartesian2, Cartesian2]} */ (points);
       const middle = Cartesian2.lerp(a, b, 0.5, new Cartesian2());
       const [distance, angle] = [Cartesian2.distance(a, b), Math.atan2(b.y - a.y, b.x - a.x)];
-      this.size_ = CesiumMath.clamp(this.size_ * drag.distance / distance, this.minSize_, this.maxSize_);
+      this.#size = CesiumMath.clamp(this.#size * drag.distance / distance, this.#minSize, this.#maxSize);
       this.place_();
       if (drag.grab) {
-        this.keep_(drag.grab, middle);
+        this.#keep(drag.grab, middle);
       }
       const turned = CesiumMath.negativePiToPi(angle - /** @type {number} */ (drag.angle));
       drag.twist = /** @type {number} */ (drag.twist) + turned;
       if (Math.abs(drag.twist) >= TWIST) {
         // the screen's y down: the fingers turning clockwise on it turn the ground clockwise under them
-        this.heading_ -= turned;
+        this.#heading -= turned;
         this.place_();
       }
       Object.assign(drag, {distance, angle});
       // no drift after a pinch
-      this.snapshot_(e.timeStamp);
+      this.#snapshot(e.timeStamp);
       return;
     } else if (drag.turn && drag.last) {
       const point = /** @type {{x: number, y: number}} */ (points[0]);
-      this.heading_ -= CesiumMath.TWO_PI * (point.x - drag.last.x) / this.viewer.scene.canvas.clientHeight;
+      this.#heading -= CesiumMath.TWO_PI * (point.x - drag.last.x) / this.viewer.scene.canvas.clientHeight;
       drag.last = point;
       this.place_();
     } else if (drag.grab) {
       const point = /** @type {{x: number, y: number}} */ (points[0]);
-      this.keep_(drag.grab, new Cartesian2(point.x, point.y));
+      this.#keep(drag.grab, new Cartesian2(point.x, point.y));
     }
-    this.track_(e.timeStamp);
+    this.#track(e.timeStamp);
   }
 
   /**
    * Where the view is, to measure its next move from.
    * @param {number} time
    */
-  snapshot_(time) {
-    this.moved_ = {time, heading: this.heading_, target: Cartesian3.clone(this.target_), turn: 0, slide: new Cartesian3()};
+  #snapshot(time) {
+    this.#moved = {time, heading: this.#heading, target: Cartesian3.clone(this.#target), turn: 0, slide: new Cartesian3()};
   }
 
   /**
    * How fast the view moves under the drag, smoothed over the last moves.
    * @param {number} time
    */
-  track_(time) {
-    const moved = this.moved_;
+  #track(time) {
+    const moved = this.#moved;
     const dt = moved ? time - moved.time : 0;
     if (!moved || dt <= 0) {
       return;
     }
-    const slide = Cartesian3.divideByScalar(Cartesian3.subtract(this.target_, moved.target, deltaScratch), dt, deltaScratch);
-    moved.turn = (moved.turn + (this.heading_ - moved.heading) / dt) / 2;
+    const slide = Cartesian3.divideByScalar(Cartesian3.subtract(this.#target, moved.target, deltaScratch), dt, deltaScratch);
+    moved.turn = (moved.turn + (this.#heading - moved.heading) / dt) / 2;
     Cartesian3.divideByScalar(Cartesian3.add(moved.slide, slide, moved.slide), 2, moved.slide);
-    Object.assign(moved, {time, heading: this.heading_, target: Cartesian3.clone(this.target_, moved.target)});
+    Object.assign(moved, {time, heading: this.#heading, target: Cartesian3.clone(this.#target, moved.target)});
   }
 
   /**
    * @param {PointerEvent} e
    */
-  up_(e) {
+  #up(e) {
     // a pointer pressed elsewhere (on a control over the canvas) and let go here was never the view's
-    if (!this.pointers_.has(e.pointerId)) {
+    if (!this.#pointers.has(e.pointerId)) {
       return;
     }
-    this.pointers_.delete(e.pointerId);
+    this.#pointers.delete(e.pointerId);
     // a finger lifted: the other slides on, from here
-    this.drag_ = this.pointers_.size ? this.start_(e) : undefined;
-    if (this.drag_) {
-      this.snapshot_(e.timeStamp);
+    this.#drag = this.#pointers.size ? this.#start(e) : undefined;
+    if (this.#drag) {
+      this.#snapshot(e.timeStamp);
       return;
     }
     // let go while moving: the view drifts on, slowing down; else it turns about the ground in the middle
-    const moved = this.moved_;
-    this.moved_ = undefined;
+    const moved = this.#moved;
+    this.#moved = undefined;
     if (moved && e.timeStamp - moved.time < LET_GO && (moved.turn || Cartesian3.magnitude(moved.slide))) {
-      this.drift_ = {turn: moved.turn, slide: moved.slide};
-      this.animate_();
+      this.#drift = {turn: moved.turn, slide: moved.slide};
+      this.#animate();
     } else {
-      this.anchor_();
+      this.#anchor();
     }
   }
 
   /**
    * @param {WheelEvent} e
    */
-  wheel_(e) {
+  #wheel(e) {
     e.preventDefault();
-    this.zoom(Math.pow(1.0015, e.deltaY * (e.deltaMode === 1 ? 33 : 1)), this.at_(e));
+    this.zoom(Math.pow(1.0015, e.deltaY * (e.deltaMode === 1 ? 33 : 1)), this.#at(e));
   }
 
   /**
    * @param {KeyboardEvent} e
    */
-  keydown_(e) {
+  #keydown(e) {
     const target = /** @type {Element | null} */ (e.target);
     if (target?.closest?.('input, select, textarea') || e.ctrlKey || e.metaKey || e.altKey) {
       return;
@@ -515,28 +544,28 @@ export default class CesiumIso {
     if (key === 'q' || key === 'e') {
       this.turn(key === 'q' ? -1 : 1);
     } else if (key in PAN) {
-      this.held_.add(key);
+      this.#held.add(key);
       e.preventDefault();
-      this.animate_();
+      this.#animate();
     }
   }
 
   /**
    * The keys held, the drift, the turn and the glide, a frame at a time, until they are done.
    */
-  animate_() {
-    if (this.frame_ !== undefined) {
+  #animate() {
+    if (this.#frame !== undefined) {
       return;
     }
     const step = (/** @type {number} */ now) => {
-      this.frame_ = undefined;
-      if (!this.active_) {
+      this.#frame = undefined;
+      if (!this.#active) {
         return;
       }
-      if (this.held_.size) {
-        const [x, y] = this.held_.values().reduce(([x, y], key) => [x + (PAN[key]?.[0] ?? 0), y + (PAN[key]?.[1] ?? 0)], [0, 0]);
+      if (this.#held.size) {
+        const [x, y] = this.#held.values().reduce(([x, y], key) => [x + (PAN[key]?.[0] ?? 0), y + (PAN[key]?.[1] ?? 0)], [0, 0]);
         const width = this.width_();
-        const meters = PAN_SPEED * width * Math.min(0.05, (now - (this.slid_ ?? now)) / 1000);
+        const meters = PAN_SPEED * width * Math.min(0.05, (now - (this.#slid ?? now)) / 1000);
         const {canvas} = this.viewer.scene;
         const middle = new Cartesian2(canvas.clientWidth / 2, canvas.clientHeight / 2);
         const length = Math.hypot(x, y);
@@ -544,45 +573,45 @@ export default class CesiumIso {
           // the ground in the middle kept under a point of the screen as far from it as the keys slide, the other way;
           // up the screen, the ground foreshortened by the pitch
           const pixels = meters / width * canvas.clientWidth;
-          this.keep_(this.target_, new Cartesian2(middle.x - x / length * pixels, middle.y + y / length * pixels * Math.sin(this.pitch_)));
+          this.#keep(this.#target, new Cartesian2(middle.x - x / length * pixels, middle.y + y / length * pixels * Math.sin(this.#pitch)));
         }
       }
-      this.slid_ = this.held_.size ? now : undefined;
-      if (this.drift_) {
-        const dt = Math.min(50, now - (this.drifted_ ?? now));
-        this.heading_ += this.drift_.turn * dt;
-        Cartesian3.add(this.target_, Cartesian3.multiplyByScalar(this.drift_.slide, dt, deltaScratch), this.target_);
+      this.#slid = this.#held.size ? now : undefined;
+      if (this.#drift) {
+        const dt = Math.min(50, now - (this.#drifted ?? now));
+        this.#heading += this.#drift.turn * dt;
+        Cartesian3.add(this.#target, Cartesian3.multiplyByScalar(this.#drift.slide, dt, deltaScratch), this.#target);
         this.place_();
         const keep = DAMPING ** (dt * 60 / 1000);
-        this.drift_.turn *= keep;
-        Cartesian3.multiplyByScalar(this.drift_.slide, keep, this.drift_.slide);
-        this.drifted_ = now;
+        this.#drift.turn *= keep;
+        Cartesian3.multiplyByScalar(this.#drift.slide, keep, this.#drift.slide);
+        this.#drifted = now;
         // stopped: under a pixel a second
-        if (Math.abs(this.drift_.turn) < 1e-5 && Cartesian3.magnitude(this.drift_.slide) < this.width_() * 1e-6) {
-          this.drift_ = this.drifted_ = undefined;
-          this.anchor_();
+        if (Math.abs(this.#drift.turn) < 1e-5 && Cartesian3.magnitude(this.#drift.slide) < this.width_() * 1e-6) {
+          this.#drift = this.#drifted = undefined;
+          this.#anchor();
         }
       }
-      if (this.gliding_) {
-        const t = Math.min(1, (now - this.gliding_.start) / GLIDE_TIME);
-        Cartesian3.lerp(this.gliding_.from, this.gliding_.to, easeInOut(t), this.target_);
+      if (this.#gliding) {
+        const t = Math.min(1, (now - this.#gliding.start) / GLIDE_TIME);
+        Cartesian3.lerp(this.#gliding.from, this.#gliding.to, easeInOut(t), this.#target);
         this.place_();
         if (t === 1) {
-          this.gliding_ = undefined;
+          this.#gliding = undefined;
         }
       }
-      if (this.turning_) {
-        const t = Math.min(1, (now - this.turning_.start) / TURN_TIME);
-        this.heading_ = CesiumMath.lerp(this.turning_.from, this.turning_.to, easeInOut(t));
+      if (this.#turning) {
+        const t = Math.min(1, (now - this.#turning.start) / TURN_TIME);
+        this.#heading = CesiumMath.lerp(this.#turning.from, this.#turning.to, easeInOut(t));
         this.place_();
         if (t === 1) {
-          this.turning_ = undefined;
+          this.#turning = undefined;
         }
       }
-      if (this.held_.size || this.drift_ || this.gliding_ || this.turning_) {
-        this.frame_ = requestAnimationFrame(step);
+      if (this.#held.size || this.#drift || this.#gliding || this.#turning) {
+        this.#frame = requestAnimationFrame(step);
       }
     };
-    this.frame_ = requestAnimationFrame(step);
+    this.#frame = requestAnimationFrame(step);
   }
 }

@@ -22,6 +22,25 @@ const LENS_BLUR = 3;
 const middleScratch = new Cartesian2();
 
 export default class CesiumBinoculars {
+  #zoomFactor;
+  /** @type {number | undefined} */
+  #originalFov = undefined;
+  #active = false;
+  /**
+   * @type {Pick<ScreenSpaceCameraController, 'enableZoom' | 'enableRotate' | 'enableTilt' | 'lookEventTypes'> | undefined}
+   */
+  #previousController = undefined;
+  /**
+   * @type {ReturnType<ScreenSpaceEventHandler['getInputAction']> | undefined}
+   */
+  #previousAction = undefined;
+  /** @type {PostProcessStageComposite | undefined} */
+  #lens = undefined;
+  #previousDepthTestAgainstTerrain = false;
+  #reticle = false;
+  #onPreRender;
+  #onMouseWheel;
+
   /**
    * @param {CesiumWidget} viewer
    * @param {number} [zoomFactor] magnification per mouse wheel notch
@@ -29,58 +48,44 @@ export default class CesiumBinoculars {
    */
   constructor(viewer, zoomFactor = 1.25, maxMagnification = 20) {
     this.viewer = viewer;
-    this.zoomFactor_ = zoomFactor;
+    this.#zoomFactor = zoomFactor;
     this.maxMagnification = maxMagnification;
-    this.originalFov_ = undefined;
-    this.active_ = false;
 
-    /**
-     * @type {Pick<ScreenSpaceCameraController, 'enableZoom' | 'enableRotate' | 'enableTilt' | 'lookEventTypes'> | undefined}
-     */
-    this.previousController_ = undefined;
-    /**
-     * @type {ReturnType<ScreenSpaceEventHandler['getInputAction']> | undefined}
-     */
-    this.previousAction_ = undefined;
-    /** @type {PostProcessStageComposite | undefined} */
-    this.lens_ = undefined;
-    this.previousDepthTestAgainstTerrain_ = false;
-    this.reticle_ = false;
-    this.onPreRender_ = this.onPreRender.bind(this);
-    this.onMouseWheel_ = this.onMouseWheel.bind(this);
+    this.#onPreRender = this.onPreRender.bind(this);
+    this.#onMouseWheel = this.onMouseWheel.bind(this);
   }
 
   get active() {
-    return this.active_;
+    return this.#active;
   }
 
   set active(active) {
-    if (active === this.active_) {
+    if (active === this.#active) {
       return;
     }
-    this.active_ = active;
+    this.#active = active;
     const controller = this.viewer.scene.screenSpaceCameraController;
     const handler = this.viewer.screenSpaceEventHandler;
     if (active) {
-      this.originalFov_ = this.frustum_.fov;
+      this.#originalFov = this.#frustum.fov;
       const {enableZoom, enableRotate, enableTilt, lookEventTypes} = controller;
-      this.previousController_ = {enableZoom, enableRotate, enableTilt, lookEventTypes};
+      this.#previousController = {enableZoom, enableRotate, enableTilt, lookEventTypes};
       // stand still: a drag turns the camera in place instead of moving it around the globe
       controller.enableZoom = false;
       controller.enableRotate = false;
       controller.enableTilt = false;
       controller.lookEventTypes = CameraEventType.LEFT_DRAG;
-      this.previousAction_ = handler.getInputAction(ScreenSpaceEventType.WHEEL);
-      handler.setInputAction(this.onMouseWheel_, ScreenSpaceEventType.WHEEL);
-      this.addLens_();
-      this.viewer.scene.preRender.addEventListener(this.onPreRender_);
+      this.#previousAction = handler.getInputAction(ScreenSpaceEventType.WHEEL);
+      handler.setInputAction(this.#onMouseWheel, ScreenSpaceEventType.WHEEL);
+      this.#addLens();
+      this.viewer.scene.preRender.addEventListener(this.#onPreRender);
     } else {
-      this.viewer.scene.preRender.removeEventListener(this.onPreRender_);
-      this.removeLens_();
-      this.frustum_.fov = this.originalFov_;
-      Object.assign(controller, this.previousController_);
-      if (this.previousAction_) {
-        handler.setInputAction(this.previousAction_, ScreenSpaceEventType.WHEEL);
+      this.viewer.scene.preRender.removeEventListener(this.#onPreRender);
+      this.#removeLens();
+      this.#frustum.fov = this.#originalFov;
+      Object.assign(controller, this.#previousController);
+      if (this.#previousAction) {
+        handler.setInputAction(this.#previousAction, ScreenSpaceEventType.WHEEL);
       } else {
         handler.removeInputAction(ScreenSpaceEventType.WHEEL);
       }
@@ -89,15 +94,15 @@ export default class CesiumBinoculars {
     this.viewer.scene.requestRender();
   }
 
-  addLens_() {
+  #addLens() {
     const scene = this.viewer.scene;
     // the post-process stages only get the depth of the terrain when it is depth tested
     if (scene.globe) {
-      this.previousDepthTestAgainstTerrain_ = scene.globe.depthTestAgainstTerrain;
+      this.#previousDepthTestAgainstTerrain = scene.globe.depthTestAgainstTerrain;
       scene.globe.depthTestAgainstTerrain = true;
     }
     const blur = PostProcessStageLibrary.createBlurStage();
-    this.lens_ = new PostProcessStageComposite({
+    this.#lens = new PostProcessStageComposite({
       stages: [
         blur,
         new PostProcessStage({
@@ -105,8 +110,8 @@ export default class CesiumBinoculars {
           uniforms: {
             blurTexture: blur.name,
             magnification: () => this.magnification,
-            reticle: () => (this.reticle_ ? 1 : 0),
-            pixelsPerMil: () => (scene.drawingBufferHeight / 2 / Math.tan(/** @type {number} */ (this.frustum_.fovy) / 2)) * 0.001,
+            reticle: () => (this.#reticle ? 1 : 0),
+            pixelsPerMil: () => (scene.drawingBufferHeight / 2 / Math.tan(/** @type {number} */ (this.#frustum.fovy) / 2)) * 0.001,
           },
         }),
       ],
@@ -114,17 +119,17 @@ export default class CesiumBinoculars {
       inputPreviousStageTexture: false,
       uniforms: blur.uniforms,
     });
-    this.lens_.uniforms.sigma = LENS_BLUR;
-    scene.postProcessStages.add(this.lens_);
+    this.#lens.uniforms.sigma = LENS_BLUR;
+    scene.postProcessStages.add(this.#lens);
   }
 
-  removeLens_() {
+  #removeLens() {
     const scene = this.viewer.scene;
     // removing a stage also destroys it
-    scene.postProcessStages.remove(/** @type {PostProcessStageComposite} */ (this.lens_));
-    this.lens_ = undefined;
+    scene.postProcessStages.remove(/** @type {PostProcessStageComposite} */ (this.#lens));
+    this.#lens = undefined;
     if (scene.globe) {
-      scene.globe.depthTestAgainstTerrain = this.previousDepthTestAgainstTerrain_;
+      scene.globe.depthTestAgainstTerrain = this.#previousDepthTestAgainstTerrain;
     }
   }
 
@@ -134,11 +139,11 @@ export default class CesiumBinoculars {
    * the mils it covers, divided by 1000.
    */
   get reticle() {
-    return this.reticle_;
+    return this.#reticle;
   }
 
   set reticle(value) {
-    this.reticle_ = value;
+    this.#reticle = value;
     this.viewer.scene.requestRender();
   }
 
@@ -149,7 +154,7 @@ export default class CesiumBinoculars {
    */
   get distance() {
     const scene = this.viewer.scene;
-    if (!this.active_ || !scene.pickPositionSupported) {
+    if (!this.#active || !scene.pickPositionSupported) {
       return undefined;
     }
     const canvas = scene.canvas;
@@ -158,7 +163,7 @@ export default class CesiumBinoculars {
     return position && Cartesian3.distance(scene.camera.positionWC, position);
   }
 
-  get frustum_() {
+  get #frustum() {
     return /** @type {PerspectiveFrustum} */ (this.viewer.scene.camera.frustum);
   }
 
@@ -167,21 +172,21 @@ export default class CesiumBinoculars {
    * The magnification is proportional to 1 / tan(fov / 2).
    */
   get magnification() {
-    if (!this.active_) {
+    if (!this.#active) {
       return 1;
     }
-    return Math.tan(/** @type {number} */ (this.originalFov_) / 2) / Math.tan(/** @type {number} */ (this.frustum_.fov) / 2);
+    return Math.tan(/** @type {number} */ (this.#originalFov) / 2) / Math.tan(/** @type {number} */ (this.#frustum.fov) / 2);
   }
 
   /**
    * Only applies while active; clamped between 1 and maxMagnification.
    */
   set magnification(magnification) {
-    if (!this.active_) {
+    if (!this.#active) {
       return;
     }
     const clamped = CesiumMath.clamp(magnification, 1, this.maxMagnification);
-    this.frustum_.fov = 2 * Math.atan(Math.tan(/** @type {number} */ (this.originalFov_) / 2) / clamped);
+    this.#frustum.fov = 2 * Math.atan(Math.tan(/** @type {number} */ (this.#originalFov) / 2) / clamped);
   }
 
   /**
@@ -198,6 +203,6 @@ export default class CesiumBinoculars {
    * @param {number} delta 120 per mouse wheel notch, positive to zoom in; trackpads send smaller values
    */
   onMouseWheel(delta) {
-    this.magnification *= Math.pow(this.zoomFactor_, delta / 120);
+    this.magnification *= Math.pow(this.#zoomFactor, delta / 120);
   }
 }

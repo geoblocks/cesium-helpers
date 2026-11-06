@@ -107,6 +107,64 @@ const groundScratch = new Cartesian3();
  * Without a map, there are no clouds.
  */
 export default class Clouds extends Effect {
+  #cloudBase;
+  #cloudTop;
+  #density;
+  #wind;
+  #drift;
+  // without a map, no clouds
+  #weatherMap = new WeatherMap(0);
+  // the wind's direction for the map's rectangle it was computed for
+  /** @type {Rectangle | undefined} */
+  #windRectangle = undefined;
+  #windVector;
+  /** @type {WeatherMapOptions | undefined} */
+  #map;
+  /** @type {WeatherMapOptions | undefined} */
+  #nextMap = undefined;
+  // the map's intensity at the camera when it is inside the clouds, read each frame
+  #localDensity = 0;
+  // made when the clouds are first drawn, as the map's texture
+  /** @type {any} */
+  #noiseTexture = undefined;
+  /** @type {any} */
+  #mapNoiseTexture = undefined;
+  // the accumulation over the frames: the frames drawn, the previous frames' clouds, their share,
+  // the previous frame's view and projection, and what makes the scene render until it settles
+  #frame = 0;
+  /** @type {any} */
+  #history = undefined;
+  /** @type {any} */
+  #historyFramebuffer = undefined;
+  /** @type {any} */
+  #copy = undefined;
+  /** @type {any} */
+  #copySource = undefined;
+  #historyWeight = 0;
+  #previousViewProjection = new Matrix4();
+  #reprojection = new Matrix4();
+  #lastView = new Matrix4();
+  #lastTime;
+  #changed = false;
+  #settling = false;
+  #settleUntil = 0;
+  // the shadow map, its ground point and time, and whether the clouds changed since it was drawn
+  /** @type {any} */
+  #shadow = undefined;
+  /** @type {any} */
+  #shadowFramebuffer = undefined;
+  /** @type {any} */
+  #shadowCommand = undefined;
+  #shadowCenter = new Cartesian3();
+  #shadowExtent;
+  #shadowTime;
+  #shadowDrawnAt;
+  #shadowChanged = true;
+  /** @type {CloudShadow} */
+  #shadowSource;
+  #onPreRender;
+  #onPostRender;
+
   /**
    * @param {CesiumWidget} viewer
    * @param {{map?: WeatherMapOptions, cloudBase?: number, cloudTop?: number, density?: number, wind?: number, drift?: number}} [options]
@@ -114,89 +172,46 @@ export default class Clouds extends Effect {
   constructor(viewer, options = {}) {
     super(viewer);
     this.terrainDepth_ = true;
-    this.cloudBase_ = options.cloudBase ?? 2500;
-    this.cloudTop_ = options.cloudTop ?? 9000;
-    this.density_ = options.density ?? 1;
-    this.wind_ = options.wind ?? 10;
-    this.drift_ = options.drift ?? 0;
-    // without a map, no clouds
-    this.weatherMap_ = new WeatherMap(0);
-    // the wind's direction for the map's rectangle it was computed for
-    /** @type {Rectangle | undefined} */
-    this.windRectangle_ = undefined;
-    this.windVector_ = Cartesian3.ZERO;
+    this.#cloudBase = options.cloudBase ?? 2500;
+    this.#cloudTop = options.cloudTop ?? 9000;
+    this.#density = options.density ?? 1;
+    this.#wind = options.wind ?? 10;
+    this.#drift = options.drift ?? 0;
+    this.#windVector = Cartesian3.ZERO;
     // the maps of the rain, from which the clouds' maps are made
-    /** @type {WeatherMapOptions | undefined} */
-    this.map_ = options.map;
-    /** @type {WeatherMapOptions | undefined} */
-    this.nextMap_ = undefined;
-    this.weatherMap_.map = options.map && createCloudMap(options.map);
-    // the map's intensity at the camera when it is inside the clouds, read each frame
-    this.localDensity_ = 0;
-    // made when the clouds are first drawn, as the map's texture
-    /** @type {any} */
-    this.noiseTexture_ = undefined;
-    /** @type {any} */
-    this.mapNoiseTexture_ = undefined;
-    // the accumulation over the frames: the frames drawn, the previous frames' clouds, their share,
-    // the previous frame's view and projection, and what makes the scene render until it settles
-    this.frame_ = 0;
-    /** @type {any} */
-    this.history_ = undefined;
-    /** @type {any} */
-    this.historyFramebuffer_ = undefined;
-    /** @type {any} */
-    this.copy_ = undefined;
-    /** @type {any} */
-    this.copySource_ = undefined;
-    this.historyWeight_ = 0;
-    this.previousViewProjection_ = new Matrix4();
-    this.reprojection_ = new Matrix4();
-    this.lastView_ = new Matrix4();
-    this.lastTime_ = {dayNumber: 0, secondsOfDay: 0};
-    this.changed_ = false;
-    this.settling_ = false;
-    this.settleUntil_ = 0;
-    // the shadow map, its ground point and time, and whether the clouds changed since it was drawn
-    /** @type {any} */
-    this.shadow_ = undefined;
-    /** @type {any} */
-    this.shadowFramebuffer_ = undefined;
-    /** @type {any} */
-    this.shadowCommand_ = undefined;
-    this.shadowCenter_ = new Cartesian3();
-    this.shadowExtent_ = SHADOW_EXTENTS[0];
-    this.shadowTime_ = {dayNumber: 0, secondsOfDay: 0};
-    this.shadowDrawnAt_ = -Infinity;
-    this.shadowChanged_ = true;
+    this.#map = options.map;
+    this.#weatherMap.map = options.map && createCloudMap(options.map);
+    this.#lastTime = {dayNumber: 0, secondsOfDay: 0};
+    this.#shadowExtent = SHADOW_EXTENTS[0];
+    this.#shadowTime = {dayNumber: 0, secondsOfDay: 0};
+    this.#shadowDrawnAt = -Infinity;
     // for Precipitation, which lights its haze through it
-    /** @type {CloudShadow} */
-    this.shadowSource_ = {texture: () => this.shadow_, center: this.shadowCenter_, extent: () => this.shadowExtent_, base: () => this.cloudBase_, top: () => this.slabTop_()};
-    this.onPreRender_ = () => {
+    this.#shadowSource = {texture: () => this.#shadow, center: this.#shadowCenter, extent: () => this.#shadowExtent, base: () => this.#cloudBase, top: () => this.#slabTop()};
+    this.#onPreRender = () => {
       const {camera} = this.viewer.scene;
-      this.drawShadow_(this.viewer.scene);
+      this.#drawShadow(this.viewer.scene);
       const {longitude, latitude, height} = camera.positionCartographic;
-      const inside = height >= this.cloudBase_ && height <= this.cloudTop_;
-      this.localDensity_ = inside ? this.weatherMap_.intensityAt(longitude, latitude) : 0;
+      const inside = height >= this.#cloudBase && height <= this.#cloudTop;
+      this.#localDensity = inside ? this.#weatherMap.intensityAt(longitude, latitude) : 0;
       const time = this.viewer.clock.currentTime;
-      if (this.changed_ || !Matrix4.equals(camera.viewMatrix, this.lastView_) || time.dayNumber !== this.lastTime_.dayNumber || time.secondsOfDay !== this.lastTime_.secondsOfDay) {
-        this.changed_ = false;
-        Matrix4.clone(camera.viewMatrix, this.lastView_);
-        this.lastTime_ = {dayNumber: time.dayNumber, secondsOfDay: time.secondsOfDay};
-        this.settleUntil_ = Date.now() + SETTLE_TIME;
-        if (!this.settling_) {
-          this.settling_ = true;
+      if (this.#changed || !Matrix4.equals(camera.viewMatrix, this.#lastView) || time.dayNumber !== this.#lastTime.dayNumber || time.secondsOfDay !== this.#lastTime.secondsOfDay) {
+        this.#changed = false;
+        Matrix4.clone(camera.viewMatrix, this.#lastView);
+        this.#lastTime = {dayNumber: time.dayNumber, secondsOfDay: time.secondsOfDay};
+        this.#settleUntil = Date.now() + SETTLE_TIME;
+        if (!this.#settling) {
+          this.#settling = true;
           acquireFrames(this.viewer.scene, SETTLE_RATE);
         }
       }
     };
-    this.onPostRender_ = () => {
+    this.#onPostRender = () => {
       const {scene} = this.viewer;
-      this.keepHistory_(scene);
-      Matrix4.multiply(scene.camera.frustum.projectionMatrix, scene.camera.viewMatrix, this.previousViewProjection_);
-      this.frame_ = (this.frame_ + 1) % 1024;
-      if (this.settling_ && Date.now() > this.settleUntil_) {
-        this.settling_ = false;
+      this.#keepHistory(scene);
+      Matrix4.multiply(scene.camera.frustum.projectionMatrix, scene.camera.viewMatrix, this.#previousViewProjection);
+      this.#frame = (this.#frame + 1) % 1024;
+      if (this.#settling && Date.now() > this.#settleUntil) {
+        this.#settling = false;
         releaseFrames(scene, SETTLE_RATE);
       }
     };
@@ -204,6 +219,7 @@ export default class Clouds extends Effect {
 
   /**
    * @override
+   * @protected
    * @param {Scene} scene
    */
   createStage_(scene) {
@@ -216,13 +232,13 @@ export default class Clouds extends Effect {
     const march = new PostProcessStage({
       fragmentShader: EyeFromDepth + Height + CloudsSlab + WeatherMapShader + CloudsDensity + Fog + Phase + RainHaze + CloudsMarch,
       uniforms: {
-        ...this.slabUniforms_(scene),
+        ...this.#slabUniforms(scene),
         // @ts-expect-error the scene's context is not typed
-        ...this.densityUniforms_(scene.context),
+        ...this.#densityUniforms(scene.context),
         cloudDepth: depth.name,
         // @ts-expect-error the scene's context is not typed
-        maxMap: () => this.weatherMap_.maxTexture(scene.context),
-        frame: () => this.frame_,
+        maxMap: () => this.#weatherMap.maxTexture(scene.context),
+        frame: () => this.#frame,
         skyLightIntensity: () => scene.skyAtmosphere?.atmosphereLightIntensity ?? 50,
       },
       textureScale: CLOUD_SCALE,
@@ -231,13 +247,13 @@ export default class Clouds extends Effect {
     const resolve = new PostProcessStage({
       fragmentShader: EyeFromDepth + Height + CloudsSlab + CloudsResolve,
       uniforms: {
-        ...this.slabUniforms_(scene),
+        ...this.#slabUniforms(scene),
         cloudDepth: depth.name,
         cloudTexture: march.name,
         // @ts-expect-error the scene's context is not typed
-        historyTexture: () => this.history_ ?? scene.context.defaultTexture,
-        reprojection: () => Matrix4.multiply(this.previousViewProjection_, scene.camera.inverseViewMatrix, this.reprojection_),
-        historyWeight: () => (this.history_ ? this.historyWeight_ : 0),
+        historyTexture: () => this.#history ?? scene.context.defaultTexture,
+        reprojection: () => Matrix4.multiply(this.#previousViewProjection, scene.camera.inverseViewMatrix, this.#reprojection),
+        historyWeight: () => (this.#history ? this.#historyWeight : 0),
       },
       textureScale: CLOUD_SCALE,
       pixelDatatype: PixelDatatype.HALF_FLOAT,
@@ -257,7 +273,7 @@ export default class Clouds extends Effect {
         new PostProcessStage({
           fragmentShader: EyeFromDepth + CloudsShadow + CloudsComposite,
           uniforms: {
-            ...this.shadowUniforms_(scene),
+            ...this.#shadowUniforms(scene),
             cloudTexture: blurred.name,
             cloudDepth: depth.name,
           },
@@ -273,28 +289,28 @@ export default class Clouds extends Effect {
    * clouds of its tallest type, over its heaviest rain: from above, the march starts there rather than at the cloud
    * top, so that its steps are in the clouds rather than in the empty air over them.
    */
-  slabTop_() {
+  #slabTop() {
     // the clouds' map's tallest type, in blue
-    const type = this.weatherMap_.maxValues[2];
-    return this.cloudBase_ + THIN_DEPTH + (this.cloudTop_ - this.cloudBase_ - THIN_DEPTH) * type;
+    const type = this.#weatherMap.maxValues[2];
+    return this.#cloudBase + THIN_DEPTH + (this.#cloudTop - this.#cloudBase - THIN_DEPTH) * type;
   }
 
   /**
    * The direction the wind blows toward, in world coordinates: the east at the map's center, fixed
    * for the map rather than turning with the camera, which would shift the drifted noise.
    */
-  windDirection_() {
-    const rectangle = this.weatherMap_.map?.rectangle;
+  #windDirection() {
+    const rectangle = this.#weatherMap.map?.rectangle;
     if (!rectangle) {
       return Cartesian3.ZERO;
     }
     // computed again only for another map's rectangle: it is read by every stage on every frame
-    if (rectangle !== this.windRectangle_) {
-      this.windRectangle_ = rectangle;
+    if (rectangle !== this.#windRectangle) {
+      this.#windRectangle = rectangle;
       const up = Ellipsoid.WGS84.geodeticSurfaceNormalCartographic(Rectangle.center(rectangle));
-      this.windVector_ = Cartesian3.normalize(Cartesian3.cross(Cartesian3.UNIT_Z, up, new Cartesian3()), new Cartesian3());
+      this.#windVector = Cartesian3.normalize(Cartesian3.cross(Cartesian3.UNIT_Z, up, new Cartesian3()), new Cartesian3());
     }
-    return this.windVector_;
+    return this.#windVector;
   }
 
   /**
@@ -302,10 +318,10 @@ export default class Clouds extends Effect {
    * drift by the real time, in world coordinates, in double precision and wrapped at WIND_PERIOD.
    * @param {number} [seconds] the real time
    */
-  windOffset_(seconds = performance.now() / 1000) {
+  #windOffset(seconds = performance.now() / 1000) {
     const {dayNumber, secondsOfDay} = this.viewer.clock.currentTime;
-    const distance = this.wind_ * (dayNumber * 86400 + secondsOfDay) + this.drift_ * seconds;
-    const offset = Cartesian3.multiplyByScalar(this.windDirection_(), distance, new Cartesian3());
+    const distance = this.#wind * (dayNumber * 86400 + secondsOfDay) + this.#drift * seconds;
+    const offset = Cartesian3.multiplyByScalar(this.#windDirection(), distance, new Cartesian3());
     offset.x %= WIND_PERIOD;
     offset.y %= WIND_PERIOD;
     offset.z %= WIND_PERIOD;
@@ -316,26 +332,26 @@ export default class Clouds extends Effect {
    * The uniforms of CloudsSlab.glsl, with Height.glsl's it needs.
    * @param {Scene} scene
    */
-  slabUniforms_(scene) {
-    return {...heightUniforms(scene), cloudBase: () => this.cloudBase_, slabTop: () => this.slabTop_()};
+  #slabUniforms(scene) {
+    return {...heightUniforms(scene), cloudBase: () => this.#cloudBase, slabTop: () => this.#slabTop()};
   }
 
   /**
    * The uniforms of CloudsDensity.glsl, with WeatherMap.glsl's it needs.
    * @param {any} context the scene's context
    */
-  densityUniforms_(context) {
+  #densityUniforms(context) {
     return {
-      map: () => this.weatherMap_.texture(context),
-      nextMap: () => this.weatherMap_.nextTexture(context),
-      mapBlend: () => this.weatherMap_.blend,
-      mapBounds: () => this.weatherMap_.bounds,
-      cloudNoise: () => this.createNoiseTexture_(context),
-      mapNoise: () => this.createMapNoiseTexture_(context),
-      cloudTop: () => this.cloudTop_,
-      density: () => this.density_,
-      windDirection: () => this.windDirection_(),
-      windOffset: () => this.windOffset_(),
+      map: () => this.#weatherMap.texture(context),
+      nextMap: () => this.#weatherMap.nextTexture(context),
+      mapBlend: () => this.#weatherMap.blend,
+      mapBounds: () => this.#weatherMap.bounds,
+      cloudNoise: () => this.#createNoiseTexture(context),
+      mapNoise: () => this.#createMapNoiseTexture(context),
+      cloudTop: () => this.#cloudTop,
+      density: () => this.#density,
+      windDirection: () => this.#windDirection(),
+      windOffset: () => this.#windOffset(),
     };
   }
 
@@ -343,14 +359,14 @@ export default class Clouds extends Effect {
    * The uniforms of CloudsShadow.glsl, for the stages that read the shadow map.
    * @param {Scene} scene
    */
-  shadowUniforms_(scene) {
+  #shadowUniforms(scene) {
     return {
       // @ts-expect-error the scene's context is not typed
-      shadowMap: () => this.shadow_ ?? scene.context.defaultTexture,
-      shadowCenter: () => this.shadowCenter_,
-      shadowExtent: () => this.shadowExtent_,
-      shadowBase: () => this.cloudBase_,
-      shadowTop: () => this.slabTop_(),
+      shadowMap: () => this.#shadow ?? scene.context.defaultTexture,
+      shadowCenter: () => this.#shadowCenter,
+      shadowExtent: () => this.#shadowExtent,
+      shadowBase: () => this.#cloudBase,
+      shadowTop: () => this.#slabTop(),
     };
   }
 
@@ -358,7 +374,7 @@ export default class Clouds extends Effect {
    * The shadow map's side, in meters, for a camera this high.
    * @param {number} height meters
    */
-  shadowExtentFor_(height) {
+  #shadowExtentFor(height) {
     return CesiumMath.clamp(SHADOW_SPREAD * height, SHADOW_EXTENTS[0], SHADOW_EXTENTS[1]);
   }
 
@@ -368,15 +384,15 @@ export default class Clouds extends Effect {
    * @param {{dayNumber: number, secondsOfDay: number}} time the clock's
    * @param {number} [extent] the side it would have now, in meters
    */
-  shadowStale_(ground, time, extent = this.shadowExtent_) {
+  #shadowStale(ground, time, extent = this.#shadowExtent) {
     return (
-      this.shadowChanged_ ||
-      time.dayNumber !== this.shadowTime_.dayNumber ||
-      time.secondsOfDay !== this.shadowTime_.secondsOfDay ||
-      Cartesian3.distance(ground, this.shadowCenter_) > SHADOW_MOVE * this.shadowExtent_ ||
-      Math.abs(extent - this.shadowExtent_) > SHADOW_RESIZE * this.shadowExtent_ ||
+      this.#shadowChanged ||
+      time.dayNumber !== this.#shadowTime.dayNumber ||
+      time.secondsOfDay !== this.#shadowTime.secondsOfDay ||
+      Cartesian3.distance(ground, this.#shadowCenter) > SHADOW_MOVE * this.#shadowExtent ||
+      Math.abs(extent - this.#shadowExtent) > SHADOW_RESIZE * this.#shadowExtent ||
       // the drifting clouds, at every frame
-      this.drift_ > 0
+      this.#drift > 0
     );
   }
 
@@ -388,8 +404,8 @@ export default class Clouds extends Effect {
    * @param {number} now milliseconds
    * @param {number} [extent] the side it would have now, in meters
    */
-  shadowDue_(ground, time, now, extent) {
-    return this.shadowStale_(ground, time, extent) && now - this.shadowDrawnAt_ >= SHADOW_INTERVAL;
+  #shadowDue(ground, time, now, extent) {
+    return this.#shadowStale(ground, time, extent) && now - this.#shadowDrawnAt >= SHADOW_INTERVAL;
   }
 
   /**
@@ -398,12 +414,12 @@ export default class Clouds extends Effect {
    * @param {number} [now] milliseconds
    * @param {number} [extent] its side, in meters
    */
-  shadowDrawn_(ground, time, now = Date.now(), extent = this.shadowExtent_) {
-    Cartesian3.clone(ground, this.shadowCenter_);
-    this.shadowExtent_ = extent;
-    this.shadowTime_ = {dayNumber: time.dayNumber, secondsOfDay: time.secondsOfDay};
-    this.shadowDrawnAt_ = now;
-    this.shadowChanged_ = false;
+  #shadowDrawn(ground, time, now = Date.now(), extent = this.#shadowExtent) {
+    Cartesian3.clone(ground, this.#shadowCenter);
+    this.#shadowExtent = extent;
+    this.#shadowTime = {dayNumber: time.dayNumber, secondsOfDay: time.secondsOfDay};
+    this.#shadowDrawnAt = now;
+    this.#shadowChanged = false;
   }
 
   /**
@@ -412,44 +428,44 @@ export default class Clouds extends Effect {
    * settles, in the frames the accumulation asks for.
    * @param {Scene} scene
    */
-  drawShadow_(scene) {
+  #drawShadow(scene) {
     const ground = Ellipsoid.WGS84.scaleToGeodeticSurface(scene.camera.positionWC, groundScratch);
     const time = this.viewer.clock.currentTime;
     const now = Date.now();
-    const extent = this.shadowExtentFor_(scene.camera.positionCartographic.height);
-    if (!ground || !this.shadowDue_(ground, time, now, extent)) {
+    const extent = this.#shadowExtentFor(scene.camera.positionCartographic.height);
+    if (!ground || !this.#shadowDue(ground, time, now, extent)) {
       return;
     }
-    this.shadowDrawn_(ground, time, now, extent);
+    this.#shadowDrawn(ground, time, now, extent);
     // @ts-expect-error the scene's context is not typed
     const context = scene.context;
     if (!context) {
       return;
     }
-    if (!this.shadow_) {
-      this.shadow_ = new Texture({context, width: SHADOW_SIZE, height: SHADOW_SIZE, pixelDatatype: PixelDatatype.HALF_FLOAT});
-      this.shadowFramebuffer_ = new Framebuffer({context, colorTextures: [this.shadow_], destroyAttachments: false});
-      this.shadowCommand_ = context.createViewportQuadCommand(Height + CloudsSlab + WeatherMapShader + CloudsDensity + CloudsShadow + CloudsShadowMap, {
-        framebuffer: this.shadowFramebuffer_,
-        renderState: RenderState.fromCache({viewport: {x: 0, y: 0, width: SHADOW_SIZE, height: SHADOW_SIZE}}),
+    if (!this.#shadow) {
+      this.#shadow = this.createTexture_({context, width: SHADOW_SIZE, height: SHADOW_SIZE, pixelDatatype: PixelDatatype.HALF_FLOAT});
+      this.#shadowFramebuffer = this.createFramebuffer_({context, colorTextures: [this.#shadow], destroyAttachments: false});
+      this.#shadowCommand = context.createViewportQuadCommand(Height + CloudsSlab + WeatherMapShader + CloudsDensity + CloudsShadow + CloudsShadowMap, {
+        framebuffer: this.#shadowFramebuffer,
+        renderState: this.renderState_({x: 0, y: 0, width: SHADOW_SIZE, height: SHADOW_SIZE}),
         uniformMap: {
-          ...this.slabUniforms_(scene),
-          ...this.densityUniforms_(context),
-          maxMap: () => this.weatherMap_.maxTexture(context),
-          shadowCenter: () => this.shadowCenter_,
-          shadowExtent: () => this.shadowExtent_,
+          ...this.#slabUniforms(scene),
+          ...this.#densityUniforms(context),
+          maxMap: () => this.#weatherMap.maxTexture(context),
+          shadowCenter: () => this.#shadowCenter,
+          shadowExtent: () => this.#shadowExtent,
         },
       });
     }
-    this.shadowCommand_.execute(context);
+    this.#shadowCommand.execute(context);
   }
 
-  destroyShadow_() {
-    this.shadowCommand_?.shaderProgram?.destroy();
-    this.shadowCommand_ = undefined;
-    this.shadowFramebuffer_ = this.shadowFramebuffer_?.destroy();
-    this.shadow_ = this.shadow_?.destroy();
-    this.shadowChanged_ = true;
+  #destroyShadow() {
+    this.#shadowCommand?.shaderProgram?.destroy();
+    this.#shadowCommand = undefined;
+    this.#shadowFramebuffer = this.#shadowFramebuffer?.destroy();
+    this.#shadow = this.#shadow?.destroy();
+    this.#shadowChanged = true;
   }
 
   /**
@@ -457,7 +473,7 @@ export default class Clouds extends Effect {
    * the resolve's output, made again when it changes.
    * @param {Scene} scene
    */
-  keepHistory_(scene) {
+  #keepHistory(scene) {
     // @ts-expect-error the collection's output textures are not typed
     const output = this.stage_ && scene.postProcessStages.getOutputTexture?.(this.stage_.get(2).name);
     if (!output) {
@@ -465,33 +481,33 @@ export default class Clouds extends Effect {
     }
     // @ts-expect-error the scene's context is not typed
     const context = scene.context;
-    if (!this.history_ || this.history_.width !== output.width || this.history_.height !== output.height) {
-      this.destroyHistory_();
-      this.history_ = new Texture({context, width: output.width, height: output.height, pixelDatatype: PixelDatatype.HALF_FLOAT});
-      this.historyFramebuffer_ = new Framebuffer({context, colorTextures: [this.history_], destroyAttachments: false});
-      this.historyWeight_ = 0;
+    if (!this.#history || this.#history.width !== output.width || this.#history.height !== output.height) {
+      this.#destroyHistory();
+      this.#history = this.createTexture_({context, width: output.width, height: output.height, pixelDatatype: PixelDatatype.HALF_FLOAT});
+      this.#historyFramebuffer = this.createFramebuffer_({context, colorTextures: [this.#history], destroyAttachments: false});
+      this.#historyWeight = 0;
     }
-    this.copySource_ = output;
-    this.copy_ ??= context.createViewportQuadCommand(COPY, {uniformMap: {source: () => this.copySource_}});
-    this.copy_.framebuffer = this.historyFramebuffer_;
-    this.copy_.renderState = RenderState.fromCache({viewport: {x: 0, y: 0, width: output.width, height: output.height}});
-    this.copy_.execute(context);
-    this.historyWeight_ = HISTORY_WEIGHT;
+    this.#copySource = output;
+    this.#copy ??= context.createViewportQuadCommand(COPY, {uniformMap: {source: () => this.#copySource}});
+    this.#copy.framebuffer = this.#historyFramebuffer;
+    this.#copy.renderState = this.renderState_({x: 0, y: 0, width: output.width, height: output.height});
+    this.#copy.execute(context);
+    this.#historyWeight = HISTORY_WEIGHT;
   }
 
-  destroyHistory_() {
-    this.historyFramebuffer_ = this.historyFramebuffer_?.destroy();
-    this.history_ = this.history_?.destroy();
+  #destroyHistory() {
+    this.#historyFramebuffer = this.#historyFramebuffer?.destroy();
+    this.#history = this.#history?.destroy();
   }
 
   /**
    * The noise's texture, repeating in every direction, with its mipmaps for the far clouds.
    * @param {any} context the scene's context
    */
-  createNoiseTexture_(context) {
-    if (!this.noiseTexture_) {
+  #createNoiseTexture(context) {
+    if (!this.#noiseTexture) {
       noise ??= createCloudNoise(NOISE_SIZE);
-      this.noiseTexture_ = new Texture3D({
+      this.#noiseTexture = this.createTexture3D_({
         context,
         flipY: false,
         source: {width: NOISE_SIZE, height: NOISE_SIZE, depth: NOISE_SIZE, arrayBufferView: noise},
@@ -503,19 +519,19 @@ export default class Clouds extends Effect {
           magnificationFilter: TextureMagnificationFilter.LINEAR,
         }),
       });
-      this.noiseTexture_.generateMipmap();
+      this.#noiseTexture.generateMipmap();
     }
-    return this.noiseTexture_;
+    return this.#noiseTexture;
   }
 
   /**
    * The noise over the clouds' map, repeating.
    * @param {any} context the scene's context
    */
-  createMapNoiseTexture_(context) {
-    if (!this.mapNoiseTexture_) {
+  #createMapNoiseTexture(context) {
+    if (!this.#mapNoiseTexture) {
       mapNoise ??= createMapNoise(MAP_NOISE_SIZE);
-      this.mapNoiseTexture_ = new Texture({
+      this.#mapNoiseTexture = this.createTexture_({
         context,
         flipY: false,
         source: {width: MAP_NOISE_SIZE, height: MAP_NOISE_SIZE, arrayBufferView: mapNoise},
@@ -527,44 +543,46 @@ export default class Clouds extends Effect {
         }),
       });
     }
-    return this.mapNoiseTexture_;
+    return this.#mapNoiseTexture;
   }
 
   /**
    * @override
+   * @protected
    * @param {Scene} scene
    */
   activated_(scene) {
-    if (this.drift_ > 0) {
+    if (this.#drift > 0) {
       acquireFrames(scene, DRIFT_RATE);
     }
-    scene.preRender.addEventListener(this.onPreRender_);
-    scene.postRender.addEventListener(this.onPostRender_);
-    acquireCloudCover(scene, this.shadowSource_);
+    scene.preRender.addEventListener(this.#onPreRender);
+    scene.postRender.addEventListener(this.#onPostRender);
+    acquireCloudCover(scene, this.#shadowSource);
   }
 
   /**
    * @override
+   * @protected
    * @param {Scene} scene
    */
   deactivating_(scene) {
-    releaseCloudCover(scene, this.shadowSource_);
-    scene.preRender.removeEventListener(this.onPreRender_);
-    scene.postRender.removeEventListener(this.onPostRender_);
-    if (this.settling_) {
-      this.settling_ = false;
+    releaseCloudCover(scene, this.#shadowSource);
+    scene.preRender.removeEventListener(this.#onPreRender);
+    scene.postRender.removeEventListener(this.#onPostRender);
+    if (this.#settling) {
+      this.#settling = false;
       releaseFrames(scene, SETTLE_RATE);
     }
-    if (this.drift_ > 0) {
+    if (this.#drift > 0) {
       releaseFrames(scene, DRIFT_RATE);
     }
-    this.destroyHistory_();
-    this.destroyShadow_();
-    this.copy_?.shaderProgram?.destroy();
-    this.copy_ = undefined;
-    this.weatherMap_.destroy();
-    this.noiseTexture_ = this.noiseTexture_?.destroy();
-    this.mapNoiseTexture_ = this.mapNoiseTexture_?.destroy();
+    this.#destroyHistory();
+    this.#destroyShadow();
+    this.#copy?.shaderProgram?.destroy();
+    this.#copy = undefined;
+    this.#weatherMap.destroy();
+    this.#noiseTexture = this.#noiseTexture?.destroy();
+    this.#mapNoiseTexture = this.#mapNoiseTexture?.destroy();
   }
 
   /**
@@ -574,16 +592,16 @@ export default class Clouds extends Effect {
    * on the image, which is read then.
    */
   get map() {
-    return this.map_;
+    return this.#map;
   }
 
   set map(value) {
-    this.map_ = value;
-    this.weatherMap_.map = value && createCloudMap(value);
-    this.shadowChanged_ = true;
+    this.#map = value;
+    this.#weatherMap.map = value && createCloudMap(value);
+    this.#shadowChanged = true;
     // the previous map's clouds would linger
-    this.historyWeight_ = 0;
-    this.changed_ = true;
+    this.#historyWeight = 0;
+    this.#changed = true;
     this.viewer.scene.requestRender();
   }
 
@@ -592,13 +610,13 @@ export default class Clouds extends Effect {
    * rectangle, as the radar's next hour, or undefined for none.
    */
   get nextMap() {
-    return this.nextMap_;
+    return this.#nextMap;
   }
 
   set nextMap(value) {
-    this.nextMap_ = value;
-    this.weatherMap_.nextMap = value && createCloudMap(value);
-    this.shadowChanged_ = true;
+    this.#nextMap = value;
+    this.#weatherMap.nextMap = value && createCloudMap(value);
+    this.#shadowChanged = true;
     this.viewer.scene.requestRender();
   }
 
@@ -606,12 +624,12 @@ export default class Clouds extends Effect {
    * From the map, 0, to the next map, 1.
    */
   get mapBlend() {
-    return this.weatherMap_.blend;
+    return this.#weatherMap.blend;
   }
 
   set mapBlend(value) {
-    this.weatherMap_.blend = value;
-    this.shadowChanged_ = true;
+    this.#weatherMap.blend = value;
+    this.#shadowChanged = true;
     this.viewer.scene.requestRender();
   }
 
@@ -620,12 +638,12 @@ export default class Clouds extends Effect {
    * Precipitation's.
    */
   get cloudBase() {
-    return this.cloudBase_;
+    return this.#cloudBase;
   }
 
   set cloudBase(value) {
-    this.cloudBase_ = value;
-    this.shadowChanged_ = true;
+    this.#cloudBase = value;
+    this.#shadowChanged = true;
     this.viewer.scene.requestRender();
   }
 
@@ -634,12 +652,12 @@ export default class Clouds extends Effect {
    * above the ellipsoid; over drizzle the clouds are 1500 m thick.
    */
   get cloudTop() {
-    return this.cloudTop_;
+    return this.#cloudTop;
   }
 
   set cloudTop(value) {
-    this.cloudTop_ = value;
-    this.shadowChanged_ = true;
+    this.#cloudTop = value;
+    this.#shadowChanged = true;
     this.viewer.scene.requestRender();
   }
 
@@ -647,12 +665,12 @@ export default class Clouds extends Effect {
    * Scale of the clouds' opacity: 1 for solid clouds over heavy rain.
    */
   get density() {
-    return this.density_;
+    return this.#density;
   }
 
   set density(value) {
-    this.density_ = value;
-    this.shadowChanged_ = true;
+    this.#density = value;
+    this.#shadowChanged = true;
     this.viewer.scene.requestRender();
   }
 
@@ -662,12 +680,12 @@ export default class Clouds extends Effect {
    * is paused.
    */
   get wind() {
-    return this.wind_;
+    return this.#wind;
   }
 
   set wind(value) {
-    this.wind_ = value;
-    this.shadowChanged_ = true;
+    this.#wind = value;
+    this.#shadowChanged = true;
     this.viewer.scene.requestRender();
   }
 
@@ -678,12 +696,12 @@ export default class Clouds extends Effect {
    * by default, for none.
    */
   get drift() {
-    return this.drift_;
+    return this.#drift;
   }
 
   set drift(value) {
-    const drifting = this.drift_ > 0;
-    this.drift_ = value;
+    const drifting = this.#drift > 0;
+    this.#drift = value;
     if (this.stage_ && drifting !== value > 0) {
       (value > 0 ? acquireFrames : releaseFrames)(this.viewer.scene, DRIFT_RATE);
     }
@@ -695,6 +713,46 @@ export default class Clouds extends Effect {
    * read each frame while active; 0 outside them.
    */
   get localDensity() {
-    return this.localDensity_;
+    return this.#localDensity;
+  }
+
+  /**
+   * A texture the clouds draw with or into: a test without WebGL makes its own.
+   * @protected
+   * @param {any} options the Texture's options
+   * @return {Texture}
+   */
+  createTexture_(options) {
+    return new Texture(options);
+  }
+
+  /**
+   * The noise's 3D texture: a test without WebGL makes its own.
+   * @protected
+   * @param {any} options the Texture3D's options
+   * @return {Texture3D}
+   */
+  createTexture3D_(options) {
+    return new Texture3D(options);
+  }
+
+  /**
+   * A framebuffer the clouds draw into: a test without WebGL makes its own.
+   * @protected
+   * @param {any} options the Framebuffer's options
+   * @return {Framebuffer}
+   */
+  createFramebuffer_(options) {
+    return new Framebuffer(options);
+  }
+
+  /**
+   * The render state of a draw into a viewport: a test without WebGL makes its own.
+   * @protected
+   * @param {{x: number, y: number, width: number, height: number}} viewport
+   * @return {RenderState}
+   */
+  renderState_(viewport) {
+    return RenderState.fromCache({viewport});
   }
 }

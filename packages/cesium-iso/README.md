@@ -38,7 +38,12 @@ iso.glideTo(position);
 iso.target = position; // at once
 iso.heading = 90;      // at once, in degrees, no easing
 iso.size = 300;        // at once, in meters across the screen's shorter side, within minSize and maxSize
+iso.stop();            // a drift, a turn or a glide under way dropped, the view about the ground in the middle
+iso.pointers;          // how many pointers are down on the view: two or more, a pinch
 ```
+
+A subclass may place the camera its own way: it overrides `place_()` (protected), calling `super.place_()`
+first, and reads the view's width in meters from `width_()`.
 
 ## Options
 

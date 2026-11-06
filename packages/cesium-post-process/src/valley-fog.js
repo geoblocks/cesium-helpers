@@ -14,6 +14,11 @@ import ValleyFogShader from './shaders/ValleyFog.js';
  * peaks standing out; from inside, the visibility drops with the distance.
  */
 export default class ValleyFog extends Effect {
+  #top;
+  #density;
+  #softness;
+  #color;
+
   /**
    * @param {CesiumWidget} viewer
    * @param {{top?: number, density?: number, softness?: number, color?: Color}} [options]
@@ -21,14 +26,15 @@ export default class ValleyFog extends Effect {
   constructor(viewer, options = {}) {
     super(viewer);
     this.terrainDepth_ = true;
-    this.top_ = options.top ?? 1500;
-    this.density_ = options.density ?? 0.005;
-    this.softness_ = options.softness ?? 100;
-    this.color_ = options.color ?? new Color(0.85, 0.88, 0.92, 1);
+    this.#top = options.top ?? 1500;
+    this.#density = options.density ?? 0.005;
+    this.#softness = options.softness ?? 100;
+    this.#color = options.color ?? new Color(0.85, 0.88, 0.92, 1);
   }
 
   /**
    * @override
+   * @protected
    * @param {Scene} scene
    */
   createStage_(scene) {
@@ -36,10 +42,10 @@ export default class ValleyFog extends Effect {
       fragmentShader: EyeFromDepth + Height + Fog + ValleyFogShader,
       uniforms: {
         ...heightUniforms(scene),
-        top: () => this.top_,
-        density: () => this.density_,
-        softness: () => this.softness_,
-        color: () => this.color_,
+        top: () => this.#top,
+        density: () => this.#density,
+        softness: () => this.#softness,
+        color: () => this.#color,
       },
     });
   }
@@ -48,11 +54,11 @@ export default class ValleyFog extends Effect {
    * Altitude of the top of the fog, in meters above the ellipsoid.
    */
   get top() {
-    return this.top_;
+    return this.#top;
   }
 
   set top(value) {
-    this.top_ = value;
+    this.#top = value;
     this.viewer.scene.requestRender();
   }
 
@@ -60,11 +66,11 @@ export default class ValleyFog extends Effect {
    * Density of the fog, per meter: about 1 / visibility.
    */
   get density() {
-    return this.density_;
+    return this.#density;
   }
 
   set density(value) {
-    this.density_ = value;
+    this.#density = value;
     this.viewer.scene.requestRender();
   }
 
@@ -72,20 +78,20 @@ export default class ValleyFog extends Effect {
    * Height of the band under the top over which the fog thins out, in meters.
    */
   get softness() {
-    return this.softness_;
+    return this.#softness;
   }
 
   set softness(value) {
-    this.softness_ = value;
+    this.#softness = value;
     this.viewer.scene.requestRender();
   }
 
   get color() {
-    return this.color_;
+    return this.#color;
   }
 
   set color(value) {
-    this.color_ = value;
+    this.#color = value;
     this.viewer.scene.requestRender();
   }
 }

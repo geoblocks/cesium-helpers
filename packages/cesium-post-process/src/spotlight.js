@@ -25,6 +25,14 @@ const focusScratch = new Cartesian4();
  * its beam, the rest darkens.
  */
 export default class Spotlight extends Effect {
+  #focus;
+  #power;
+  #radius;
+  #softness;
+  #darkness;
+  #beam;
+  #beamAnisotropy;
+
   /**
    * @param {CesiumWidget} viewer
    * @param {{focus?: Focus, power?: number, radius?: number, softness?: number, darkness?: number, beam?: number, beamAnisotropy?: number}} [options]
@@ -32,34 +40,35 @@ export default class Spotlight extends Effect {
   constructor(viewer, options = {}) {
     super(viewer);
     this.terrainDepth_ = true;
-    this.focus_ = options.focus;
-    this.power_ = options.power ?? 1;
-    this.radius_ = options.radius ?? 200;
-    this.softness_ = options.softness ?? 0.5;
-    this.darkness_ = options.darkness ?? 0.8;
-    this.beam_ = options.beam ?? 0.25;
-    this.beamAnisotropy_ = options.beamAnisotropy ?? 0.4;
+    this.#focus = options.focus;
+    this.#power = options.power ?? 1;
+    this.#radius = options.radius ?? 200;
+    this.#softness = options.softness ?? 0.5;
+    this.#darkness = options.darkness ?? 0.8;
+    this.#beam = options.beam ?? 0.25;
+    this.#beamAnisotropy = options.beamAnisotropy ?? 0.4;
   }
 
   /**
    * @override
+   * @protected
    * @param {Scene} scene
    */
   createStage_(scene) {
     // SpotlightCone's uniforms, for all the passes
     const cone = {
-      focus: () => eyeFocus(scene, this.focus_, focusScratch),
+      focus: () => eyeFocus(scene, this.#focus, focusScratch),
       up: heightUniforms(scene).up,
-      radius: () => this.radius_,
-      softness: () => this.softness_,
+      radius: () => this.#radius,
+      softness: () => this.#softness,
     };
     // the beam is raymarched at half the resolution, then blurred at it
     const beam = new PostProcessStage({
       fragmentShader: EyeFromDepth + Hash + Noise + SpotlightCone + Beam + SpotlightBeam,
       uniforms: {
         ...cone,
-        beam: () => this.beam_,
-        beamAnisotropy: () => this.beamAnisotropy_,
+        beam: () => this.#beam,
+        beamAnisotropy: () => this.#beamAnisotropy,
       },
       textureScale: 0.5,
       pixelDatatype: PixelDatatype.HALF_FLOAT,
@@ -79,9 +88,9 @@ export default class Spotlight extends Effect {
           uniforms: {
             ...cone,
             beamTexture: blurredBeam.name,
-            darkness: () => this.darkness_,
-            beam: () => this.beam_,
-            power: () => this.power_,
+            darkness: () => this.#darkness,
+            beam: () => this.#beam,
+            power: () => this.#power,
           },
         }),
       ],
@@ -95,11 +104,11 @@ export default class Spotlight extends Effect {
    * what is in the middle of the screen.
    */
   get focus() {
-    return this.focus_;
+    return this.#focus;
   }
 
   set focus(value) {
-    this.focus_ = value;
+    this.#focus = value;
     this.viewer.scene.requestRender();
   }
 
@@ -108,11 +117,11 @@ export default class Spotlight extends Effect {
    * and the beam in the air scale with it.
    */
   get power() {
-    return this.power_;
+    return this.#power;
   }
 
   set power(value) {
-    this.power_ = value;
+    this.#power = value;
     this.viewer.scene.requestRender();
   }
 
@@ -121,11 +130,11 @@ export default class Spotlight extends Effect {
    * twice as high above the focus.
    */
   get radius() {
-    return this.radius_;
+    return this.#radius;
   }
 
   set radius(value) {
-    this.radius_ = value;
+    this.#radius = value;
     this.viewer.scene.requestRender();
   }
 
@@ -133,11 +142,11 @@ export default class Spotlight extends Effect {
    * Width of the penumbra, as a fraction of the radius.
    */
   get softness() {
-    return this.softness_;
+    return this.#softness;
   }
 
   set softness(value) {
-    this.softness_ = value;
+    this.#softness = value;
     this.viewer.scene.requestRender();
   }
 
@@ -145,11 +154,11 @@ export default class Spotlight extends Effect {
    * Darkening outside the light, 0 to 1.
    */
   get darkness() {
-    return this.darkness_;
+    return this.#darkness;
   }
 
   set darkness(value) {
-    this.darkness_ = value;
+    this.#darkness = value;
     this.viewer.scene.requestRender();
   }
 
@@ -157,11 +166,11 @@ export default class Spotlight extends Effect {
    * Brightness of the beam in the air, 0 to 1.
    */
   get beam() {
-    return this.beam_;
+    return this.#beam;
   }
 
   set beam(value) {
-    this.beam_ = value;
+    this.#beam = value;
     this.viewer.scene.requestRender();
   }
 
@@ -170,11 +179,11 @@ export default class Spotlight extends Effect {
    * forward, so the beam is brighter when looking toward the light.
    */
   get beamAnisotropy() {
-    return this.beamAnisotropy_;
+    return this.#beamAnisotropy;
   }
 
   set beamAnisotropy(value) {
-    this.beamAnisotropy_ = value;
+    this.#beamAnisotropy = value;
     this.viewer.scene.requestRender();
   }
 }

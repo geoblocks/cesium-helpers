@@ -29,6 +29,18 @@ const NO_WATER = 1e9;
  * neighboring pixels: nothing lies in the air.
  */
 export default class RainRings extends Effect {
+  #intensity;
+  #cell;
+  #reach;
+  #waterLevel;
+  #maxSlope;
+  #rate;
+  #color;
+  #frame;
+  #clock;
+  #colorScratch = new Cartesian4();
+  #openSky;
+
   /**
    * @param {CesiumWidget} viewer
    * @param {{intensity?: number, cell?: number, reach?: number, waterLevel?: number, maxSlope?: number, rate?: number,
@@ -42,21 +54,21 @@ export default class RainRings extends Effect {
   constructor(viewer, options = {}) {
     super(viewer);
     this.terrainDepth_ = true;
-    this.intensity_ = options.intensity ?? 0.5;
-    this.cell_ = options.cell ?? 2;
-    this.reach_ = options.reach ?? 0.35;
-    this.waterLevel_ = options.waterLevel;
-    this.maxSlope_ = options.maxSlope ?? 30;
-    this.rate_ = options.rate ?? 1.6;
-    this.color_ = options.color ?? new Color(0.31, 0.39, 0.5, 0.6);
-    this.frame_ = new LocalFrame(options.origin);
-    this.clock_ = options.clock ?? (() => performance.now() / 1000);
-    this.colorScratch_ = new Cartesian4();
-    this.openSky_ = options.openSky;
+    this.#intensity = options.intensity ?? 0.5;
+    this.#cell = options.cell ?? 2;
+    this.#reach = options.reach ?? 0.35;
+    this.#waterLevel = options.waterLevel;
+    this.#maxSlope = options.maxSlope ?? 30;
+    this.#rate = options.rate ?? 1.6;
+    this.#color = options.color ?? new Color(0.31, 0.39, 0.5, 0.6);
+    this.#frame = new LocalFrame(options.origin);
+    this.#clock = options.clock ?? (() => performance.now() / 1000);
+    this.#openSky = options.openSky;
   }
 
   /**
    * @override
+   * @protected
    * @param {Scene} scene
    */
   createStage_(scene) {
@@ -64,40 +76,42 @@ export default class RainRings extends Effect {
       fragmentShader: EyeFromDepth + Height + Hash + Normal + OpenSkyShader + RainRingsShader,
       uniforms: {
         ...heightUniforms(scene),
-        ...openSkyUniforms(scene, () => this.openSky_),
-        localFromEye: () => this.frame_.fromEye(scene),
-        intensity: () => this.intensity_,
-        cell: () => this.cell_,
-        reach: () => this.reach_,
-        waterLevel: () => this.waterLevel_ ?? NO_WATER,
-        maxSlope: () => CesiumMath.toRadians(this.maxSlope_),
-        rate: () => this.rate_,
-        time: () => this.clock_() % TIME_PERIOD,
-        color: () => Cartesian4.fromColor(this.color_, this.colorScratch_),
+        ...openSkyUniforms(scene, () => this.#openSky),
+        localFromEye: () => this.#frame.fromEye(scene),
+        intensity: () => this.#intensity,
+        cell: () => this.#cell,
+        reach: () => this.#reach,
+        waterLevel: () => this.#waterLevel ?? NO_WATER,
+        maxSlope: () => CesiumMath.toRadians(this.#maxSlope),
+        rate: () => this.#rate,
+        time: () => this.#clock() % TIME_PERIOD,
+        color: () => Cartesian4.fromColor(this.#color, this.#colorScratch),
       },
     });
     // no pass, and no frames, without an intensity
-    stage.enabled = this.intensity_ > 0;
+    stage.enabled = this.#intensity > 0;
     return stage;
   }
 
   /**
    * @override
+   * @protected
    * @param {Scene} scene
    */
   activated_(scene) {
-    this.frame_.anchor(scene);
-    if (this.intensity_ > 0) {
+    this.#frame.anchor(scene);
+    if (this.#intensity > 0) {
       acquireFrames(scene, FRAME_RATE);
     }
   }
 
   /**
    * @override
+   * @protected
    * @param {Scene} scene
    */
   deactivating_(scene) {
-    if (this.intensity_ > 0) {
+    if (this.#intensity > 0) {
       releaseFrames(scene, FRAME_RATE);
     }
   }
@@ -106,12 +120,12 @@ export default class RainRings extends Effect {
    * The share of the cells that have a drop, 0 (no rings, no frames) to 1.
    */
   get intensity() {
-    return this.intensity_;
+    return this.#intensity;
   }
 
   set intensity(value) {
-    const raining = this.intensity_ > 0;
-    this.intensity_ = value;
+    const raining = this.#intensity > 0;
+    this.#intensity = value;
     if (this.stage_ && raining !== value > 0) {
       this.stage_.enabled = value > 0;
       (value > 0 ? acquireFrames : releaseFrames)(this.viewer.scene, FRAME_RATE);
@@ -123,11 +137,11 @@ export default class RainRings extends Effect {
    * The size of a cell, in meters: one drop in each, as often as the intensity says.
    */
   get cell() {
-    return this.cell_;
+    return this.#cell;
   }
 
   set cell(value) {
-    this.cell_ = value;
+    this.#cell = value;
     this.viewer.scene.requestRender();
   }
 
@@ -135,11 +149,11 @@ export default class RainRings extends Effect {
    * How far a ring grows on the ground, in meters: over water, 1.7 times as far, but never past 0.3 cell, or the edge of its cell would clip it.
    */
   get reach() {
-    return this.reach_;
+    return this.#reach;
   }
 
   set reach(value) {
-    this.reach_ = value;
+    this.#reach = value;
     this.viewer.scene.requestRender();
   }
 
@@ -148,11 +162,11 @@ export default class RainRings extends Effect {
    * are wider and slower.
    */
   get waterLevel() {
-    return this.waterLevel_;
+    return this.#waterLevel;
   }
 
   set waterLevel(value) {
-    this.waterLevel_ = value;
+    this.#waterLevel = value;
     this.viewer.scene.requestRender();
   }
 
@@ -160,11 +174,11 @@ export default class RainRings extends Effect {
    * The steepest slope that takes a ring, in degrees.
    */
   get maxSlope() {
-    return this.maxSlope_;
+    return this.#maxSlope;
   }
 
   set maxSlope(value) {
-    this.maxSlope_ = value;
+    this.#maxSlope = value;
     this.viewer.scene.requestRender();
   }
 
@@ -172,11 +186,11 @@ export default class RainRings extends Effect {
    * Rings a second in a cell.
    */
   get rate() {
-    return this.rate_;
+    return this.#rate;
   }
 
   set rate(value) {
-    this.rate_ = value;
+    this.#rate = value;
     this.viewer.scene.requestRender();
   }
 
@@ -184,11 +198,11 @@ export default class RainRings extends Effect {
    * The ring's color, its alpha how strongly it shows. Slate on a light ground, pale on a dark one.
    */
   get color() {
-    return this.color_;
+    return this.#color;
   }
 
   set color(value) {
-    this.color_ = value;
+    this.#color = value;
     this.viewer.scene.requestRender();
   }
 
@@ -196,11 +210,11 @@ export default class RainRings extends Effect {
    * What is open to the sky, or undefined for all of it: the rest takes no rings (a deck under a roof, the ground under a tree, a cloud's top).
    */
   get openSky() {
-    return this.openSky_;
+    return this.#openSky;
   }
 
   set openSky(value) {
-    this.openSky_ = value;
+    this.#openSky = value;
     this.viewer.scene.requestRender();
   }
 
@@ -209,11 +223,11 @@ export default class RainRings extends Effect {
    * the effect is activated if none is given. Keep it within a few kilometers of what is looked at.
    */
   get origin() {
-    return this.frame_.origin;
+    return this.#frame.origin;
   }
 
   set origin(value) {
-    this.frame_.origin = value;
+    this.#frame.origin = value;
     this.viewer.scene.requestRender();
   }
 }

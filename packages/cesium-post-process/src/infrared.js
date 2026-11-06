@@ -8,21 +8,26 @@ import InfraredShader from './shaders/Infrared.js';
  * Black and white infrared film: bright foliage, dark sky and water.
  */
 export default class Infrared extends Effect {
+  #strength;
+
   /**
    * @param {CesiumWidget} viewer
    * @param {{strength?: number}} [options]
    */
   constructor(viewer, options = {}) {
     super(viewer);
-    this.strength_ = options.strength ?? 1;
+    this.#strength = options.strength ?? 1;
   }
 
-  /** @override */
+  /**
+   * @override
+   * @protected
+   */
   createStage_() {
     return new PostProcessStage({
       fragmentShader: InfraredShader,
       uniforms: {
-        strength: () => this.strength_,
+        strength: () => this.#strength,
       },
     });
   }
@@ -31,11 +36,11 @@ export default class Infrared extends Effect {
    * How far from the original colors, 0 to 1.
    */
   get strength() {
-    return this.strength_;
+    return this.#strength;
   }
 
   set strength(value) {
-    this.strength_ = value;
+    this.#strength = value;
     this.viewer.scene.requestRender();
   }
 }

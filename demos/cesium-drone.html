@@ -154,9 +154,9 @@
         precipitation.active = rain.checked;
         // the stages run in the order they are added: re-add the camera after the rain, keeping the
         // display's altitude and battery from the take-off
-        const {startTime_, startHeight_} = droneDisplay;
+        const {takeoff} = droneDisplay;
         setStack();
-        Object.assign(droneDisplay, {startTime_, startHeight_});
+        droneDisplay.takeoff = takeoff;
       });
       video.addEventListener('change', () => {
         // the video is the last stage: swap it alone

@@ -15,6 +15,11 @@ const valuesScratch = new Cartesian2();
  * `saturation` 0 (an accent's hue kept above it), `warm` the plaster's tint.
  */
 export default class WhiteModel extends Toy {
+  #values;
+  #poche;
+  #occlusion;
+  #radius;
+
   /**
    * @param {CesiumWidget} viewer
    * @param {{light?: number, shade?: number, bevel?: number, outline?: number, jump?: number, saturation?: number, warm?: [number, number, number], values?: [number, number], poche?: number, occlusion?: number, radius?: number, sky?: [Color, Color]}} [options]
@@ -29,10 +34,10 @@ export default class WhiteModel extends Toy {
       saturation: options.saturation ?? 0,
       warm: options.warm ?? [1, 0.995, 0.985],
     });
-    this.values_ = options.values ?? [0.35, 0.97];
-    this.poche_ = options.poche ?? 0.1;
-    this.occlusion_ = options.occlusion ?? 0.35;
-    this.radius_ = options.radius ?? 1.5;
+    this.#values = options.values ?? [0.35, 0.97];
+    this.#poche = options.poche ?? 0.1;
+    this.#occlusion = options.occlusion ?? 0.35;
+    this.#radius = options.radius ?? 1.5;
   }
 
   /**
@@ -50,10 +55,10 @@ export default class WhiteModel extends Toy {
   uniforms_() {
     return {
       ...super.uniforms_(),
-      values: () => Cartesian2.fromArray(this.values_, 0, valuesScratch),
-      poche: () => this.poche_,
-      occlusion: () => this.occlusion_,
-      radius: () => this.radius_,
+      values: () => Cartesian2.fromArray(this.#values, 0, valuesScratch),
+      poche: () => this.#poche,
+      occlusion: () => this.#occlusion,
+      radius: () => this.#radius,
     };
   }
 
@@ -61,11 +66,11 @@ export default class WhiteModel extends Toy {
    * The darkest and the lightest values, from 0 to 1: the scene's black and its white.
    */
   get values() {
-    return this.values_;
+    return this.#values;
   }
 
   set values(value) {
-    this.values_ = value;
+    this.#values = value;
     this.viewer.scene.requestRender();
   }
 
@@ -74,11 +79,11 @@ export default class WhiteModel extends Toy {
    * them about it: a section's poché, solid black; 0 to press every color.
    */
   get poche() {
-    return this.poche_;
+    return this.#poche;
   }
 
   set poche(value) {
-    this.poche_ = value;
+    this.#poche = value;
     this.viewer.scene.requestRender();
   }
 
@@ -86,11 +91,11 @@ export default class WhiteModel extends Toy {
    * How much darker the surfaces get where they meet, in a corner or at a wall's foot, 0 for none.
    */
   get occlusion() {
-    return this.occlusion_;
+    return this.#occlusion;
   }
 
   set occlusion(value) {
-    this.occlusion_ = value;
+    this.#occlusion = value;
     this.viewer.scene.requestRender();
   }
 
@@ -98,11 +103,11 @@ export default class WhiteModel extends Toy {
    * How wide the corners' shadow is, in meters, 48 pixels at the most.
    */
   get radius() {
-    return this.radius_;
+    return this.#radius;
   }
 
   set radius(value) {
-    this.radius_ = value;
+    this.#radius = value;
     this.viewer.scene.requestRender();
   }
 }

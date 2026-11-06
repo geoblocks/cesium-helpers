@@ -13,6 +13,13 @@ import MotionBlurVelocity from './shaders/MotionBlurVelocity.js';
  * since the previous frame, over the exposure time.
  */
 export default class MotionBlur extends Effect {
+  #strength;
+  #exposure;
+  #previousViewProjection = new Matrix4();
+  #reprojection = new Matrix4();
+  #previousTime = 0;
+  #onPostRender;
+
   /**
    * @param {CesiumWidget} viewer
    * @param {{strength?: number, exposure?: number}} [options]
@@ -20,20 +27,18 @@ export default class MotionBlur extends Effect {
   constructor(viewer, options = {}) {
     super(viewer);
     this.terrainDepth_ = true;
-    this.strength_ = options.strength ?? 1;
-    this.exposure_ = options.exposure ?? 1 / 24;
-    this.previousViewProjection_ = new Matrix4();
-    this.reprojection_ = new Matrix4();
-    this.previousTime_ = 0;
-    this.onPostRender_ = () => {
+    this.#strength = options.strength ?? 1;
+    this.#exposure = options.exposure ?? 1 / 24;
+    this.#onPostRender = () => {
       const camera = this.viewer.scene.camera;
-      Matrix4.multiply(camera.frustum.projectionMatrix, camera.viewMatrix, this.previousViewProjection_);
-      this.previousTime_ = performance.now();
+      Matrix4.multiply(camera.frustum.projectionMatrix, camera.viewMatrix, this.#previousViewProjection);
+      this.#previousTime = performance.now();
     };
   }
 
   /**
    * @override
+   * @protected
    * @param {Scene} scene
    */
   createStage_(scene) {
@@ -44,12 +49,12 @@ export default class MotionBlur extends Effect {
       fragmentShader: EyeFromDepth + MotionBlurVelocity,
       uniforms: {
         reprojection: () =>
-          Matrix4.multiply(this.previousViewProjection_, scene.camera.inverseViewMatrix, this.reprojection_),
+          Matrix4.multiply(this.#previousViewProjection, scene.camera.inverseViewMatrix, this.#reprojection),
         // the blur spans the motion during the exposure, whatever the frame rate; after a pause
         // in requestRenderMode, the time since the previous frame is not the time of the motion
         exposureScale: () =>
-          (this.strength_ * this.exposure_) /
-          CesiumMath.clamp((performance.now() - this.previousTime_) / 1000, 1 / 240, 1 / 10),
+          (this.#strength * this.#exposure) /
+          CesiumMath.clamp((performance.now() - this.#previousTime) / 1000, 1 / 240, 1 / 10),
       },
       textureScale: 0.5,
       pixelDatatype: PixelDatatype.FLOAT,
@@ -66,36 +71,38 @@ export default class MotionBlur extends Effect {
       inputPreviousStageTexture: false,
     });
     // no pass at all without strength
-    stage.enabled = this.strength_ > 0;
+    stage.enabled = this.#strength > 0;
     return stage;
   }
 
   /**
    * @override
+   * @protected
    * @param {Scene} scene
    */
   activated_(scene) {
-    this.onPostRender_();
-    scene.postRender.addEventListener(this.onPostRender_);
+    this.#onPostRender();
+    scene.postRender.addEventListener(this.#onPostRender);
   }
 
   /**
    * @override
+   * @protected
    * @param {Scene} scene
    */
   deactivating_(scene) {
-    scene.postRender.removeEventListener(this.onPostRender_);
+    scene.postRender.removeEventListener(this.#onPostRender);
   }
 
   /**
    * Strength of the blur, 0 to 1: a fraction of the exposure.
    */
   get strength() {
-    return this.strength_;
+    return this.#strength;
   }
 
   set strength(value) {
-    this.strength_ = value;
+    this.#strength = value;
     if (this.stage_) {
       this.stage_.enabled = value > 0;
     }
@@ -107,11 +114,11 @@ export default class MotionBlur extends Effect {
    * frames per second, longer blurs more.
    */
   get exposure() {
-    return this.exposure_;
+    return this.#exposure;
   }
 
   set exposure(value) {
-    this.exposure_ = value;
+    this.#exposure = value;
     this.viewer.scene.requestRender();
   }
 }

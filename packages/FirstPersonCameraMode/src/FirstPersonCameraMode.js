@@ -34,20 +34,41 @@ export function clampPitch(pitch) {
 
 export default class FirstPersonCameraMode {
 
+  #viewer;
+  #scene;
+  #movementFactor;
+  #zoomFactor;
+  /** @type {number | undefined} */
+  #originalFov = undefined;
+  #movementX = 0;
+  #movementY = 0;
+  #zoom = new HoldZoom();
+  // the field of view out of the zoom, which the wheel changes
+  #baseFov = 0;
+  #lastTick = 0;
+  // whether the mode entered: Chrome repeats pointerlockchange when the locked element asks again
+  #entered = false;
+  #onMouseMoveCallback;
+  #onWheelCallback;
+  // the camera controller's inputs before the mode, given back as they were
+  /** @type {boolean | undefined} */
+  #inputsBefore = undefined;
+  #onTickCallback;
+  #onCanvasPointerCallback;
+  #onPointerLockChangeCallback;
+  #onPointerLockErrorCallback;
+
   /**
    * @param {CesiumWidget} viewer
    * @param {number} [zoomFactor=CesiumMath.toRadians(5)]
    * @param {number} [movementFactor=0.003]
    */
   constructor(viewer, zoomFactor = CesiumMath.toRadians(5), movementFactor = 0.003) {
-    this.viewer_ = viewer;
-    this.scene_ = viewer.scene;
+    this.#viewer = viewer;
+    this.#scene = viewer.scene;
 
-    this.movementFactor_ = movementFactor;
-    this.zoomFactor_ = zoomFactor;
-    this.originalFov_ = undefined;
-    this.movementX_ = 0;
-    this.movementY_ = 0;
+    this.#movementFactor = movementFactor;
+    this.#zoomFactor = zoomFactor;
 
     /**
      * Turn rate of the look at full deflection, the right stick by default, in radians per second.
@@ -71,78 +92,68 @@ export default class FirstPersonCameraMode {
      */
     this.input = new Controls(LOOK_BINDINGS);
 
-    this.zoom_ = new HoldZoom();
-    // the field of view out of the zoom, which the wheel changes
-    this.baseFov_ = 0;
-    this.lastTick_ = 0;
-    // whether the mode entered: Chrome repeats pointerlockchange when the locked element asks again
-    this.entered_ = false;
-
-    this.onMouseMoveCallback_ = this.onMouseMove_.bind(this);
+    this.#onMouseMoveCallback = this.#onMouseMove.bind(this);
     // the wheel on the canvas itself, as Cesium's handler reads it (its delta the opposite of deltaY), the page kept from
     // scrolling; not on the widget's handler, whose wheel action is the app's
-    this.onWheelCallback_ = (/** @type {WheelEvent} */ event) => {
+    this.#onWheelCallback = (/** @type {WheelEvent} */ event) => {
       event.preventDefault();
-      this.onMouseWheel_(-event.deltaY);
+      this.#onMouseWheel(-event.deltaY);
     };
-    // the camera controller's inputs before the mode, given back as they were
-    /** @type {boolean | undefined} */
-    this.inputsBefore_ = undefined;
-    this.onTickCallback_ = this.onTick_.bind(this);
+    this.#onTickCallback = this.#onTick.bind(this);
     // Cesium's handler captures the pointer on pointerdown, which throws while the pointer is locked:
     // keep the canvas's pointer events from it, the mouse events still come
-    this.onCanvasPointerCallback_ = (/** @type {PointerEvent} */ event) => {
-      if (event.target === this.scene_.canvas) {
+    this.#onCanvasPointerCallback = (/** @type {PointerEvent} */ event) => {
+      if (event.target === this.#scene.canvas) {
         event.stopPropagation();
       }
     };
-    this.onPointerLockChangeCallback_ = this.onPointerLockChange_.bind(this);
-    this.onPointerLockErrorCallback_ = (/** @type {Event} */ event) => console.error(event);
+    this.#onPointerLockChangeCallback = this.#onPointerLockChange.bind(this);
+    this.#onPointerLockErrorCallback = (/** @type {Event} */ event) => console.error(event);
 
-    document.addEventListener('pointerlockchange', this.onPointerLockChangeCallback_);
-    document.addEventListener('pointerlockerror', this.onPointerLockErrorCallback_);
+    document.addEventListener('pointerlockchange', this.#onPointerLockChangeCallback);
+    document.addEventListener('pointerlockerror', this.#onPointerLockErrorCallback);
   }
 
-  onPointerLockChange_() {
-    if (this.active === this.entered_) {
+  #onPointerLockChange() {
+    if (this.active === this.#entered) {
       return;
     }
     if (this.active) {
-      this.enter_();
+      this.#enter();
     } else {
-      this.leave_();
+      this.#leave();
     }
   }
 
-  enter_() {
-    this.entered_ = true;
-    const controller = this.scene_.screenSpaceCameraController;
-    this.inputsBefore_ = controller.enableInputs;
+  #enter() {
+    this.#entered = true;
+    const controller = this.#scene.screenSpaceCameraController;
+    this.#inputsBefore = controller.enableInputs;
     controller.enableInputs = false;
-    const frustum = this.frustum_();
-    this.originalFov_ = frustum.fov;
-    this.baseFov_ = /** @type {number} */ (frustum.fov);
-    this.zoom_.zoom = 0;
-    this.lastTick_ = performance.now();
+    const frustum = this.#frustum();
+    this.#originalFov = frustum.fov;
+    this.#baseFov = /** @type {number} */ (frustum.fov);
+    this.#zoom.zoom = 0;
+    this.#lastTick = performance.now();
     this.input.active = true;
-    document.addEventListener('mousemove', this.onMouseMoveCallback_);
-    window.addEventListener('pointerdown', this.onCanvasPointerCallback_, true);
-    window.addEventListener('pointerup', this.onCanvasPointerCallback_, true);
-    this.viewer_.clock.onTick.addEventListener(this.onTickCallback_);
-    this.scene_.canvas.addEventListener('wheel', this.onWheelCallback_, {passive: false});
+    document.addEventListener('mousemove', this.#onMouseMoveCallback);
+    window.addEventListener('pointerdown', this.#onCanvasPointerCallback, true);
+    window.addEventListener('pointerup', this.#onCanvasPointerCallback, true);
+    this.#viewer.clock.onTick.addEventListener(this.#onTickCallback);
+    this.#scene.canvas.addEventListener('wheel', this.#onWheelCallback, {passive: false});
   }
 
-  leave_() {
-    this.entered_ = false;
-    this.scene_.screenSpaceCameraController.enableInputs = this.inputsBefore_ ?? true;
-    this.frustum_().fov = this.originalFov_;
-    this.zoom_.zoom = 0;
+  #leave() {
+    this.#entered = false;
+    this.#scene.screenSpaceCameraController.enableInputs = this.#inputsBefore ?? true;
+    this.#frustum().fov = this.#originalFov;
+    this.#zoom.zoom = 0;
     this.input.active = false;
-    document.removeEventListener('mousemove', this.onMouseMoveCallback_);
-    window.removeEventListener('pointerdown', this.onCanvasPointerCallback_, true);
-    window.removeEventListener('pointerup', this.onCanvasPointerCallback_, true);
-    this.viewer_.clock.onTick.removeEventListener(this.onTickCallback_);
-    this.scene_.canvas.removeEventListener('wheel', this.onWheelCallback_);
+    document.removeEventListener('mousemove', this.#onMouseMoveCallback);
+    window.removeEventListener('pointerdown', this.#onCanvasPointerCallback, true);
+    window.removeEventListener('pointerup', this.#onCanvasPointerCallback, true);
+    this.#viewer.clock.onTick.removeEventListener(this.#onTickCallback);
+    this.#scene.canvas.removeEventListener('wheel', this.#onWheelCallback);
   }
 
   get active() {
@@ -153,7 +164,7 @@ export default class FirstPersonCameraMode {
     if (active) {
       if (!this.active) {
         // the mouse's raw counts, without the system's acceleration, where the browser has them
-        const canvas = this.scene_.canvas;
+        const canvas = this.#scene.canvas;
         // a plain lock only where the option is not supported: without a user activation it would fail too
         canvas.requestPointerLock({unadjustedMovement: true})?.catch(error => {
           if (error.name === 'NotSupportedError') {
@@ -171,7 +182,7 @@ export default class FirstPersonCameraMode {
    * @return {number}
    */
   get zoom() {
-    return this.zoom_.zoom;
+    return this.#zoom.zoom;
   }
 
   /**
@@ -179,100 +190,100 @@ export default class FirstPersonCameraMode {
    * @return {number}
    */
   get zoomFov() {
-    return this.zoom_.zoomFov;
+    return this.#zoom.zoomFov;
   }
 
   set zoomFov(fov) {
-    this.zoom_.zoomFov = fov;
+    this.#zoom.zoomFov = fov;
   }
 
   /**
    * @return {PerspectiveFrustum}
    */
-  frustum_() {
-    return /** @type {PerspectiveFrustum} */ (this.scene_.camera.frustum);
+  #frustum() {
+    return /** @type {PerspectiveFrustum} */ (this.#scene.camera.frustum);
   }
 
   /**
    * @return {number} The field of view out of the zoom: the wheel's with the offset, which never closes it.
    */
-  unzoomedFov_() {
-    return Math.max(this.baseFov_ + this.fovOffset, MIN_FOV);
+  #unzoomedFov() {
+    return Math.max(this.#baseFov + this.fovOffset, MIN_FOV);
   }
 
   /**
    * @return {number} How much slower the look turns, by the zoom.
    */
-  lookScale_() {
-    return this.zoom_.lookScale(this.unzoomedFov_());
+  #lookScale() {
+    return this.#zoom.lookScale(this.#unzoomedFov());
   }
 
   /**
    * @param {number} movement The wheel's delta, Cesium's sign: positive rolled away from the user, the view zoomed in.
    */
-  onMouseWheel_(movement) {
-    if (this.zoom_.zoom > 0) {
+  #onMouseWheel(movement) {
+    if (this.#zoom.zoom > 0) {
       // the zoom owns the field of view
       return;
     }
-    const fov = this.baseFov_ + (movement > 0 ? -this.zoomFactor_ : this.zoomFactor_);
-    this.baseFov_ = CesiumMath.clamp(fov, MIN_FOV, MAX_FOV);
+    const fov = this.#baseFov + (movement > 0 ? -this.#zoomFactor : this.#zoomFactor);
+    this.#baseFov = CesiumMath.clamp(fov, MIN_FOV, MAX_FOV);
   }
 
   /**
    * @param {MouseEvent} event
    */
-  onMouseMove_(event) {
+  #onMouseMove(event) {
     // Firefox bug: first pointerlock event fires movementX=-2, movementY=0 spuriously
     if (event.movementX !== 0 || event.movementY !== 0) {
-      this.movementX_ += event.movementX;
-      this.movementY_ += event.movementY;
-      this.scene_.requestRender();
+      this.#movementX += event.movementX;
+      this.#movementY += event.movementY;
+      this.#scene.requestRender();
     }
   }
 
-  onTick_() {
+  #onTick() {
     const timestamp = performance.now();
-    const dt = Math.min((timestamp - this.lastTick_) / 1000, MAX_DELTA);
-    this.lastTick_ = timestamp;
+    const dt = Math.min((timestamp - this.#lastTick) / 1000, MAX_DELTA);
+    this.#lastTick = timestamp;
 
     const {look, zoom} = this.input.read();
-    this.zoom_.update(zoom, dt);
-    const fov = this.zoom_.fov(this.unzoomedFov_());
-    const frustum = this.frustum_();
+    this.#zoom.update(zoom, dt);
+    const fov = this.#zoom.fov(this.#unzoomedFov());
+    const frustum = this.#frustum();
     if (fov !== frustum.fov) {
       frustum.fov = fov;
-      this.scene_.requestRender();
+      this.#scene.requestRender();
     }
 
     // the mouse since the last tick, and the look's turn rate, slowed down by the zoom; on the tick, before
     // the frame renders, not a frame late after it
-    const scale = this.lookScale_();
-    const heading = (this.movementX_ * this.movementFactor_ + look.x * this.lookRate * dt) * scale;
-    const pitch = (-this.movementY_ * this.movementFactor_ + look.y * this.lookRate * dt) * scale;
-    this.movementX_ = 0;
-    this.movementY_ = 0;
+    const scale = this.#lookScale();
+    const heading = (this.#movementX * this.#movementFactor + look.x * this.lookRate * dt) * scale;
+    const pitch = (-this.#movementY * this.#movementFactor + look.y * this.lookRate * dt) * scale;
+    this.#movementX = 0;
+    this.#movementY = 0;
     if (heading !== 0 || pitch !== 0) {
-      const camera = this.scene_.camera;
+      const camera = this.#scene.camera;
       camera.setView({
         orientation: {
           heading: camera.heading + heading,
           pitch: clampPitch(camera.pitch + pitch)
         }
       });
-      this.scene_.requestRender();
+      this.#scene.requestRender();
     }
   }
 
   destroy() {
     // the pointer is released later, after the pointerlockchange listener is gone: leave now
-    if (this.entered_) {
-      this.leave_();
+    if (this.#entered) {
+      this.#leave();
     }
     if (this.active) {
       document.exitPointerLock();
     }
-    document.removeEventListener('pointerlockchange', this.onPointerLockChangeCallback_);
-    document.removeEventListener('pointerlockerror', this.onPointerLockErrorCallback_);
+    document.removeEventListener('pointerlockchange', this.#onPointerLockChangeCallback);
+    document.removeEventListener('pointerlockerror', this.#onPointerLockErrorCallback);
   }
 }

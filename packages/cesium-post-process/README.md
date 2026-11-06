@@ -213,6 +213,7 @@ const droneDisplay = new DroneDisplay(viewer, {
 });
 droneDisplay.active = true;
 droneDisplay.rxLoss = true; // failsafe while the control link is lost: RTL, and FAILSAFE blinking
+const {takeoff} = droneDisplay; // what the altitude and the battery count from, reset on activation: set it back to keep a flight across a deactivation
 
 const analogVideo = new AnalogVideo(viewer, {
   noise: 0.5,         // grain, 0 to 1

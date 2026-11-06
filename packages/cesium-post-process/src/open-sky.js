@@ -20,34 +20,38 @@ const standIns = new WeakMap();
  * about a pixel and blends between them: a node's step should be a fraction of a meter.
  */
 export default class OpenSky {
+  #heights;
+  #columns;
+  #rows;
+  #grid;
+  #frame;
+  #scratch = new Matrix4();
+  /** @type {any} */
+  #texture = undefined;
+
   /**
    * @param {{covers: Float32Array, ceilings?: Float32Array, columns: number, rows: number, extent: number[], frame: Matrix4}} grid The
    *   covers' and the ceilings' heights at the nodes (the covers' by default), row by row from the extent's lowest y, each from its lowest x,
    *   in the frame's meters (`-Infinity` where nothing lies); the nodes along x and along y; the extent [x0, x1, y0, y1] the first and the last
    *   nodes lie on; the frame in the world, x and y across, z up.
    */
-  constructor({covers, ceilings = covers, columns, rows, extent: [x0, x1, y0, y1], frame}) {
-    if (covers.length !== columns * rows || ceilings.length !== columns * rows || columns < 2 || rows < 2) {
-      throw new Error(`${covers.length} covers and ${ceilings.length} ceilings for ${columns} by ${rows} nodes`);
+  constructor({covers, ceilings, columns, rows, extent: [x0, x1, y0, y1], frame}) {
+    const ceilingCount = (ceilings ?? covers).length;
+    if (covers.length !== columns * rows || ceilingCount !== columns * rows || columns < 2 || rows < 2) {
+      throw new Error(`${covers.length} covers and ${ceilingCount} ceilings for ${columns} by ${rows} nodes`);
     }
-    // a cover and a ceiling a node, side by side
-    this.heights_ = new Float32Array(2 * columns * rows);
-    covers.forEach((height, k) => this.heights_[2 * k] = Math.max(height, NOTHING));
-    ceilings.forEach((height, k) => this.heights_[2 * k + 1] = Math.max(height, NOTHING));
-    this.columns_ = columns;
-    this.rows_ = rows;
-    this.grid_ = new Cartesian4(x0, y0, (x1 - x0) / (columns - 1), (y1 - y0) / (rows - 1));
-    this.frame_ = Matrix4.clone(frame);
-    this.scratch_ = new Matrix4();
-    /** @type {any} */
-    this.texture_ = undefined;
+    this.#heights = nodeHeights(covers, ceilings);
+    this.#columns = columns;
+    this.#rows = rows;
+    this.#grid = new Cartesian4(x0, y0, (x1 - x0) / (columns - 1), (y1 - y0) / (rows - 1));
+    this.#frame = Matrix4.clone(frame);
   }
 
   /**
    * The first node's place and the step between two along x and along y, in the frame's meters: (x0, y0, dx, dy).
    */
   get grid() {
-    return this.grid_;
+    return this.#grid;
   }
 
   /**
@@ -55,7 +59,7 @@ export default class OpenSky {
    * @param {Scene} scene
    */
   fromEye(scene) {
-    return localFromEye(this.frame_, scene.camera.viewMatrix, this.scratch_);
+    return localFromEye(this.#frame, scene.camera.viewMatrix, this.#scratch);
   }
 
   /**
@@ -63,23 +67,36 @@ export default class OpenSky {
    * @param {any} context the scene's context
    */
   texture(context) {
-    this.texture_ ??= new Texture({
+    this.#texture ??= new Texture({
       context,
       flipY: false,
       pixelFormat: PixelFormat.RG,
       pixelDatatype: PixelDatatype.FLOAT,
-      source: {width: this.columns_, height: this.rows_, arrayBufferView: this.heights_},
+      source: {width: this.#columns, height: this.#rows, arrayBufferView: this.#heights},
       sampler: new Sampler({minificationFilter: TextureMinificationFilter.NEAREST, magnificationFilter: TextureMagnificationFilter.NEAREST}),
     });
-    return this.texture_;
+    return this.#texture;
   }
 
   /**
    * Lets the texture go; the effects given it must not draw after.
    */
   destroy() {
-    this.texture_ = this.texture_?.destroy();
+    this.#texture = this.#texture?.destroy();
   }
+}
+
+/**
+ * A cover and a ceiling a node, side by side, as the texture holds them: nothing far below everything, not at `-Infinity`, which a texture
+ * would not hold.
+ * @param {Float32Array} covers
+ * @param {Float32Array} [ceilings] The covers by default.
+ */
+export function nodeHeights(covers, ceilings = covers) {
+  const heights = new Float32Array(2 * covers.length);
+  covers.forEach((height, k) => heights[2 * k] = Math.max(height, NOTHING));
+  ceilings.forEach((height, k) => heights[2 * k + 1] = Math.max(height, NOTHING));
+  return heights;
 }
 
 /**

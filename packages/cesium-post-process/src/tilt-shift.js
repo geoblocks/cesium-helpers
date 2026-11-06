@@ -16,6 +16,11 @@ const focusScratch = new Cartesian4();
  * look like a scale model.
  */
 export default class TiltShift extends Effect {
+  #focus;
+  #range;
+  #blur;
+  #saturation;
+
   /**
    * @param {CesiumWidget} viewer
    * @param {{focus?: Focus, range?: number, blur?: number, saturation?: number}} [options]
@@ -23,14 +28,15 @@ export default class TiltShift extends Effect {
   constructor(viewer, options = {}) {
     super(viewer);
     this.terrainDepth_ = true;
-    this.focus_ = options.focus;
-    this.range_ = options.range ?? 0.3;
-    this.blur_ = options.blur ?? 4;
-    this.saturation_ = options.saturation ?? 0.3;
+    this.#focus = options.focus;
+    this.#range = options.range ?? 0.3;
+    this.#blur = options.blur ?? 4;
+    this.#saturation = options.saturation ?? 0.3;
   }
 
   /**
    * @override
+   * @protected
    * @param {Scene} scene
    */
   createStage_(scene) {
@@ -42,9 +48,9 @@ export default class TiltShift extends Effect {
           fragmentShader: EyeFromDepth + TiltShiftShader,
           uniforms: {
             blurTexture: blur.name,
-            focus: () => eyeFocus(scene, this.focus_, focusScratch),
-            range: () => this.range_,
-            saturation: () => this.saturation_,
+            focus: () => eyeFocus(scene, this.#focus, focusScratch),
+            range: () => this.#range,
+            saturation: () => this.#saturation,
           },
         }),
       ],
@@ -52,7 +58,7 @@ export default class TiltShift extends Effect {
       inputPreviousStageTexture: false,
       uniforms: blur.uniforms,
     });
-    stage.uniforms.sigma = this.blur_;
+    stage.uniforms.sigma = this.#blur;
     return stage;
   }
 
@@ -61,11 +67,11 @@ export default class TiltShift extends Effect {
    * what is in the middle of the screen.
    */
   get focus() {
-    return this.focus_;
+    return this.#focus;
   }
 
   set focus(value) {
-    this.focus_ = value;
+    this.#focus = value;
     this.viewer.scene.requestRender();
   }
 
@@ -74,11 +80,11 @@ export default class TiltShift extends Effect {
    * in shares of the view's height.
    */
   get range() {
-    return this.range_;
+    return this.#range;
   }
 
   set range(value) {
-    this.range_ = value;
+    this.#range = value;
     this.viewer.scene.requestRender();
   }
 
@@ -86,11 +92,11 @@ export default class TiltShift extends Effect {
    * Blur away from the focus, the sigma of Cesium's blur stage.
    */
   get blur() {
-    return this.blur_;
+    return this.#blur;
   }
 
   set blur(value) {
-    this.blur_ = value;
+    this.#blur = value;
     if (this.stage_) {
       this.stage_.uniforms.sigma = value;
     }
@@ -101,11 +107,11 @@ export default class TiltShift extends Effect {
    * Color and contrast boost, 0 to 1.
    */
   get saturation() {
-    return this.saturation_;
+    return this.#saturation;
   }
 
   set saturation(value) {
-    this.saturation_ = value;
+    this.#saturation = value;
     this.viewer.scene.requestRender();
   }
 }

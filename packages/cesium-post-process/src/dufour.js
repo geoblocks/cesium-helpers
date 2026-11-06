@@ -30,6 +30,20 @@ const inkScratch = new Cartesian3();
  * power faded in as they grow closer than `spacing` pixels.
  */
 export default class Dufour extends Effect {
+  #spacing;
+  #strokeLength;
+  #weight;
+  #oblique;
+  #flatSlope;
+  #outline;
+  #jump;
+  #paper;
+  #ink;
+  /** @type {Cartesian3 | undefined} */
+  #origin = undefined;
+  // east, north and up at the origin
+  #frame = new Matrix3();
+
   /**
    * @param {CesiumWidget} viewer
    * @param {{spacing?: number, strokeLength?: number, weight?: number, oblique?: number, flatSlope?: number, outline?: number, jump?: number, paper?: Color, ink?: Color}} [options]
@@ -37,47 +51,44 @@ export default class Dufour extends Effect {
   constructor(viewer, options = {}) {
     super(viewer);
     this.terrainDepth_ = true;
-    this.spacing_ = options.spacing ?? 3.5;
-    this.strokeLength_ = options.strokeLength ?? 14;
-    this.weight_ = options.weight ?? 1;
-    this.oblique_ = options.oblique ?? 0.8;
-    this.flatSlope_ = options.flatSlope ?? 4;
-    this.outline_ = options.outline ?? 0.8;
-    this.jump_ = options.jump ?? 20;
-    this.paper_ = options.paper ?? Color.fromCssColorString('#f7f3ea');
-    this.ink_ = options.ink ?? Color.fromCssColorString('#1d1b19');
-    /** @type {Cartesian3 | undefined} */
-    this.origin_ = undefined;
-    // east, north and up at the origin
-    this.frame_ = new Matrix3();
+    this.#spacing = options.spacing ?? 3.5;
+    this.#strokeLength = options.strokeLength ?? 14;
+    this.#weight = options.weight ?? 1;
+    this.#oblique = options.oblique ?? 0.8;
+    this.#flatSlope = options.flatSlope ?? 4;
+    this.#outline = options.outline ?? 0.8;
+    this.#jump = options.jump ?? 20;
+    this.#paper = options.paper ?? Color.fromCssColorString('#f7f3ea');
+    this.#ink = options.ink ?? Color.fromCssColorString('#1d1b19');
   }
 
   /**
    * @override
+   * @protected
    * @param {Scene} scene
    */
   createStage_(scene) {
     const toEye = (/** @type {number} */ column, /** @type {Cartesian3} */ result) => {
-      this.follow_(scene);
-      Matrix3.getColumn(this.frame_, column, result);
+      this.#follow(scene);
+      Matrix3.getColumn(this.#frame, column, result);
       return Matrix4.multiplyByPointAsVector(scene.camera.viewMatrix, result, result);
     };
     return new PostProcessStage({
       fragmentShader: EyeFromDepth + DepthEdges + Height + Normal + Hash + DufourShader,
       uniforms: {
         ...heightUniforms(scene),
-        spacing: () => this.spacing_,
-        strokeLength: () => this.strokeLength_,
-        weight: () => this.weight_,
-        oblique: () => this.oblique_,
-        flatSlope: () => CesiumMath.toRadians(this.flatSlope_),
-        outline: () => this.outline_,
-        jump: () => this.jump_,
-        paper: () => Cartesian3.fromElements(this.paper_.red, this.paper_.green, this.paper_.blue, paperScratch),
-        ink: () => Cartesian3.fromElements(this.ink_.red, this.ink_.green, this.ink_.blue, inkScratch),
+        spacing: () => this.#spacing,
+        strokeLength: () => this.#strokeLength,
+        weight: () => this.#weight,
+        oblique: () => this.#oblique,
+        flatSlope: () => CesiumMath.toRadians(this.#flatSlope),
+        outline: () => this.#outline,
+        jump: () => this.#jump,
+        paper: () => Cartesian3.fromElements(this.#paper.red, this.#paper.green, this.#paper.blue, paperScratch),
+        ink: () => Cartesian3.fromElements(this.#ink.red, this.#ink.green, this.#ink.blue, inkScratch),
         originEC: () => {
-          this.follow_(scene);
-          return Matrix4.multiplyByPoint(scene.camera.viewMatrix, /** @type {Cartesian3} */ (this.origin_), originECScratch);
+          this.#follow(scene);
+          return Matrix4.multiplyByPoint(scene.camera.viewMatrix, /** @type {Cartesian3} */ (this.#origin), originECScratch);
         },
         eastEC: () => toEye(0, eastScratch),
         northEC: () => toEye(1, northScratch),
@@ -87,16 +98,15 @@ export default class Dufour extends Effect {
 
   /**
    * Moves the hachures' frame under the camera once it is REBASE meters away over the ground.
-   * @private
    * @param {Scene} scene
    */
-  follow_(scene) {
+  #follow(scene) {
     const surface = scene.ellipsoid.scaleToGeodeticSurface(scene.camera.positionWC, surfaceScratch);
-    if (!surface || (this.origin_ && Cartesian3.distance(surface, this.origin_) < REBASE)) {
+    if (!surface || (this.#origin && Cartesian3.distance(surface, this.#origin) < REBASE)) {
       return;
     }
-    this.origin_ = Cartesian3.clone(surface, this.origin_);
-    Matrix4.getMatrix3(FixedFrameTransforms.eastNorthUpToFixedFrame(this.origin_, scene.ellipsoid, frameScratch), this.frame_);
+    this.#origin = Cartesian3.clone(surface, this.#origin);
+    Matrix4.getMatrix3(FixedFrameTransforms.eastNorthUpToFixedFrame(this.#origin, scene.ellipsoid, frameScratch), this.#frame);
   }
 
   /**
@@ -104,11 +114,11 @@ export default class Dufour extends Effect {
    * takes over.
    */
   get spacing() {
-    return this.spacing_;
+    return this.#spacing;
   }
 
   set spacing(value) {
-    this.spacing_ = value;
+    this.#spacing = value;
     this.viewer.scene.requestRender();
   }
 
@@ -116,11 +126,11 @@ export default class Dufour extends Effect {
    * A stroke's length between its breaks, in spacings, on average.
    */
   get strokeLength() {
-    return this.strokeLength_;
+    return this.#strokeLength;
   }
 
   set strokeLength(value) {
-    this.strokeLength_ = value;
+    this.#strokeLength = value;
     this.viewer.scene.requestRender();
   }
 
@@ -129,11 +139,11 @@ export default class Dufour extends Effect {
    * with the slope, all of it at 60 degrees, before the light.
    */
   get weight() {
-    return this.weight_;
+    return this.#weight;
   }
 
   set weight(value) {
-    this.weight_ = value;
+    this.#weight = value;
     this.viewer.scene.requestRender();
   }
 
@@ -141,11 +151,11 @@ export default class Dufour extends Effect {
    * How much thinner the strokes on the slopes facing the north-west light, and thicker away from it, 0 to 1.
    */
   get oblique() {
-    return this.oblique_;
+    return this.#oblique;
   }
 
   set oblique(value) {
-    this.oblique_ = value;
+    this.#oblique = value;
     this.viewer.scene.requestRender();
   }
 
@@ -153,11 +163,11 @@ export default class Dufour extends Effect {
    * The slope under which the ground is left blank, in degrees.
    */
   get flatSlope() {
-    return this.flatSlope_;
+    return this.#flatSlope;
   }
 
   set flatSlope(value) {
-    this.flatSlope_ = value;
+    this.#flatSlope = value;
     this.viewer.scene.requestRender();
   }
 
@@ -165,11 +175,11 @@ export default class Dufour extends Effect {
    * How dark the outline along the silhouettes, 0 for none.
    */
   get outline() {
-    return this.outline_;
+    return this.#outline;
   }
 
   set outline(value) {
-    this.outline_ = value;
+    this.#outline = value;
     this.viewer.scene.requestRender();
   }
 
@@ -177,11 +187,11 @@ export default class Dufour extends Effect {
    * How far the depth jumps, in pixels' sizes, to be a silhouette, outlined: 20 by default.
    */
   get jump() {
-    return this.jump_;
+    return this.#jump;
   }
 
   set jump(value) {
-    this.jump_ = value;
+    this.#jump = value;
     this.viewer.scene.requestRender();
   }
 
@@ -189,11 +199,11 @@ export default class Dufour extends Effect {
    * The paper's color, and the sky's.
    */
   get paper() {
-    return this.paper_;
+    return this.#paper;
   }
 
   set paper(value) {
-    this.paper_ = value;
+    this.#paper = value;
     this.viewer.scene.requestRender();
   }
 
@@ -201,11 +211,11 @@ export default class Dufour extends Effect {
    * The ink's color.
    */
   get ink() {
-    return this.ink_;
+    return this.#ink;
   }
 
   set ink(value) {
-    this.ink_ = value;
+    this.#ink = value;
     this.viewer.scene.requestRender();
   }
 }

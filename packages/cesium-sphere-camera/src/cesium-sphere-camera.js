@@ -19,33 +19,37 @@ const look3DTan = new Cartesian3();
 const rotationAxisScratch = new Cartesian3();
 
 export default class CesiumSphereCamera {
+  #dragging = false;
+  #active = false;
+  #handleDownEvent;
+  #handleMoveEvent;
+  #handleUpEvent;
+
   /**
    * @param {CesiumWidget} viewer
    */
   constructor(viewer) {
     this.viewer = viewer;
-    this.dragging_ = false;
-    this.active_ = false;
 
-    this.handleDownEvent_ = this.handleDownEvent.bind(this);
-    this.handleMoveEvent_ = this.handleMoveEvent.bind(this);
-    this.handleUpEvent_ = this.handleUpEvent.bind(this);
+    this.#handleDownEvent = this.handleDownEvent.bind(this);
+    this.#handleMoveEvent = this.handleMoveEvent.bind(this);
+    this.#handleUpEvent = this.handleUpEvent.bind(this);
   }
 
   get active() {
-    return this.active_;
+    return this.#active;
   }
 
   set active(active) {
-    if (active === this.active_) {
+    if (active === this.#active) {
       return;
     }
-    this.active_ = active;
+    this.#active = active;
     this.viewer.scene.screenSpaceCameraController.enableInputs = !active;
     if (active) {
-      this.viewer.screenSpaceEventHandler.setInputAction(this.handleDownEvent_, ScreenSpaceEventType.LEFT_DOWN);
-      this.viewer.screenSpaceEventHandler.setInputAction(this.handleMoveEvent_, ScreenSpaceEventType.MOUSE_MOVE);
-      this.viewer.screenSpaceEventHandler.setInputAction(this.handleUpEvent_, ScreenSpaceEventType.LEFT_UP);
+      this.viewer.screenSpaceEventHandler.setInputAction(this.#handleDownEvent, ScreenSpaceEventType.LEFT_DOWN);
+      this.viewer.screenSpaceEventHandler.setInputAction(this.#handleMoveEvent, ScreenSpaceEventType.MOUSE_MOVE);
+      this.viewer.screenSpaceEventHandler.setInputAction(this.#handleUpEvent, ScreenSpaceEventType.LEFT_UP);
     } else {
       this.viewer.screenSpaceEventHandler.removeInputAction(ScreenSpaceEventType.LEFT_DOWN);
       this.viewer.screenSpaceEventHandler.removeInputAction(ScreenSpaceEventType.MOUSE_MOVE);
@@ -54,7 +58,7 @@ export default class CesiumSphereCamera {
   }
 
   handleDownEvent() {
-    this.dragging_ = true;
+    this.#dragging = true;
   }
 
   /**
@@ -62,7 +66,7 @@ export default class CesiumSphereCamera {
    * @param {ScreenSpaceEventHandler.MotionEvent} movement
    */
   handleMoveEvent(movement) {
-    if (!this.dragging_) {
+    if (!this.#dragging) {
       return;
     }
     const camera = this.viewer.scene.camera;
@@ -134,6 +138,6 @@ export default class CesiumSphereCamera {
   }
 
   handleUpEvent() {
-    this.dragging_ = false;
+    this.#dragging = false;
   }
 }

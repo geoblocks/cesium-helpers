@@ -21,6 +21,17 @@ const BLACKOUT = 0.25;
  * second, also in requestRenderMode.
  */
 export default class DigitalVideo extends Effect {
+  #breakup;
+  // the current breakup: start and length in seconds, and whether it goes black
+  /** @type {{start: number, duration: number, blackout: boolean} | undefined} */
+  #episode = undefined;
+  // when the breakups were last updated, in seconds
+  #updated = 0;
+  // the uniforms, updated once per frame
+  #severity = 0;
+  #blackout = 0;
+  #onPreRender;
+
   /**
    * @param {CesiumWidget} viewer
    * @param {{breakup?: number}} [options]
@@ -28,25 +39,20 @@ export default class DigitalVideo extends Effect {
   constructor(viewer, options = {}) {
     super(viewer);
     this.frameRate_ = FRAME_RATE;
-    this.breakup_ = options.breakup ?? 0.5;
-    // the current breakup: start and length in seconds, and whether it goes black
-    /** @type {{start: number, duration: number, blackout: boolean} | undefined} */
-    this.episode_ = undefined;
-    // when the breakups were last updated, in seconds
-    this.updated_ = 0;
-    // the uniforms, updated once per frame
-    this.severity_ = 0;
-    this.blackout_ = 0;
-    this.onPreRender_ = () => this.update_();
+    this.#breakup = options.breakup ?? 0.5;
+    this.#onPreRender = () => this.#update();
   }
 
-  /** @override */
+  /**
+   * @override
+   * @protected
+   */
   createStage_() {
     return new PostProcessStage({
       fragmentShader: Hash + DigitalVideoShader,
       uniforms: {
-        severity: () => this.severity_,
-        blackout: () => this.blackout_,
+        severity: () => this.#severity,
+        blackout: () => this.#blackout,
         frame: () => Math.floor((performance.now() / 1000) * FRAME_RATE) % 100000,
       },
     });
@@ -54,56 +60,58 @@ export default class DigitalVideo extends Effect {
 
   /**
    * @override
+   * @protected
    * @param {Scene} scene
    */
   activated_(scene) {
-    this.updated_ = performance.now() / 1000;
-    scene.preRender.addEventListener(this.onPreRender_);
+    this.#updated = performance.now() / 1000;
+    scene.preRender.addEventListener(this.#onPreRender);
   }
 
   /**
    * @override
+   * @protected
    * @param {Scene} scene
    */
   deactivating_(scene) {
-    scene.preRender.removeEventListener(this.onPreRender_);
-    this.episode_ = undefined;
+    scene.preRender.removeEventListener(this.#onPreRender);
+    this.#episode = undefined;
   }
 
   // before each render: end the finished breakup, start one with the chance of the time since the
   // last update, so that breakups start at the same rate whatever the frame rate (at most a second,
   // as a hidden page does not render), then how broken the picture is now: rising and falling over
   // the breakup, black around its middle
-  update_() {
+  #update() {
     const now = performance.now() / 1000;
-    const elapsed = Math.min(now - this.updated_, 1);
-    this.updated_ = now;
-    if (this.episode_ && now > this.episode_.start + this.episode_.duration) {
-      this.episode_ = undefined;
+    const elapsed = Math.min(now - this.#updated, 1);
+    this.#updated = now;
+    if (this.#episode && now > this.#episode.start + this.#episode.duration) {
+      this.#episode = undefined;
     }
-    if (!this.episode_ && Math.random() < 1 - Math.exp((-this.breakup_ / MIN_INTERVAL) * elapsed)) {
+    if (!this.#episode && Math.random() < 1 - Math.exp((-this.#breakup / MIN_INTERVAL) * elapsed)) {
       const duration = DURATION[0] + Math.random() * (DURATION[1] - DURATION[0]);
-      this.episode_ = {start: now, duration, blackout: Math.random() < 0.5 * this.breakup_};
+      this.#episode = {start: now, duration, blackout: Math.random() < 0.5 * this.#breakup};
     }
-    const episode = this.episode_;
+    const episode = this.#episode;
     if (!episode) {
-      this.severity_ = 0;
-      this.blackout_ = 0;
+      this.#severity = 0;
+      this.#blackout = 0;
       return;
     }
     const t = (now - episode.start) / episode.duration;
-    this.severity_ = Math.max(0, Math.sin(CesiumMath.PI * Math.min(t, 1))) ** 0.7 * (0.4 + 0.6 * this.breakup_);
-    this.blackout_ = episode.blackout && Math.abs(t - 0.5) * episode.duration < BLACKOUT / 2 ? 1 : 0;
+    this.#severity = Math.max(0, Math.sin(CesiumMath.PI * Math.min(t, 1))) ** 0.7 * (0.4 + 0.6 * this.#breakup);
+    this.#blackout = episode.blackout && Math.abs(t - 0.5) * episode.duration < BLACKOUT / 2 ? 1 : 0;
   }
 
   /**
    * How often and how badly the signal breaks up, 0 to 1.
    */
   get breakup() {
-    return this.breakup_;
+    return this.#breakup;
   }
 
   set breakup(value) {
-    this.breakup_ = value;
+    this.#breakup = value;
   }
 }

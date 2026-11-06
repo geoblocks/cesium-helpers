@@ -14,6 +14,10 @@ const SMOOTHING_TIME_CONSTANT = 0.02;
  * listener follows the camera and the panner node follows the source.
  */
 export default class CesiumAudio {
+  #active = false;
+  #jump = false;
+  #update;
+
   /**
    * @param {CesiumWidget} viewer
    * @param {Cartesian3 | PositionProperty} position position of the sound source,
@@ -24,21 +28,19 @@ export default class CesiumAudio {
     this.viewer = viewer;
     this.position = position;
     this.panner = panner;
-    this.active_ = false;
-    this.jump_ = false;
 
-    this.update_ = this.update.bind(this);
+    this.#update = this.update.bind(this);
   }
 
   get active() {
-    return this.active_;
+    return this.#active;
   }
 
   set active(active) {
-    if (active === this.active_) {
+    if (active === this.#active) {
       return;
     }
-    this.active_ = active;
+    this.#active = active;
     if (active) {
       // The listener stays at the origin and the source is positioned relative
       // to the camera: audio params are single precision, too coarse for ECEF
@@ -51,11 +53,11 @@ export default class CesiumAudio {
       } else {
         listener.setPosition(0, 0, 0);
       }
-      this.jump_ = true;
-      this.viewer.scene.postRender.addEventListener(this.update_);
+      this.#jump = true;
+      this.viewer.scene.postRender.addEventListener(this.#update);
       this.update();
     } else {
-      this.viewer.scene.postRender.removeEventListener(this.update_);
+      this.viewer.scene.postRender.removeEventListener(this.#update);
     }
   }
 
@@ -63,10 +65,10 @@ export default class CesiumAudio {
     const camera = this.viewer.scene.camera;
     const time = this.panner.context.currentTime;
     /** @type {(param: AudioParam, value: number) => void} */
-    const set = this.jump_ ?
+    const set = this.#jump ?
       (param, value) => param.setValueAtTime(value, time) :
       (param, value) => param.setTargetAtTime(value, time, SMOOTHING_TIME_CONSTANT);
-    this.jump_ = false;
+    this.#jump = false;
 
     // duck typing: the position may come from another Cesium build (like the CDN one)
     const position = 'getValue' in this.position ?

@@ -19,6 +19,8 @@ const CLIMB_THROTTLE = 5;
 const SMOOTHING = 0.5;
 const GAP = 0.5;
 
+/** @typedef {{time: number, height: number, drained: number}} Takeoff When a display turned on, the camera's height then, and the share of the battery drained since. */
+
 /**
  * A fixed-wing plane's OSD as ArduPilot draws it on an HD video system, in the
  * blocky white glyphs of an analog chip with some in color: an artificial
@@ -30,48 +32,52 @@ const GAP = 0.5;
  * FAILSAFE warning.
  */
 export default class DroneDisplay extends Effect {
+  #opacity;
+  #rxLoss = false;
+  // when the display turned on, and the camera's height then
+  #startTime = 0;
+  #startHeight = 0;
+  // the camera's speed and vertical speed in m/s, smoothed, from its position and height at the
+  // previous frame
+  #speed = 0;
+  #verticalSpeed = 0;
+  #previousPosition = new Cartesian3();
+  #previousHeight = 0;
+  #previousTime = 0;
+  // the share of the battery drained
+  #drained = 0;
+  #onPostRender;
+
   /**
    * @param {CesiumWidget} viewer
    * @param {{opacity?: number}} [options]
    */
   constructor(viewer, options = {}) {
     super(viewer);
-    this.opacity_ = options.opacity ?? 1;
-    this.rxLoss_ = false;
-    // when the display turned on, and the camera's height then
-    this.startTime_ = 0;
-    this.startHeight_ = 0;
-    // the camera's speed and vertical speed in m/s, smoothed, from its position and height at the
-    // previous frame
-    this.speed_ = 0;
-    this.verticalSpeed_ = 0;
-    this.previousPosition_ = new Cartesian3();
-    this.previousHeight_ = 0;
-    this.previousTime_ = 0;
-    // the share of the battery drained
-    this.drained_ = 0;
-    this.onPostRender_ = () => this.measure_(false);
+    this.#opacity = options.opacity ?? 1;
+    this.#onPostRender = () => this.#measure(false);
   }
 
   /**
    * @override
+   * @protected
    * @param {Scene} scene
    */
   createStage_(scene) {
     return new PostProcessStage({
       fragmentShader: DroneDisplayShader,
       uniforms: {
-        opacity: () => this.opacity_,
+        opacity: () => this.#opacity,
         pitch: () => CesiumMath.toDegrees(scene.camera.pitch),
         roll: () => CesiumMath.toDegrees(CesiumMath.negativePiToPi(scene.camera.roll)),
         heading: () => CesiumMath.toDegrees(scene.camera.heading),
-        altitude: () => scene.camera.positionCartographic.height - this.startHeight_,
-        verticalSpeed: () => this.verticalSpeed_,
-        speed: () => this.speed_ * 3.6,
-        voltage: () => this.voltage_(),
-        linkQuality: () => this.linkQuality_(),
-        throttle: () => this.throttle_(),
-        failsafe: () => (this.rxLoss_ ? 1 : 0),
+        altitude: () => scene.camera.positionCartographic.height - this.#startHeight,
+        verticalSpeed: () => this.#verticalSpeed,
+        speed: () => this.#speed * 3.6,
+        voltage: () => this.#voltage(),
+        linkQuality: () => this.#linkQuality(),
+        throttle: () => this.#throttle(),
+        failsafe: () => (this.#rxLoss ? 1 : 0),
         // twice per second, as ArduPilot's blinking
         blink: () => (Math.floor(performance.now() / 250) % 2 === 0 ? 1 : 0),
       },
@@ -80,24 +86,26 @@ export default class DroneDisplay extends Effect {
 
   /**
    * @override
+   * @protected
    * @param {Scene} scene
    */
   activated_(scene) {
-    this.startTime_ = performance.now() / 1000;
-    this.startHeight_ = scene.camera.positionCartographic.height;
-    this.speed_ = 0;
-    this.verticalSpeed_ = 0;
-    this.drained_ = 0;
-    this.measure_(true);
-    scene.postRender.addEventListener(this.onPostRender_);
+    this.#startTime = performance.now() / 1000;
+    this.#startHeight = scene.camera.positionCartographic.height;
+    this.#speed = 0;
+    this.#verticalSpeed = 0;
+    this.#drained = 0;
+    this.#measure(true);
+    scene.postRender.addEventListener(this.#onPostRender);
   }
 
   /**
    * @override
+   * @protected
    * @param {Scene} scene
    */
   deactivating_(scene) {
-    scene.postRender.removeEventListener(this.onPostRender_);
+    scene.postRender.removeEventListener(this.#onPostRender);
   }
 
   /**
@@ -105,54 +113,54 @@ export default class DroneDisplay extends Effect {
    * drains the battery at the throttle.
    * @param {boolean} first whether there is no previous frame
    */
-  measure_(first) {
+  #measure(first) {
     const camera = this.viewer.scene.camera;
     const time = performance.now() / 1000;
     const height = camera.positionCartographic.height;
-    const dt = time - this.previousTime_;
+    const dt = time - this.#previousTime;
     if (!first && dt > 0 && dt < GAP) {
       const ease = 1 - Math.exp(-dt / SMOOTHING);
-      this.speed_ += (Cartesian3.distance(camera.positionWC, this.previousPosition_) / dt - this.speed_) * ease;
-      this.verticalSpeed_ += ((height - this.previousHeight_) / dt - this.verticalSpeed_) * ease;
+      this.#speed += (Cartesian3.distance(camera.positionWC, this.#previousPosition) / dt - this.#speed) * ease;
+      this.#verticalSpeed += ((height - this.#previousHeight) / dt - this.#verticalSpeed) * ease;
     }
     if (!first) {
-      this.drained_ += (dt / DRAIN_SECONDS) * (this.throttle_() / CRUISE_THROTTLE);
+      this.#drained += (dt / DRAIN_SECONDS) * (this.#throttle() / CRUISE_THROTTLE);
     }
-    Cartesian3.clone(camera.positionWC, this.previousPosition_);
-    this.previousHeight_ = height;
-    this.previousTime_ = time;
+    Cartesian3.clone(camera.positionWC, this.#previousPosition);
+    this.#previousHeight = height;
+    this.#previousTime = time;
   }
 
   // the battery drains over the flight, and sags under the throttle's load
-  voltage_() {
-    const drained = (FULL_VOLTS - EMPTY_VOLTS) * Math.min(this.drained_, 1);
-    return FULL_VOLTS - drained - (SAG_VOLTS * this.throttle_()) / 100;
+  #voltage() {
+    const drained = (FULL_VOLTS - EMPTY_VOLTS) * Math.min(this.#drained, 1);
+    return FULL_VOLTS - drained - (SAG_VOLTS * this.#throttle()) / 100;
   }
 
   // the link hovers in the nineties, with a deep dip once in a while
-  linkQuality_() {
-    const seconds = performance.now() / 1000 - this.startTime_;
+  #linkQuality() {
+    const seconds = performance.now() / 1000 - this.#startTime;
     const wander = 4 * Math.abs(Math.sin(seconds * 0.9) * Math.sin(seconds * 0.37));
     const dip = Math.sin(seconds * 0.11) > 0.97 ? 35 : 0;
     return Math.round(99 - wander - dip);
   }
 
   // the throttle holds the cruise, more of it climbing and less diving, wandering a little
-  throttle_() {
-    const seconds = performance.now() / 1000 - this.startTime_;
+  #throttle() {
+    const seconds = performance.now() / 1000 - this.#startTime;
     const wander = 2 * Math.sin(seconds * 0.3) * Math.sin(seconds * 0.13 + 1);
-    return Math.round(CesiumMath.clamp(CRUISE_THROTTLE + CLIMB_THROTTLE * this.verticalSpeed_ + wander, 0, 100));
+    return Math.round(CesiumMath.clamp(CRUISE_THROTTLE + CLIMB_THROTTLE * this.#verticalSpeed + wander, 0, 100));
   }
 
   /**
    * Opacity of the display, 0 to 1.
    */
   get opacity() {
-    return this.opacity_;
+    return this.#opacity;
   }
 
   set opacity(value) {
-    this.opacity_ = value;
+    this.#opacity = value;
     this.viewer.scene.requestRender();
   }
 
@@ -162,11 +170,29 @@ export default class DroneDisplay extends Effect {
    * the scene renders.
    */
   get rxLoss() {
-    return this.rxLoss_;
+    return this.#rxLoss;
   }
 
   set rxLoss(value) {
-    this.rxLoss_ = value;
+    this.#rxLoss = value;
+    this.viewer.scene.requestRender();
+  }
+
+  /**
+   * When the display turned on, in performance.now()'s seconds, the camera's height then, in meters,
+   * and the share of the battery drained since, 0 to 1: what the altitude and the battery count
+   * from. Activating the display sets it; a display removed and added again to put a stage before it
+   * keeps its flight by setting it back.
+   * @type {Takeoff}
+   */
+  get takeoff() {
+    return {time: this.#startTime, height: this.#startHeight, drained: this.#drained};
+  }
+
+  set takeoff({time, height, drained}) {
+    this.#startTime = time;
+    this.#startHeight = height;
+    this.#drained = drained;
     this.viewer.scene.requestRender();
   }
 }

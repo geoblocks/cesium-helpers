@@ -65,6 +65,13 @@ export function signalAt(seconds, interference) {
  * also in requestRenderMode.
  */
 export default class AnalogVideo extends Effect {
+  #noise;
+  #interference;
+  // the uniforms updated once per frame
+  #weak = 0;
+  #tear = -1;
+  #onPreRender;
+
   /**
    * @param {CesiumWidget} viewer
    * @param {{noise?: number, interference?: number}} [options]
@@ -73,56 +80,58 @@ export default class AnalogVideo extends Effect {
     super(viewer);
     // a new picture only with each video frame, not with each frame of the display
     this.frameRate_ = FRAME_RATE;
-    this.noise_ = options.noise ?? 0.5;
-    this.interference_ = options.interference ?? 0.15;
-    // the uniforms updated once per frame
-    this.weak_ = 0;
-    this.tear_ = -1;
-    this.onPreRender_ = () => {
-      const signal = signalAt(performance.now() / 1000, this.interference_);
-      this.weak_ = signal.weak;
-      this.tear_ = signal.tear;
+    this.#noise = options.noise ?? 0.5;
+    this.#interference = options.interference ?? 0.15;
+    this.#onPreRender = () => {
+      const signal = signalAt(performance.now() / 1000, this.#interference);
+      this.#weak = signal.weak;
+      this.#tear = signal.tear;
     };
   }
 
-  /** @override */
+  /**
+   * @override
+   * @protected
+   */
   createStage_() {
     return new PostProcessStage({
       fragmentShader: Hash + AnalogVideoShader,
       uniforms: {
         time: () => performance.now() / 1000,
-        noise: () => this.noise_,
-        weak: () => this.weak_,
-        tear: () => this.tear_,
+        noise: () => this.#noise,
+        weak: () => this.#weak,
+        tear: () => this.#tear,
       },
     });
   }
 
   /**
    * @override
+   * @protected
    * @param {Scene} scene
    */
   activated_(scene) {
-    scene.preRender.addEventListener(this.onPreRender_);
+    scene.preRender.addEventListener(this.#onPreRender);
   }
 
   /**
    * @override
+   * @protected
    * @param {Scene} scene
    */
   deactivating_(scene) {
-    scene.preRender.removeEventListener(this.onPreRender_);
+    scene.preRender.removeEventListener(this.#onPreRender);
   }
 
   /**
    * Grain, 0 to 1.
    */
   get noise() {
-    return this.noise_;
+    return this.#noise;
   }
 
   set noise(value) {
-    this.noise_ = value;
+    this.#noise = value;
   }
 
   /**
@@ -131,10 +140,10 @@ export default class AnalogVideo extends Effect {
    * torn when the sync is lost; 1 for no signal at all, the receiver's snow.
    */
   get interference() {
-    return this.interference_;
+    return this.#interference;
   }
 
   set interference(value) {
-    this.interference_ = value;
+    this.#interference = value;
   }
 }
