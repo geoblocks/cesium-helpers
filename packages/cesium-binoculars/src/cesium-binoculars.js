@@ -10,8 +10,7 @@ import {
   PostProcessStageLibrary,
   ScreenSpaceEventType,
 } from "@cesium/engine";
-import {acquireTerrainDepth, releaseTerrainDepth} from "@geoblocks/cesium-post-process";
-import EyeFromDepth from "./shaders/EyeFromDepth.js";
+import {EyeFromDepth, acquireTerrainDepth, releaseTerrainDepth} from "@geoblocks/cesium-post-process";
 import Lens from "./shaders/Lens.js";
 
 /** @import {PerspectiveFrustum} from "@cesium/core" */
