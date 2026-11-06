@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.3.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-flyto%400.2.3...%40geoblocks%2Fcesium-flyto%400.3.0) (2026-11-06)
+
+* refactor(cesium-flyto)!: keep the state in private fields ([251d914](https://github.com/geoblocks/cesium-helpers/commit/251d9145b0a6b0fd7fb3d58182290d439263c2a7))
+
+### BREAKING CHANGES
+
+* the classes' name_ members, private by convention, are
+  private elements: code that read them gets undefined, code that set them
+  changes nothing.
+
+
 ## [0.2.3](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-flyto%400.2.2...%40geoblocks%2Fcesium-flyto%400.2.3) (2026-11-03)
 
 ### Bug Fixes

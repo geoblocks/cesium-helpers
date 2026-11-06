@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.8.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-post-process%400.7.0...%40geoblocks%2Fcesium-post-process%400.8.0) (2026-11-06)
+
+* refactor(cesium-post-process)!: keep the state in private fields ([a038b55](https://github.com/geoblocks/cesium-helpers/commit/a038b5528ebab1c93ca805c83a99c0bc4ac4478b))
+
+### Features
+
+* **cesium-path-flyover:** draw the trail as a 3D line above the terrain ([92b299a](https://github.com/geoblocks/cesium-helpers/commit/92b299af4c55d034665a8d5c788449bf828ece64))
+* share the terrain's depth testing between packages ([098f77c](https://github.com/geoblocks/cesium-helpers/commit/098f77c662cf14c168d3c868cb6062975ec0449a))
+
+### BREAKING CHANGES
+
+* the classes' name_ members, private by convention, are
+  private elements: code that read them gets undefined, code that set them
+  changes nothing. DroneDisplay's take-off is read and set with takeoff.
+
+
 # [0.7.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-post-process%400.6.1...%40geoblocks%2Fcesium-post-process%400.7.0) (2026-11-03)
 
 ### Features

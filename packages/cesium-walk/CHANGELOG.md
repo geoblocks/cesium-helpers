@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.6.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-walk%400.5.2...%40geoblocks%2Fcesium-walk%400.6.0) (2026-11-06)
+
+* refactor(cesium-walk)!: keep the state in private fields ([0f60bcb](https://github.com/geoblocks/cesium-helpers/commit/0f60bcbffe77db3e33fa55781618a935175b0784))
+
+### BREAKING CHANGES
+
+* the classes' name_ members, private by convention, are
+  private elements: code that read them gets undefined, code that set them
+  changes nothing.
+
+
 ## [0.5.2](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-walk%400.5.1...%40geoblocks%2Fcesium-walk%400.5.2) (2026-11-02)
 
 **Note:** Version bump only for package @geoblocks/cesium-walk

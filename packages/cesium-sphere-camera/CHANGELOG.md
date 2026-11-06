@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.2.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-sphere-camera%400.1.1...%40geoblocks%2Fcesium-sphere-camera%400.2.0) (2026-11-06)
+
+* refactor(cesium-sphere-camera)!: keep the state in private fields ([ef35329](https://github.com/geoblocks/cesium-helpers/commit/ef35329ad58bb232ac097497c87c0d86ba888064))
+
+### BREAKING CHANGES
+
+* the classes' name_ members, private by convention, are
+  private elements: code that read them gets undefined, code that set them
+  changes nothing.
+
+
 ## [0.1.1](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-sphere-camera%400.1.0...%40geoblocks%2Fcesium-sphere-camera%400.1.1) (2026-11-02)
 
 **Note:** Version bump only for package @geoblocks/cesium-sphere-camera

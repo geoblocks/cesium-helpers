@@ -3,6 +3,25 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.3.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-binoculars%400.2.0...%40geoblocks%2Fcesium-binoculars%400.3.0) (2026-11-06)
+
+* refactor(cesium-binoculars)!: keep the state in private fields ([099447a](https://github.com/geoblocks/cesium-helpers/commit/099447a0ebdb6f123b9697d5bf30dceec4497e31))
+
+### Bug Fixes
+
+* peer on cesium-post-process 0.8, which exports the terrain depth helpers ([8b43da6](https://github.com/geoblocks/cesium-helpers/commit/8b43da6f3b976346eb49b3b88d1a209ec3cb049a))
+
+### Features
+
+* share the terrain's depth testing between packages ([098f77c](https://github.com/geoblocks/cesium-helpers/commit/098f77c662cf14c168d3c868cb6062975ec0449a))
+
+### BREAKING CHANGES
+
+* the classes' name_ members, private by convention, are
+  private elements: code that read them gets undefined, code that set them
+  changes nothing.
+
+
 # [0.2.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-binoculars%400.1.0...%40geoblocks%2Fcesium-binoculars%400.2.0) (2026-10-26)
 
 ### Build System

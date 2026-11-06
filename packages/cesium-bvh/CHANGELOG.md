@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.4.1](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-bvh%400.4.0...%40geoblocks%2Fcesium-bvh%400.4.1) (2026-11-06)
+
+### Bug Fixes
+
+* **cesium-bvh:** a new empty tree from each build call ([8273d5d](https://github.com/geoblocks/cesium-helpers/commit/8273d5d2cc75469f390660f2f88682de393eead0))
+
+
 # [0.4.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-bvh%400.3.0...%40geoblocks%2Fcesium-bvh%400.4.0) (2026-11-02)
 
 ### Features

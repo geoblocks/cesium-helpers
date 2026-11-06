@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.5.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-drone%400.4.3...%40geoblocks%2Fcesium-drone%400.5.0) (2026-11-06)
+
+* refactor(cesium-drone)!: keep the state in private fields ([87da110](https://github.com/geoblocks/cesium-helpers/commit/87da1105077527006c3ee842a1d199e7f55b5f0b))
+
+### BREAKING CHANGES
+
+* the classes' name_ members, private by convention, are
+  private elements: code that read them gets undefined, code that set them
+  changes nothing. The drone's position is read with position.
+
+
 ## [0.4.3](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-drone%400.4.2...%40geoblocks%2Fcesium-drone%400.4.3) (2026-11-03)
 
 ### Bug Fixes

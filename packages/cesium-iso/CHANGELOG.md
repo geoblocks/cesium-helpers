@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.4.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-iso%400.3.1...%40geoblocks%2Fcesium-iso%400.4.0) (2026-11-06)
+
+* refactor(cesium-iso)!: keep the view's state in private fields ([dc30450](https://github.com/geoblocks/cesium-helpers/commit/dc30450cc62d6d6070ec2af9d7bdba6bdd285afe))
+
+### Features
+
+* **cesium-iso:** stop the view, and count the pointers down ([023c937](https://github.com/geoblocks/cesium-helpers/commit/023c9375d952c0911364f3d71cfa1f68f2005b91))
+
+### BREAKING CHANGES
+
+* the classes' name_ members, private by convention, are
+  private elements: code that read them gets undefined, code that set them
+  changes nothing. A page reads heading and size, and turns the view with
+  the heading setter.
+
+
 ## [0.3.1](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-iso%400.3.0...%40geoblocks%2Fcesium-iso%400.3.1) (2026-11-02)
 
 **Note:** Version bump only for package @geoblocks/cesium-iso

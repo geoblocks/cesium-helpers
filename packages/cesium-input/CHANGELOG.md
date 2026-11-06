@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.4.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-input%400.3.0...%40geoblocks%2Fcesium-input%400.4.0) (2026-11-06)
+
+* refactor(cesium-input)!: keep the state in private fields ([d2e2763](https://github.com/geoblocks/cesium-helpers/commit/d2e2763a36e6b9c306d073720818317c5a3f7069))
+
+### BREAKING CHANGES
+
+* the classes' name_ members, private by convention, are
+  private elements: code that read them gets undefined, code that set them
+  changes nothing.
+
+
 # [0.3.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-input%400.2.0...%40geoblocks%2Fcesium-input%400.3.0) (2026-10-26)
 
 ### Build System

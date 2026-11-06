@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.6.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-first-person-mode%400.5.0...%40geoblocks%2Fcesium-first-person-mode%400.6.0) (2026-11-06)
+
+* refactor(FirstPersonCameraMode)!: keep the state in private fields ([ed54d28](https://github.com/geoblocks/cesium-helpers/commit/ed54d2815d7a6ecbb0409c6f1b94e78ca2787886))
+
+### BREAKING CHANGES
+
+* the classes' name_ members, private by convention, are
+  private elements: code that read them gets undefined, code that set them
+  changes nothing.
+
+
 # [0.5.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-first-person-mode%400.4.0...%40geoblocks%2Fcesium-first-person-mode%400.5.0) (2026-10-26)
 
 ### Build System

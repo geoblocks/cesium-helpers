@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.8.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-obstacles%400.7.0...%40geoblocks%2Fcesium-obstacles%400.8.0) (2026-11-06)
+
+* refactor(cesium-obstacles)!: keep the state in private fields ([79e0262](https://github.com/geoblocks/cesium-helpers/commit/79e0262ed24e5fefb4f8d62a48e69af7f6d83615))
+
+### BREAKING CHANGES
+
+* the classes' name_ members, private by convention, are
+  private elements: code that read them gets undefined, code that set them
+  changes nothing.
+
+
 # [0.7.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-obstacles%400.6.1...%40geoblocks%2Fcesium-obstacles%400.7.0) (2026-11-02)
 
 ### Features
