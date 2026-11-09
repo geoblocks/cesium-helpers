@@ -145,6 +145,16 @@ test('inactive again, the camera gets its own frustum back and the inputs', () =
   assert.equal(viewer.scene.screenSpaceCameraController.enableInputs, true);
 });
 
+test('inactive again, the inputs are as they were, off included', () => {
+  const viewer = fakeViewer();
+  viewer.scene.screenSpaceCameraController.enableInputs = false;
+  const iso = new CesiumIso(viewer);
+  globalThis.cancelAnimationFrame = () => {};
+  iso.active = true;
+  iso.active = false;
+  assert.equal(viewer.scene.screenSpaceCameraController.enableInputs, false);
+});
+
 test('the camera stands the orbit away from its target, 5 km by default, closer for a finer depth', () => {
   for (const [options, orbit] of [[{}, 5000], [{orbit: 500}, 500]]) {
     const viewer = fakeViewer();

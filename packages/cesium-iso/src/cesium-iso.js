@@ -45,6 +45,8 @@ export default class CesiumIso {
   #limit;
   #orbit;
   #active = false;
+  // the camera controller's inputs before activation, given back as they were
+  #inputsBefore = true;
   #target = new Cartesian3();
   #heading = 0;
   /** @type {Map<number, Cartesian2>} */
@@ -118,7 +120,7 @@ export default class CesiumIso {
     }
     this.#active = active;
     const {scene} = this.viewer;
-    scene.screenSpaceCameraController.enableInputs = !active;
+    const controller = scene.screenSpaceCameraController;
     for (const [target, type, listener] of this.#listeners) {
       if (active) {
         target.addEventListener(type, listener, type === 'wheel' ? {passive: false} : undefined);
@@ -127,6 +129,8 @@ export default class CesiumIso {
       }
     }
     if (active) {
+      this.#inputsBefore = controller.enableInputs;
+      controller.enableInputs = false;
       // about the ground in the middle of the screen, from the nearest corner; before the scene has loaded, the
       // ellipsoid there, raised to the terrain once its tiles are in, if the globe is shown
       const {canvas, camera, globe} = scene;
@@ -151,6 +155,7 @@ export default class CesiumIso {
         });
       }
     } else {
+      controller.enableInputs = this.#inputsBefore;
       this.#settle();
       cancelAnimationFrame(this.#frame ?? 0);
       this.#frame = this.#turning = this.#gliding = this.#drag = this.#moved = this.#drift = this.#drifted = undefined;
