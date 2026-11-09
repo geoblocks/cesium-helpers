@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.5.1](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-drone%400.5.0...%40geoblocks%2Fcesium-drone%400.5.1) (2026-11-09)
+
+### Bug Fixes
+
+* give the camera controller's inputs back as they were ([7b013fc](https://github.com/geoblocks/cesium-helpers/commit/7b013fc01b0727798a9bdcfe3db7cc3025dde8cc))
+
+
 # [0.5.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-drone%400.4.3...%40geoblocks%2Fcesium-drone%400.5.0) (2026-11-06)
 
 * refactor(cesium-drone)!: keep the state in private fields ([87da110](https://github.com/geoblocks/cesium-helpers/commit/87da1105077527006c3ee842a1d199e7f55b5f0b))

@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.4.1](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-iso%400.4.0...%40geoblocks%2Fcesium-iso%400.4.1) (2026-11-09)
+
+### Bug Fixes
+
+* give the camera controller's inputs back as they were ([7b013fc](https://github.com/geoblocks/cesium-helpers/commit/7b013fc01b0727798a9bdcfe3db7cc3025dde8cc))
+
+
 # [0.4.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-iso%400.3.1...%40geoblocks%2Fcesium-iso%400.4.0) (2026-11-06)
 
 * refactor(cesium-iso)!: keep the view's state in private fields ([dc30450](https://github.com/geoblocks/cesium-helpers/commit/dc30450cc62d6d6070ec2af9d7bdba6bdd285afe))

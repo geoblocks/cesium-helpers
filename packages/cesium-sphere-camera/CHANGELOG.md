@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.3.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-sphere-camera%400.2.0...%40geoblocks%2Fcesium-sphere-camera%400.3.0) (2026-11-09)
+
+* feat(cesium-sphere-camera)!: look around as a Cesium camera controller ([5efd92f](https://github.com/geoblocks/cesium-helpers/commit/5efd92fe3a8b1d3c04a52e2ed786f59658b619a7))
+
+### BREAKING CHANGES
+
+* @cesium/engine 26.2.0 (CesiumJS 1.144) or later is
+  needed, and the public handleDownEvent and handleUpEvent methods are
+  removed.
+
+
 # [0.2.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-sphere-camera%400.1.1...%40geoblocks%2Fcesium-sphere-camera%400.2.0) (2026-11-06)
 
 * refactor(cesium-sphere-camera)!: keep the state in private fields ([ef35329](https://github.com/geoblocks/cesium-helpers/commit/ef35329ad58bb232ac097497c87c0d86ba888064))

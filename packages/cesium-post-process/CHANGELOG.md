@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.8.1](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-post-process%400.8.0...%40geoblocks%2Fcesium-post-process%400.8.1) (2026-11-09)
+
+### Bug Fixes
+
+* **cesium-post-process:** keep the terrain depth count per scene ([06635c5](https://github.com/geoblocks/cesium-helpers/commit/06635c5c44b2acaf96b3258ac38115e8d323bda0))
+
+
 # [0.8.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-post-process%400.7.0...%40geoblocks%2Fcesium-post-process%400.8.0) (2026-11-06)
 
 * refactor(cesium-post-process)!: keep the state in private fields ([a038b55](https://github.com/geoblocks/cesium-helpers/commit/a038b5528ebab1c93ca805c83a99c0bc4ac4478b))

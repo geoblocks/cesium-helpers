@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.3.1](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-flyto%400.3.0...%40geoblocks%2Fcesium-flyto%400.3.1) (2026-11-09)
+
+### Bug Fixes
+
+* **cesium-flyto:** peer on cesium-post-process ([f4c32f6](https://github.com/geoblocks/cesium-helpers/commit/f4c32f6d15ff92792dd1e29d20b3da53b86503b0))
+
+
 # [0.3.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-flyto%400.2.3...%40geoblocks%2Fcesium-flyto%400.3.0) (2026-11-06)
 
 * refactor(cesium-flyto)!: keep the state in private fields ([251d914](https://github.com/geoblocks/cesium-helpers/commit/251d9145b0a6b0fd7fb3d58182290d439263c2a7))

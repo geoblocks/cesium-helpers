@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.3.1](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-path-flyover%400.3.0...%40geoblocks%2Fcesium-path-flyover%400.3.1) (2026-11-09)
+
+### Bug Fixes
+
+* **cesium-path-flyover:** keep the previous track on screen while the next one loads ([cde87fc](https://github.com/geoblocks/cesium-helpers/commit/cde87fc7b03269c078f3c397e396ed8dee6f2cdf))
+
+
 # [0.3.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-path-flyover%400.2.2...%40geoblocks%2Fcesium-path-flyover%400.3.0) (2026-11-06)
 
 * refactor(cesium-path-flyover)!: keep the state in private fields ([2c3f7da](https://github.com/geoblocks/cesium-helpers/commit/2c3f7daa0c8121e88d4314f2677787990c4c9b88))
