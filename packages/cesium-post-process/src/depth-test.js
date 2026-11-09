@@ -4,37 +4,41 @@
 // without it show through the terrain. Several users may need it at once (effects, a lens, a trail): the
 // first one turns depth testing on, the last one restores it.
 
-/** @type {WeakMap<Globe, {count: number, previous: boolean}>} */
+/**
+ * Per scene, the users and the globe whose setting they changed, with the setting it had: the scene's globe may be
+ * replaced, or added, in the meantime.
+ * @type {WeakMap<Scene, {count: number, globe: Globe | undefined, previous: boolean}>}
+ */
 const users = new WeakMap();
 
 /**
  * @param {Scene} scene
  */
 export function acquireTerrainDepth(scene) {
-  const globe = scene.globe;
-  if (!globe) {
-    return;
-  }
-  const user = users.get(globe);
+  const user = users.get(scene);
   if (user) {
     user.count++;
     return;
   }
-  users.set(globe, {count: 1, previous: globe.depthTestAgainstTerrain});
-  globe.depthTestAgainstTerrain = true;
+  const globe = scene.globe;
+  users.set(scene, {count: 1, globe, previous: globe?.depthTestAgainstTerrain ?? false});
+  if (globe) {
+    globe.depthTestAgainstTerrain = true;
+  }
 }
 
 /**
  * @param {Scene} scene
  */
 export function releaseTerrainDepth(scene) {
-  const globe = scene.globe;
-  const user = globe && users.get(globe);
-  if (!globe || !user) {
+  const user = users.get(scene);
+  if (!user) {
     return;
   }
   if (--user.count === 0) {
-    globe.depthTestAgainstTerrain = user.previous;
-    users.delete(globe);
+    if (user.globe) {
+      user.globe.depthTestAgainstTerrain = user.previous;
+    }
+    users.delete(scene);
   }
 }

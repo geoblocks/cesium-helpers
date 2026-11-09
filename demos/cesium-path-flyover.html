@@ -397,7 +397,9 @@
       });
       const load = async (key = select.value) => {
         setState('loading');
-        flyover?.destroy();
+        // the previous track stays on screen until the next one is loaded
+        const previous = flyover;
+        previous?.stop();
         captions?.destroy();
         captions = undefined;
         const url = tracks[key];
@@ -414,6 +416,8 @@
           console.error(error);
           setState('failed');
           return;
+        } finally {
+          previous?.destroy();
         }
         // the names are not needed to play: a failure only leaves the captions out
         captions = new FlyoverCaptions(viewer, flyover);

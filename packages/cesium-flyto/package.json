@@ -31,11 +31,9 @@
   "publishConfig": {
     "access": "public"
   },
-  "dependencies": {
-    "@geoblocks/cesium-post-process": "^0.8.0"
-  },
   "peerDependencies": {
     "@cesium/core": ">=0.1.0",
-    "@cesium/engine": ">=10"
+    "@cesium/engine": ">=10",
+    "@geoblocks/cesium-post-process": "^0.8.0"
   }
 }
