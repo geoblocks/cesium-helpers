@@ -33,13 +33,14 @@ mock.method(performance, 'now', () => now);
  * time on the clock's listeners.
  * @param {number | undefined} [terrain] The globe's height.
  * @param {Cartesian3} [position] Where the camera is.
+ * @param {boolean} [enableInputs] The camera controller's inputs before take-off.
  */
-const testDrone = (terrain = undefined, position = new Cartesian3()) => {
+const testDrone = (terrain = undefined, position = new Cartesian3(), enableInputs = true) => {
   /** @type {Function[]} */
   const listeners = [];
   const camera = {positionWC: position, heading: 0, setView: () => {}};
-  const scene = {camera, requestRender: () => {}, globe: {getHeight: () => terrain}, screenSpaceCameraController: {}};
-  const clock = {onTick: {addEventListener: (/** @type {Function} */ listener) => listeners.push(listener)}};
+  const scene = {camera, requestRender: () => {}, globe: {getHeight: () => terrain}, screenSpaceCameraController: {enableInputs}};
+  const clock = {onTick: {addEventListener: (/** @type {Function} */ listener) => listeners.push(listener), removeEventListener: () => {}}};
   const drone = new CesiumDrone(/** @type {any} */ ({scene, camera, clock}), {speed: 10});
   const sticks = {move: {x: 0, y: 0}, climb: 0, turn: 0, tilt: 0, boost: false};
   drone.input = {read: () => sticks};
@@ -51,7 +52,7 @@ const testDrone = (terrain = undefined, position = new Cartesian3()) => {
     now += 100;
     listeners.forEach(listener => listener());
   };
-  return {drone, sticks, crashes, tick};
+  return {drone, sticks, crashes, tick, scene};
 };
 
 /**
@@ -68,6 +69,15 @@ const local = (drone, mesh) => mesh.local(drone.position);
  * @param {number} z
  */
 const placed = (mesh, x, y, z) => testDrone(undefined, mesh.position(x, y, z, new Cartesian3()));
+
+test("landed, the camera controller's inputs are as they were, off included", () => {
+  for (const enableInputs of [true, false]) {
+    const {drone, scene} = testDrone(undefined, undefined, enableInputs);
+    assert.equal(scene.screenSpaceCameraController.enableInputs, false);
+    drone.active = false;
+    assert.equal(scene.screenSpaceCameraController.enableInputs, enableInputs);
+  }
+});
 
 test('without a globe, the ground is the mesh\'s floor, and unknown off it, not an error', () => {
   const scene = {camera: {setView: () => {}}, requestRender: () => {}, screenSpaceCameraController: {}};

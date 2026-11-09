@@ -85,6 +85,8 @@ const upScratch = new Cartesian3();
 export default class CesiumDrone {
   #layout;
   #active = false;
+  // the camera controller's inputs before activation, given back as they were
+  #inputsBefore = true;
   #crashed = false;
   #lastTick = 0;
   #position = new Cartesian3();
@@ -204,7 +206,10 @@ export default class CesiumDrone {
       return;
     }
     this.#active = active;
+    const controller = this.viewer.scene.screenSpaceCameraController;
     if (active) {
+      this.#inputsBefore = controller.enableInputs;
+      controller.enableInputs = false;
       const camera = this.viewer.camera;
       Cartesian3.clone(camera.positionWC, this.#position);
       Cartesian3.clone(Cartesian3.ZERO, this.#velocity);
@@ -219,10 +224,10 @@ export default class CesiumDrone {
       this.input.active = true;
       this.viewer.clock.onTick.addEventListener(this.#handleTickFunction);
     } else {
+      controller.enableInputs = this.#inputsBefore;
       this.input.active = false;
       this.viewer.clock.onTick.removeEventListener(this.#handleTickFunction);
     }
-    this.#enableNavigation(!active);
   }
 
   /**
@@ -425,13 +430,6 @@ export default class CesiumDrone {
         velocity.z = 0;
       }
     }
-  }
-
-  /**
-   * @param {boolean} enable
-   */
-  #enableNavigation(enable) {
-    this.viewer.scene.screenSpaceCameraController.enableInputs = enable;
   }
 }
 
