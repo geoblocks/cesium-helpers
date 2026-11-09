@@ -5,10 +5,12 @@ import {
   Ray,
 } from "@cesium/core";
 import {
-  ScreenSpaceEventType,
+  MouseButton,
+  ScreenSpaceEventHandler,
+  ScreenSpaceInputBindings,
 } from "@cesium/engine";
 
-/** @import {CesiumWidget, ScreenSpaceEventHandler} from '@cesium/engine' */
+/** @import {CesiumWidget, Controller} from '@cesium/engine' */
 
 const look3DStartPos = new Cartesian2();
 const look3DEndPos = new Cartesian2();
@@ -18,22 +20,26 @@ const look3DNegativeRot = new Cartesian3();
 const look3DTan = new Cartesian3();
 const rotationAxisScratch = new Cartesian3();
 
+/**
+ * Looks around from where the camera stands, dragged with the left button.
+ * @implements {Controller}
+ */
 export default class CesiumSphereCamera {
-  #dragging = false;
+  /**
+   * Whether a drag turns the camera.
+   */
+  enabled = true;
   #active = false;
-  #handleDownEvent;
-  #handleMoveEvent;
-  #handleUpEvent;
+  // the camera controller's inputs before activation, given back as they were
+  #inputsBefore = true;
+  /** @type {ScreenSpaceEventHandler | undefined} */
+  #handler;
 
   /**
    * @param {CesiumWidget} viewer
    */
   constructor(viewer) {
     this.viewer = viewer;
-
-    this.#handleDownEvent = this.handleDownEvent.bind(this);
-    this.#handleMoveEvent = this.handleMoveEvent.bind(this);
-    this.#handleUpEvent = this.handleUpEvent.bind(this);
   }
 
   get active() {
@@ -45,28 +51,41 @@ export default class CesiumSphereCamera {
       return;
     }
     this.#active = active;
-    this.viewer.scene.screenSpaceCameraController.enableInputs = !active;
+    const controller = this.viewer.scene.screenSpaceCameraController;
     if (active) {
-      this.viewer.screenSpaceEventHandler.setInputAction(this.#handleDownEvent, ScreenSpaceEventType.LEFT_DOWN);
-      this.viewer.screenSpaceEventHandler.setInputAction(this.#handleMoveEvent, ScreenSpaceEventType.MOUSE_MOVE);
-      this.viewer.screenSpaceEventHandler.setInputAction(this.#handleUpEvent, ScreenSpaceEventType.LEFT_UP);
+      this.#inputsBefore = controller.enableInputs;
+      controller.enableInputs = false;
+      this.viewer.addController(this);
     } else {
-      this.viewer.screenSpaceEventHandler.removeInputAction(ScreenSpaceEventType.LEFT_DOWN);
-      this.viewer.screenSpaceEventHandler.removeInputAction(ScreenSpaceEventType.MOUSE_MOVE);
-      this.viewer.screenSpaceEventHandler.removeInputAction(ScreenSpaceEventType.LEFT_UP);
+      controller.enableInputs = this.#inputsBefore;
+      this.viewer.removeController(this);
     }
   }
 
-  handleDownEvent() {
-    this.#dragging = true;
+  // on the canvas, not on the container given: a bare widget's container may hold the app's own controls
+  connectedCallback() {
+    this.#handler = new ScreenSpaceEventHandler(this.viewer.scene.canvas);
+    ScreenSpaceInputBindings.registerDragInputBindings(this.#handler, [{button: MouseButton.LEFT}], {
+      change: this.handleMoveEvent.bind(this),
+    });
   }
+
+  disconnectedCallback() {
+    this.#handler?.destroy();
+    this.#handler = undefined;
+  }
+
+  // the camera turns on each move; nothing to do once a frame
+  firstUpdate() {}
+
+  update() {}
 
   /**
    * Code from look3D function in ScreenSpaceCameraController
    * @param {ScreenSpaceEventHandler.MotionEvent} movement
    */
   handleMoveEvent(movement) {
-    if (!this.#dragging) {
+    if (!this.enabled) {
       return;
     }
     const camera = this.viewer.scene.camera;
@@ -135,9 +154,5 @@ export default class CesiumSphereCamera {
     } else if ((northParallel && angle < 0) || (southParallel && angle > 0)) {
       camera.look(camera.right, -angle);
     }
-  }
-
-  handleUpEvent() {
-    this.#dragging = false;
   }
 }
