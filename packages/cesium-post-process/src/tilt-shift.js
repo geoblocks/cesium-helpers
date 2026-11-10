@@ -10,6 +10,9 @@ import TiltShiftShader from './shaders/TiltShift.js';
 /** @import {CesiumWidget, Scene} from '@cesium/engine' */
 
 const focusScratch = new Cartesian4();
+// the blur's passes at half resolution, a quarter of their cost: the blurred image is soft anyway, read back
+// bilinearly; its sigma counts the passes' pixels, twice the screen's
+const BLUR_SCALE = 0.5;
 
 /**
  * Tilt-shift: a narrow depth of field around the focus, which makes the scene
@@ -40,7 +43,7 @@ export default class TiltShift extends Effect {
    * @param {Scene} scene
    */
   createStage_(scene) {
-    const blur = createBlur('czm_tilt_shift_blur');
+    const blur = createBlur('czm_tilt_shift_blur', BLUR_SCALE);
     const stage = new PostProcessStageComposite({
       ...this.named_,
       stages: [
@@ -59,7 +62,7 @@ export default class TiltShift extends Effect {
       inputPreviousStageTexture: false,
       uniforms: blur.uniforms,
     });
-    stage.uniforms.sigma = this.#blur;
+    stage.uniforms.sigma = this.#blur * BLUR_SCALE;
     return stage;
   }
 
@@ -90,7 +93,7 @@ export default class TiltShift extends Effect {
   }
 
   /**
-   * Blur away from the focus, the sigma of Cesium's blur stage.
+   * Blur away from the focus, the sigma of Cesium's blur stage in the screen's pixels.
    */
   get blur() {
     return this.#blur;
@@ -99,7 +102,7 @@ export default class TiltShift extends Effect {
   set blur(value) {
     this.#blur = value;
     if (this.stage_) {
-      this.stage_.uniforms.sigma = value;
+      this.stage_.uniforms.sigma = value * BLUR_SCALE;
     }
     this.viewer.scene.requestRender();
   }
