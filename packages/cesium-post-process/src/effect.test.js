@@ -91,3 +91,13 @@ test('an effect declaring the terrain depth has it forced while active and resto
   effect.active = false;
   assert.equal(viewer.scene.globe.depthTestAgainstTerrain, false);
 });
+
+test('an effect names its stage, its outermost composite\'s, as asked, else Cesium does', async () => {
+  const {default: Toy} = await import('./toy.js');
+  const {default: TiltShift} = await import('./tilt-shift.js');
+  const scene = fakeViewer().scene;
+  const stage = (effect) => effect.createStage_(scene);
+  assert.equal(stage(new Toy(fakeViewer(), {name: 'toy'})).name, 'toy');
+  assert.equal(stage(new TiltShift(fakeViewer(), {name: 'tilt-shift'})).name, 'tilt-shift');
+  assert.match(stage(new Toy(fakeViewer())).name, /^[0-9a-f-]{36}$/);
+});

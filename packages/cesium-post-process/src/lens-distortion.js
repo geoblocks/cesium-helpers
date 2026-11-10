@@ -14,10 +14,10 @@ export default class LensDistortion extends Effect {
 
   /**
    * @param {CesiumWidget} viewer
-   * @param {{distortion?: number, vignette?: number}} [options]
+   * @param {{name?: string, distortion?: number, vignette?: number}} [options]
    */
   constructor(viewer, options = {}) {
-    super(viewer);
+    super(viewer, options);
     this.#distortion = options.distortion ?? 0.5;
     this.#vignette = options.vignette ?? 0.5;
   }
@@ -28,6 +28,7 @@ export default class LensDistortion extends Effect {
    */
   createStage_() {
     const stage = new PostProcessStage({
+      ...this.named_,
       fragmentShader: LensDistortionShader,
       uniforms: {
         distortion: () => this.#distortion,

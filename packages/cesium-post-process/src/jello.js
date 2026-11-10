@@ -44,10 +44,10 @@ export default class Jello extends Effect {
 
   /**
    * @param {CesiumWidget} viewer
-   * @param {{amount?: number, frequency?: number}} [options]
+   * @param {{name?: string, amount?: number, frequency?: number}} [options]
    */
   constructor(viewer, options = {}) {
-    super(viewer);
+    super(viewer, options);
     this.#amount = options.amount ?? 0.1;
     this.#frequency = options.frequency ?? 30;
     // a random starting phase for each sinusoid and axis
@@ -74,6 +74,7 @@ export default class Jello extends Effect {
    */
   createStage_() {
     const stage = new PostProcessStage({
+      ...this.named_,
       fragmentShader: JelloShader,
       uniforms: {
         shakeHz: () => this.#shakeHz,

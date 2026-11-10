@@ -12,10 +12,10 @@ export default class Infrared extends Effect {
 
   /**
    * @param {CesiumWidget} viewer
-   * @param {{strength?: number}} [options]
+   * @param {{name?: string, strength?: number}} [options]
    */
   constructor(viewer, options = {}) {
-    super(viewer);
+    super(viewer, options);
     this.#strength = options.strength ?? 1;
   }
 
@@ -25,6 +25,7 @@ export default class Infrared extends Effect {
    */
   createStage_() {
     return new PostProcessStage({
+      ...this.named_,
       fragmentShader: InfraredShader,
       uniforms: {
         strength: () => this.#strength,

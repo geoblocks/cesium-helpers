@@ -74,10 +74,10 @@ export default class AnalogVideo extends Effect {
 
   /**
    * @param {CesiumWidget} viewer
-   * @param {{noise?: number, interference?: number}} [options]
+   * @param {{name?: string, noise?: number, interference?: number}} [options]
    */
   constructor(viewer, options = {}) {
-    super(viewer);
+    super(viewer, options);
     // a new picture only with each video frame, not with each frame of the display
     this.frameRate_ = FRAME_RATE;
     this.#noise = options.noise ?? 0.5;
@@ -95,6 +95,7 @@ export default class AnalogVideo extends Effect {
    */
   createStage_() {
     return new PostProcessStage({
+      ...this.named_,
       fragmentShader: Hash + AnalogVideoShader,
       uniforms: {
         time: () => performance.now() / 1000,

@@ -22,10 +22,10 @@ export default class MotionBlur extends Effect {
 
   /**
    * @param {CesiumWidget} viewer
-   * @param {{strength?: number, exposure?: number}} [options]
+   * @param {{name?: string, strength?: number, exposure?: number}} [options]
    */
   constructor(viewer, options = {}) {
-    super(viewer);
+    super(viewer, options);
     this.terrainDepth_ = true;
     this.#strength = options.strength ?? 1;
     this.#exposure = options.exposure ?? 1 / 24;
@@ -60,6 +60,7 @@ export default class MotionBlur extends Effect {
       pixelDatatype: PixelDatatype.FLOAT,
     });
     const stage = new PostProcessStageComposite({
+      ...this.named_,
       stages: [
         velocity,
         new PostProcessStage({

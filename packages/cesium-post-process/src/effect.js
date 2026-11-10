@@ -28,10 +28,21 @@ export default class Effect {
   frameRate_ = 0;
 
   /**
-   * @param {CesiumWidget} viewer
+   * The name of the effect's stage (its outermost composite's), `{name}` if given, else empty (Cesium's own): spread into
+   * that stage's options. `scene.postProcessStages.getStageByName` finds it while active; two active effects of one scene
+   * need different names.
+   * @protected
+   * @type {{name?: string}}
    */
-  constructor(viewer) {
+  named_;
+
+  /**
+   * @param {CesiumWidget} viewer
+   * @param {{name?: string}} [options]
+   */
+  constructor(viewer, options = {}) {
     this.viewer = viewer;
+    this.named_ = options.name === undefined ? {} : {name: options.name};
   }
 
   get active() {

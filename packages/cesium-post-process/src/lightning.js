@@ -81,10 +81,10 @@ export default class Lightning extends Effect {
 
   /**
    * @param {CesiumWidget} viewer
-   * @param {{intensity?: number, cloudBase?: number, radius?: number, inFront?: boolean, map?: WeatherMapOptions}} [options]
+   * @param {{name?: string, intensity?: number, cloudBase?: number, radius?: number, inFront?: boolean, map?: WeatherMapOptions}} [options]
    */
   constructor(viewer, options = {}) {
-    super(viewer);
+    super(viewer, options);
     this.terrainDepth_ = true;
     this.#intensity = options.intensity ?? 0.5;
     this.#cloudBase = options.cloudBase ?? 2500;
@@ -210,6 +210,7 @@ export default class Lightning extends Effect {
    */
   createStage_(_scene) {
     const stage = new PostProcessStage({
+      ...this.named_,
       fragmentShader: Hash + EyeFromDepth + LightningShader,
       uniforms: {
         strikeTop: () => this.#strikeTop,

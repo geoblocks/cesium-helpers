@@ -31,10 +31,10 @@ export default class Super8 extends Effect {
 
   /**
    * @param {CesiumWidget} viewer
-   * @param {{fade?: number, halation?: number, grain?: number, weave?: number, flicker?: number, lightLeaks?: number, aspectRatio?: number}} [options]
+   * @param {{name?: string, fade?: number, halation?: number, grain?: number, weave?: number, flicker?: number, lightLeaks?: number, aspectRatio?: number}} [options]
    */
   constructor(viewer, options = {}) {
-    super(viewer);
+    super(viewer, options);
     // a new picture only with each film frame, not with each frame of the display
     this.frameRate_ = FRAME_RATE;
     this.#fade = options.fade ?? 0.5;
@@ -55,6 +55,7 @@ export default class Super8 extends Effect {
     // of stages the output of that series instead of the scene
     const blur = createBlur('czm_super8_halation', HALATION_SCALE);
     const stage = new PostProcessStageComposite({
+      ...this.named_,
       stages: [
         blur,
         new PostProcessStage({

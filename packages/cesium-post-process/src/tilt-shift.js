@@ -23,10 +23,10 @@ export default class TiltShift extends Effect {
 
   /**
    * @param {CesiumWidget} viewer
-   * @param {{focus?: Focus, range?: number, blur?: number, saturation?: number}} [options]
+   * @param {{name?: string, focus?: Focus, range?: number, blur?: number, saturation?: number}} [options]
    */
   constructor(viewer, options = {}) {
-    super(viewer);
+    super(viewer, options);
     this.terrainDepth_ = true;
     this.#focus = options.focus;
     this.#range = options.range ?? 0.3;
@@ -42,6 +42,7 @@ export default class TiltShift extends Effect {
   createStage_(scene) {
     const blur = createBlur('czm_tilt_shift_blur');
     const stage = new PostProcessStageComposite({
+      ...this.named_,
       stages: [
         blur,
         new PostProcessStage({

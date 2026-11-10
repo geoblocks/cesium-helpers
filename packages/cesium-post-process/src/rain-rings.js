@@ -43,7 +43,7 @@ export default class RainRings extends Effect {
 
   /**
    * @param {CesiumWidget} viewer
-   * @param {{intensity?: number, cell?: number, reach?: number, waterLevel?: number, maxSlope?: number, rate?: number,
+   * @param {{name?: string, intensity?: number, cell?: number, reach?: number, waterLevel?: number, maxSlope?: number, rate?: number,
    *   color?: Color, origin?: Cartesian3, clock?: () => number, openSky?: OpenSky}} [options] The share of the cells that have a drop, 0 to 1; the cell's size
    *   and the ring's growth on the ground, in meters (the ring on water is clipped at 0.3 cell); the water's height above the ellipsoid, in
    *   meters, or undefined for none; the steepest slope that takes a ring, in degrees; rings a second in a cell; the ring's color, its alpha how
@@ -52,7 +52,7 @@ export default class RainRings extends Effect {
    *   of it by default).
    */
   constructor(viewer, options = {}) {
-    super(viewer);
+    super(viewer, options);
     this.terrainDepth_ = true;
     this.#intensity = options.intensity ?? 0.5;
     this.#cell = options.cell ?? 2;
@@ -73,6 +73,7 @@ export default class RainRings extends Effect {
    */
   createStage_(scene) {
     const stage = new PostProcessStage({
+      ...this.named_,
       fragmentShader: EyeFromDepth + Height + Hash + Normal + OpenSkyShader + RainRingsShader,
       uniforms: {
         ...heightUniforms(scene),

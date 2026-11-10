@@ -34,10 +34,10 @@ export default class Toy extends Effect {
 
   /**
    * @param {CesiumWidget} viewer
-   * @param {{light?: number, shade?: number, bevel?: number, outline?: number, jump?: number, saturation?: number, warm?: [number, number, number], sky?: [Color, Color]}} [options]
+   * @param {{name?: string, light?: number, shade?: number, bevel?: number, outline?: number, jump?: number, saturation?: number, warm?: [number, number, number], sky?: [Color, Color]}} [options]
    */
   constructor(viewer, options = {}) {
-    super(viewer);
+    super(viewer, options);
     this.terrainDepth_ = true;
     this.#light = options.light ?? 0.22;
     this.#shade = options.shade ?? 0.18;
@@ -55,7 +55,7 @@ export default class Toy extends Effect {
    * @param {Scene} _scene
    */
   createStage_(_scene) {
-    return new PostProcessStage({fragmentShader: EyeFromDepth + DepthEdges + this.shader_(), uniforms: this.uniforms_()});
+    return new PostProcessStage({...this.named_, fragmentShader: EyeFromDepth + DepthEdges + this.shader_(), uniforms: this.uniforms_()});
   }
 
   /**
