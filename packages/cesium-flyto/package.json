@@ -34,6 +34,6 @@
   "peerDependencies": {
     "@cesium/core": ">=0.1.0",
     "@cesium/engine": ">=10",
-    "@geoblocks/cesium-post-process": "^0.8.0"
+    "@geoblocks/cesium-post-process": "^0.8.0 || ^0.9.0"
   }
 }
