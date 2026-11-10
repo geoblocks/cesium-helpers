@@ -22,7 +22,7 @@ export default class WhiteModel extends Toy {
 
   /**
    * @param {CesiumWidget} viewer
-   * @param {{light?: number, shade?: number, bevel?: number, outline?: number, jump?: number, saturation?: number, warm?: [number, number, number], values?: [number, number], poche?: number, occlusion?: number, radius?: number, sky?: [Color, Color]}} [options]
+   * @param {{name?: string, light?: number, shade?: number, bevel?: number, outline?: number, jump?: number, saturation?: number, warm?: [number, number, number], values?: [number, number], poche?: number, occlusion?: number, radius?: number, sky?: [Color, Color]}} [options]
    */
   constructor(viewer, options = {}) {
     // the toy's options, each the white model's default when not given, or given as undefined

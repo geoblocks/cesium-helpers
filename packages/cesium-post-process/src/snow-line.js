@@ -38,12 +38,12 @@ export default class SnowLine extends Effect {
 
   /**
    * @param {CesiumWidget} viewer
-   * @param {{altitude?: number, transition?: number, maxSlope?: number, coverage?: number, patchiness?: number, waterLevel?: number,
+   * @param {{name?: string, altitude?: number, transition?: number, maxSlope?: number, coverage?: number, patchiness?: number, waterLevel?: number,
    *   sunDirection?: Cartesian3, grain?: number, sceneLight?: number, steepCover?: number, origin?: Cartesian3,
    *   openSky?: OpenSky}} [options]
    */
   constructor(viewer, options = {}) {
-    super(viewer);
+    super(viewer, options);
     this.terrainDepth_ = true;
     this.#altitude = options.altitude ?? 2000;
     this.#transition = options.transition ?? 200;
@@ -66,6 +66,7 @@ export default class SnowLine extends Effect {
    */
   createStage_(scene) {
     const stage = new PostProcessStage({
+      ...this.named_,
       fragmentShader: EyeFromDepth + Height + Normal + OpenSkyShader + SnowLineShader,
       uniforms: {
         ...heightUniforms(scene),

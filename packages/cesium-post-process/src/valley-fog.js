@@ -21,10 +21,10 @@ export default class ValleyFog extends Effect {
 
   /**
    * @param {CesiumWidget} viewer
-   * @param {{top?: number, density?: number, softness?: number, color?: Color}} [options]
+   * @param {{name?: string, top?: number, density?: number, softness?: number, color?: Color}} [options]
    */
   constructor(viewer, options = {}) {
-    super(viewer);
+    super(viewer, options);
     this.terrainDepth_ = true;
     this.#top = options.top ?? 1500;
     this.#density = options.density ?? 0.005;
@@ -39,6 +39,7 @@ export default class ValleyFog extends Effect {
    */
   createStage_(scene) {
     return new PostProcessStage({
+      ...this.named_,
       fragmentShader: EyeFromDepth + Height + Fog + ValleyFogShader,
       uniforms: {
         ...heightUniforms(scene),

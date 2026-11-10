@@ -15,10 +15,10 @@ export default class Technicolor extends Effect {
 
   /**
    * @param {CesiumWidget} viewer
-   * @param {{strength?: number, aspectRatio?: number}} [options]
+   * @param {{name?: string, strength?: number, aspectRatio?: number}} [options]
    */
   constructor(viewer, options = {}) {
-    super(viewer);
+    super(viewer, options);
     this.#strength = options.strength ?? 1;
     this.#aspectRatio = options.aspectRatio ?? 0;
   }
@@ -29,6 +29,7 @@ export default class Technicolor extends Effect {
    */
   createStage_() {
     return new PostProcessStage({
+      ...this.named_,
       fragmentShader: Frame + TechnicolorShader,
       uniforms: {
         strength: () => this.#strength,

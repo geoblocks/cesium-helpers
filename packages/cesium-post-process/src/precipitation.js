@@ -160,10 +160,10 @@ export default class Precipitation extends Effect {
 
   /**
    * @param {CesiumWidget} viewer
-   * @param {{intensity?: number, wind?: number, speed?: number, cloudBase?: number, snow?: number, map?: PrecipitationMapOptions}} [options]
+   * @param {{name?: string, intensity?: number, wind?: number, speed?: number, cloudBase?: number, snow?: number, map?: PrecipitationMapOptions}} [options]
    */
   constructor(viewer, options = {}) {
-    super(viewer);
+    super(viewer, options);
     this.terrainDepth_ = true;
     this.#intensity = options.intensity ?? 0.5;
     this.#wind = options.wind ?? 10;
@@ -314,6 +314,7 @@ export default class Precipitation extends Effect {
       textureScale: SHAFT_SCALE,
     });
     const stage = new PostProcessStageComposite({
+      ...this.named_,
       stages: [
         shafts,
         blurredShafts,

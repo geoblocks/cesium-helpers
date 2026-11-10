@@ -14,10 +14,10 @@ export default class ColorIsolation extends Effect {
 
   /**
    * @param {CesiumWidget} viewer
-   * @param {{hue?: number, range?: number, strength?: number}} [options]
+   * @param {{name?: string, hue?: number, range?: number, strength?: number}} [options]
    */
   constructor(viewer, options = {}) {
-    super(viewer);
+    super(viewer, options);
     this.#hue = options.hue ?? 0;
     this.#range = options.range ?? 60;
     this.#strength = options.strength ?? 1;
@@ -29,6 +29,7 @@ export default class ColorIsolation extends Effect {
    */
   createStage_() {
     return new PostProcessStage({
+      ...this.named_,
       fragmentShader: ColorIsolationShader,
       uniforms: {
         hue: () => this.#hue / 360,

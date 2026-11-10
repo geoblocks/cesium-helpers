@@ -263,6 +263,10 @@ const stage = new PostProcessStage({
 
 `localFromEye(frame, viewMatrix)` gives the matrix from the eye's coordinates to a local frame (such as `FixedFrameTransforms.eastNorthUpToFixedFrame(origin)`), made in double precision, for a shader that lays a pattern over the ground: `(localFromEye * vec4(eye.xyz, 1.0)).xy` is the pixel's place in meters, to the millimeter, where the world coordinates would step by half a meter.
 
+### Names
+
+Every effect takes a `name` option, its stage's (the outermost composite's): `scene.postProcessStages.getStageByName(name)` finds it while the effect is active, for a script or a test that reads or turns off one stage rather than counting them. Without one, Cesium names it. Two active effects of one scene need different names.
+
 ### Order of the effects
 
 Cesium runs the stages in the order they are added and cannot insert one elsewhere. Activate the effects in this order: `SnowLine`, `ValleyFog`, `Spotlight`, `Clouds`, `Precipitation`, `RainRings`, `Lightning`, `Toy`, `WhiteModel` or `Dufour`, `TiltShift`, `MotionBlur`, `SpeedLines`, `ColorIsolation`, `Infrared`, `Technicolor`, `Super8`, `LensDistortion`, `Jello`, `DroneDisplay`, `AnalogVideo` or `DigitalVideo`. The snow is then under the fog, the clouds behind the rain and the lightning in front of them, the rain or the falling snow and the rings where the rain lands in the scene, the lens effects apply to the whole scene, and the film looks apply to everything, their black bars included. The drone camera comes last, in the order of a real one: its lens bends the picture, its sensor reads it with the jello of its shake, its display is drawn over the picture and stays straight, and the video signal, analog or digital, disturbs both. To activate an effect later, deactivate and activate again the active effects that come after it.

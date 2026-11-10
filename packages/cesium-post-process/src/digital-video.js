@@ -34,10 +34,10 @@ export default class DigitalVideo extends Effect {
 
   /**
    * @param {CesiumWidget} viewer
-   * @param {{breakup?: number}} [options]
+   * @param {{name?: string, breakup?: number}} [options]
    */
   constructor(viewer, options = {}) {
-    super(viewer);
+    super(viewer, options);
     this.frameRate_ = FRAME_RATE;
     this.#breakup = options.breakup ?? 0.5;
     this.#onPreRender = () => this.#update();
@@ -49,6 +49,7 @@ export default class DigitalVideo extends Effect {
    */
   createStage_() {
     return new PostProcessStage({
+      ...this.named_,
       fragmentShader: Hash + DigitalVideoShader,
       uniforms: {
         severity: () => this.#severity,

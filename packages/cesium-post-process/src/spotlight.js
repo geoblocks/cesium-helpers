@@ -35,10 +35,10 @@ export default class Spotlight extends Effect {
 
   /**
    * @param {CesiumWidget} viewer
-   * @param {{focus?: Focus, power?: number, radius?: number, softness?: number, darkness?: number, beam?: number, beamAnisotropy?: number}} [options]
+   * @param {{name?: string, focus?: Focus, power?: number, radius?: number, softness?: number, darkness?: number, beam?: number, beamAnisotropy?: number}} [options]
    */
   constructor(viewer, options = {}) {
-    super(viewer);
+    super(viewer, options);
     this.terrainDepth_ = true;
     this.#focus = options.focus;
     this.#power = options.power ?? 1;
@@ -80,6 +80,7 @@ export default class Spotlight extends Effect {
       pixelDatatype: PixelDatatype.HALF_FLOAT,
     });
     return new PostProcessStageComposite({
+      ...this.named_,
       stages: [
         beam,
         blurredBeam,

@@ -21,10 +21,10 @@ export default class SpeedLines extends Effect {
 
   /**
    * @param {CesiumWidget} viewer
-   * @param {{focus?: Focus, strength?: number}} [options]
+   * @param {{name?: string, focus?: Focus, strength?: number}} [options]
    */
   constructor(viewer, options = {}) {
-    super(viewer);
+    super(viewer, options);
     this.#focus = options.focus;
     this.#strength = options.strength ?? 1;
   }
@@ -36,6 +36,7 @@ export default class SpeedLines extends Effect {
    */
   createStage_(scene) {
     const stage = new PostProcessStage({
+      ...this.named_,
       fragmentShader: Hash + SpeedLinesShader,
       uniforms: {
         focus: () => eyeFocus(scene, this.#focus, focusScratch),

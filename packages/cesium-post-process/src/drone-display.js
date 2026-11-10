@@ -50,10 +50,10 @@ export default class DroneDisplay extends Effect {
 
   /**
    * @param {CesiumWidget} viewer
-   * @param {{opacity?: number}} [options]
+   * @param {{name?: string, opacity?: number}} [options]
    */
   constructor(viewer, options = {}) {
-    super(viewer);
+    super(viewer, options);
     this.#opacity = options.opacity ?? 1;
     this.#onPostRender = () => this.#measure(false);
   }
@@ -65,6 +65,7 @@ export default class DroneDisplay extends Effect {
    */
   createStage_(scene) {
     return new PostProcessStage({
+      ...this.named_,
       fragmentShader: DroneDisplayShader,
       uniforms: {
         opacity: () => this.#opacity,

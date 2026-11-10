@@ -46,10 +46,10 @@ export default class Dufour extends Effect {
 
   /**
    * @param {CesiumWidget} viewer
-   * @param {{spacing?: number, strokeLength?: number, weight?: number, oblique?: number, flatSlope?: number, outline?: number, jump?: number, paper?: Color, ink?: Color}} [options]
+   * @param {{name?: string, spacing?: number, strokeLength?: number, weight?: number, oblique?: number, flatSlope?: number, outline?: number, jump?: number, paper?: Color, ink?: Color}} [options]
    */
   constructor(viewer, options = {}) {
-    super(viewer);
+    super(viewer, options);
     this.terrainDepth_ = true;
     this.#spacing = options.spacing ?? 3.5;
     this.#strokeLength = options.strokeLength ?? 14;
@@ -74,6 +74,7 @@ export default class Dufour extends Effect {
       return Matrix4.multiplyByPointAsVector(scene.camera.viewMatrix, result, result);
     };
     return new PostProcessStage({
+      ...this.named_,
       fragmentShader: EyeFromDepth + DepthEdges + Height + Normal + Hash + DufourShader,
       uniforms: {
         ...heightUniforms(scene),

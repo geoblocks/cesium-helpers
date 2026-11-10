@@ -167,10 +167,10 @@ export default class Clouds extends Effect {
 
   /**
    * @param {CesiumWidget} viewer
-   * @param {{map?: WeatherMapOptions, cloudBase?: number, cloudTop?: number, density?: number, wind?: number, drift?: number}} [options]
+   * @param {{name?: string, map?: WeatherMapOptions, cloudBase?: number, cloudTop?: number, density?: number, wind?: number, drift?: number}} [options]
    */
   constructor(viewer, options = {}) {
-    super(viewer);
+    super(viewer, options);
     this.terrainDepth_ = true;
     this.#cloudBase = options.cloudBase ?? 2500;
     this.#cloudTop = options.cloudTop ?? 9000;
@@ -265,6 +265,7 @@ export default class Clouds extends Effect {
       textureScale: CLOUD_SCALE,
     });
     return new PostProcessStageComposite({
+      ...this.named_,
       stages: [
         depth,
         march,
