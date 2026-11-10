@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.9.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-post-process%400.8.1...%40geoblocks%2Fcesium-post-process%400.9.0) (2026-11-10)
+
+### Features
+
+* **cesium-post-process:** a name option for every effect's stage ([aaab714](https://github.com/geoblocks/cesium-helpers/commit/aaab714e3bd96b109572306c8deaeb7960d380e8))
+
+
 ## [0.8.1](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-post-process%400.8.0...%40geoblocks%2Fcesium-post-process%400.8.1) (2026-11-09)
 
 ### Bug Fixes

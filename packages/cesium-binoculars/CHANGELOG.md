@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.3.1](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-binoculars%400.3.0...%40geoblocks%2Fcesium-binoculars%400.3.1) (2026-11-10)
+
+### Bug Fixes
+
+* peer on cesium-post-process 0.8 or 0.9 ([a3e04da](https://github.com/geoblocks/cesium-helpers/commit/a3e04da2ba204e86f78784c5c0b33b2d364f73e0))
+
+
 # [0.3.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-binoculars%400.2.0...%40geoblocks%2Fcesium-binoculars%400.3.0) (2026-11-06)
 
 * refactor(cesium-binoculars)!: keep the state in private fields ([099447a](https://github.com/geoblocks/cesium-helpers/commit/099447a0ebdb6f123b9697d5bf30dceec4497e31))
