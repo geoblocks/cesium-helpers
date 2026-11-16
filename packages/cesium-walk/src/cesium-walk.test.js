@@ -288,8 +288,8 @@ const walkingForward = (walk, frame, toward) => {
 const squareRoom = (column = false) => {
   /** @type {{vertices: Float32Array, triangles: Uint32Array}[]} */
   const groups = [];
-  const wall = (/** @type {number} */ x0, /** @type {number} */ y0, /** @type {number} */ x1, /** @type {number} */ y1, height = 3) =>
-    groups.push({vertices: new Float32Array([x0, y0, 0, x1, y1, 0, x1, y1, height, x0, y0, height]), triangles: new Uint32Array([0, 1, 2, 0, 2, 3])});
+  const wall = (/** @type {number} */ x0, /** @type {number} */ y0, /** @type {number} */ x1, /** @type {number} */ y1, height = 3, bottom = 0) =>
+    groups.push({vertices: new Float32Array([x0, y0, bottom, x1, y1, bottom, x1, y1, height, x0, y0, height]), triangles: new Uint32Array([0, 1, 2, 0, 2, 3])});
   wall(0, 0, 10, 0);
   wall(10, 0, 10, 10);
   wall(10, 10, 0, 10);
@@ -374,4 +374,26 @@ test("a step's riser under the knees does not push the walker back", () => {
   }
   const {x} = mesh.local(viewer.camera.position);
   assert.ok(x > 5.5, `held back at x ${x.toFixed(3)}`);
+});
+
+test("the walker's body passes under a lamp hung over its head", () => {
+  const {viewer, frame, tick} = walkingViewer();
+  const {groups, wall} = squareRoom();
+  // a shade's sides 0.4 m square, from 2 m to 2.26 m, over the walker's path along x 5: 0.35 m over its eyes
+  wall(4.8, 5, 5.2, 5, 2.26, 2);
+  wall(5.2, 5, 5.2, 5.4, 2.26, 2);
+  wall(5.2, 5.4, 4.8, 5.4, 2.26, 2);
+  wall(4.8, 5.4, 4.8, 5, 2.26, 2);
+  const mesh = createTriangleMesh(groups, frame);
+  const walk = new CesiumWalk(viewer, 2.5, 1.65);
+  walk.collision = true;
+  walkOn(walk, mesh, {eye: 1.65, step: 0.25, reach: 1, radius: 0.4});
+  mesh.position(5, 3, 1.65, viewer.camera.position);
+  walkingForward(walk, frame, Cartesian3.UNIT_Y);
+  for (let i = 0; i < 120; i++) {
+    tick(1 / 60);
+  }
+  const {x, y} = mesh.local(viewer.camera.position);
+  assert.ok(y > 6.5, `held back at y ${y.toFixed(3)}`);
+  assert.ok(Math.abs(x - 5) < 1e-6, `pushed aside to x ${x.toFixed(3)}`);
 });
