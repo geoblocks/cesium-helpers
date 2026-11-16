@@ -104,4 +104,4 @@ it had (the terrain). The walls stop it in every direction, from rays cast at it
 (`rayHeights(eye, step)`); the floors and stairs are left to its ground. With a `radius`, its body at those
 heights is pushed out of any wall nearer than that, the side or the corner of a piece it walks past, which no ray
 ahead meets, and which the camera's near plane would otherwise cut open; a step's riser under the knees is
-climbed, not kept from. Without, the walker is a point, as on the depth probe.
+climbed, not kept from, and a wall more than 0.12 m over its eyes (a lamp hung) is walked under. Without, the walker is a point, as on the depth probe.

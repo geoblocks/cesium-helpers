@@ -451,6 +451,9 @@ export default class CesiumWalk {
   }
 }
 
+// in meters, the top of the head over the eyes: the walker's body keeps it off no wall above it
+const HEAD = 0.12;
+
 /**
  * The heights above the floor the walls are looked for at: the knees, the waist and the eyes.
  * @param {number} eye
@@ -466,7 +469,7 @@ export function rayHeights(eye, step) {
  * the stairs, under the arches, else on what it stood on before (the terrain); the walls ahead stop it, from rays
  * cast at the knees, the waist and the eyes, the floors and stairs left to the ground below, in every direction;
  * with a radius, its body at those heights is kept that far from the walls beside it too, a step's riser under
- * the knees excepted.
+ * the knees and what hangs over its head (a lamp) excepted.
  * @param {CesiumWalk} walk
  * @param {TriangleMesh} mesh
  * @param {{eye: number, step: number, reach: number, radius?: number}} options In meters: the eyes above the
@@ -487,8 +490,12 @@ export function walkOn(walk, mesh, {eye, step, reach, radius = 0}) {
       for (const [k, offset] of offsets.entries()) {
         const origin = Matrix4.multiplyByPoint(frame, offset, bodyScratch);
         const hit = mesh.nearest(origin, radius, {walls: true});
-        // under the knees, a step's riser: climbed, not kept from
-        if (!hit || (k === 0 && Cartesian3.dot(Cartesian3.subtract(hit.position, origin, awayScratch), up) < 0)) {
+        if (!hit) {
+          continue;
+        }
+        // under the knees, a step's riser: climbed, not kept from; over the head, a lamp hung: walked under
+        const rise = Cartesian3.dot(Cartesian3.subtract(hit.position, origin, awayScratch), up);
+        if ((k === 0 && rise < 0) || rise > HEAD - offset.z) {
           continue;
         }
         if (!nearest || hit.distance < nearest.distance) {
