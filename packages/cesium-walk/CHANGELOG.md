@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.6.1](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-walk%400.6.0...%40geoblocks%2Fcesium-walk%400.6.1) (2026-11-16)
+
+### Bug Fixes
+
+* **cesium-walk:** walk under what hangs over the walker's head ([1e8fa92](https://github.com/geoblocks/cesium-helpers/commit/1e8fa920b26e4a21ff928cbe880f4d976cf0121a))
+
+
 # [0.6.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-walk%400.5.2...%40geoblocks%2Fcesium-walk%400.6.0) (2026-11-06)
 
 * refactor(cesium-walk)!: keep the state in private fields ([0f60bcb](https://github.com/geoblocks/cesium-helpers/commit/0f60bcbffe77db3e33fa55781618a935175b0784))

@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.9.1](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-post-process%400.9.0...%40geoblocks%2Fcesium-post-process%400.9.1) (2026-11-16)
+
+### Performance Improvements
+
+* **cesium-post-process:** the tilt-shift's blur at half resolution ([8d0643b](https://github.com/geoblocks/cesium-helpers/commit/8d0643b3b48e2f7be332021c0a29847930cb0f82))
+
+
 # [0.9.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-post-process%400.8.1...%40geoblocks%2Fcesium-post-process%400.9.0) (2026-11-10)
 
 ### Features
