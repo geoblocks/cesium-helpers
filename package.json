@@ -16,7 +16,7 @@
     "typecheck": "tsc --pretty"
   },
   "devDependencies": {
-    "@awesome.me/webawesome": "3.14.0",
+    "@awesome.me/webawesome": "3.15.0",
     "@camptocamp/ogc-client": "2.0.2",
     "@cesium/core": "0.1.1",
     "@cesium/engine": "26.5.0",
