@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.3.2](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-binoculars%400.3.1...%40geoblocks%2Fcesium-binoculars%400.3.2) (2026-11-18)
+
+### Bug Fixes
+
+* **cesium-post-process:** clear the depth in a view of the sky alone ([b6cecb8](https://github.com/geoblocks/cesium-helpers/commit/b6cecb8939fe0e49de7eb7409e3b6e67e1bbf7ce))
+
+
 ## [0.3.1](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-binoculars%400.3.0...%40geoblocks%2Fcesium-binoculars%400.3.1) (2026-11-10)
 
 ### Bug Fixes

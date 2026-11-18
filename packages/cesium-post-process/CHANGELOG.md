@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.9.2](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-post-process%400.9.1...%40geoblocks%2Fcesium-post-process%400.9.2) (2026-11-18)
+
+### Bug Fixes
+
+* **cesium-post-process:** clear the depth in a view of the sky alone ([b6cecb8](https://github.com/geoblocks/cesium-helpers/commit/b6cecb8939fe0e49de7eb7409e3b6e67e1bbf7ce))
+* **cesium-post-process:** dim by the effect with the most rain at the camera ([41529a5](https://github.com/geoblocks/cesium-helpers/commit/41529a592f29d2a5265cb9bb518438d2fb41a279))
+* **cesium-post-process:** dim the ground under the rain in its pass ([299eba4](https://github.com/geoblocks/cesium-helpers/commit/299eba4103dc8657cb4be2281488435fbf91512d))
+* **cesium-post-process:** light the clouds' base through the cloud above ([2518bbe](https://github.com/geoblocks/cesium-helpers/commit/2518bbe0d3cd68db9298a148ed8e1e8c97f212cd))
+* **cesium-post-process:** no sun through thin spots deep in a cloud deck ([9e21bc3](https://github.com/geoblocks/cesium-helpers/commit/9e21bc32d47790c7ecc68c1d13b8534fbff9e0cd))
+
+
 ## [0.9.1](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-post-process%400.9.0...%40geoblocks%2Fcesium-post-process%400.9.1) (2026-11-16)
 
 ### Performance Improvements
