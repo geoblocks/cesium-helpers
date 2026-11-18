@@ -12,6 +12,9 @@ const fakeViewer = () => {
         remove: (stage) => calls.push(['remove', stage]),
       },
       requestRender: () => calls.push(['render']),
+      // for the box that keeps the depth cleared
+      primitives: {add: (primitive) => primitive, remove: () => true},
+      preRender: {addEventListener: () => {}, removeEventListener: () => {}},
     },
   };
 };

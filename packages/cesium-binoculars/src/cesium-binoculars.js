@@ -10,7 +10,7 @@ import {
   PostProcessStageLibrary,
   ScreenSpaceEventType,
 } from "@cesium/engine";
-import {EyeFromDepth, acquireTerrainDepth, releaseTerrainDepth} from "@geoblocks/cesium-post-process";
+import {EyeFromDepth, acquireDepthTexture, releaseDepthTexture} from "@geoblocks/cesium-post-process";
 import Lens from "./shaders/Lens.js";
 
 /** @import {PerspectiveFrustum} from "@cesium/core" */
@@ -95,8 +95,9 @@ export default class CesiumBinoculars {
 
   #addLens() {
     const scene = this.viewer.scene;
-    // the post-process stages only get the depth of the terrain when it is depth tested
-    acquireTerrainDepth(scene);
+    // the post-process stages only get the depth of the terrain when it is depth tested, and of the sky alone
+    // when Cesium draws in a frustum
+    acquireDepthTexture(scene);
     const blur = PostProcessStageLibrary.createBlurStage();
     this.#lens = new PostProcessStageComposite({
       stages: [
@@ -124,7 +125,7 @@ export default class CesiumBinoculars {
     // removing a stage also destroys it
     scene.postProcessStages.remove(/** @type {PostProcessStageComposite} */ (this.#lens));
     this.#lens = undefined;
-    releaseTerrainDepth(scene);
+    releaseDepthTexture(scene);
   }
 
   /**

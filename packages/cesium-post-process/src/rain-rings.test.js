@@ -14,6 +14,9 @@ const fakeViewer = (view = Matrix4.IDENTITY) => {
     isDestroyed: () => false,
     camera: {viewMatrix: view, positionWC: Cartesian3.fromDegrees(7.5, 46.9, 800)},
     postProcessStages: {add() {}, remove() {}},
+    // for the box that keeps the depth cleared
+    primitives: {add: (/** @type {any} */ primitive) => primitive, remove: () => true},
+    preRender: {addEventListener() {}, removeEventListener() {}},
   };
   return {scene};
 };

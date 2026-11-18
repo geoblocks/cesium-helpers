@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import TiltShift from './tilt-shift.js';
 
-const fakeViewer = () => ({scene: {postProcessStages: {add: () => {}, remove: () => {}}, requestRender: () => {}}});
+const fakeViewer = () => ({scene: {postProcessStages: {add: () => {}, remove: () => {}}, requestRender: () => {}, primitives: {add: (/** @type {any} */ p) => p, remove: () => true}, preRender: {addEventListener: () => {}, removeEventListener: () => {}}}});
 
 test('the blur runs at half resolution, its sigma in the passes\' pixels: the blur keeps its spread on the screen', () => {
   const stage = new TiltShift(fakeViewer(), {blur: 3}).createStage_(undefined);

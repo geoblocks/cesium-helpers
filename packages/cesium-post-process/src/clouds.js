@@ -230,11 +230,12 @@ export default class Clouds extends Effect {
       pixelDatatype: PixelDatatype.FLOAT,
     });
     const march = new PostProcessStage({
-      fragmentShader: EyeFromDepth + Height + CloudsSlab + WeatherMapShader + CloudsDensity + Fog + Phase + RainHaze + CloudsMarch,
+      fragmentShader: EyeFromDepth + Height + CloudsSlab + WeatherMapShader + CloudsDensity + CloudsShadow + Fog + Phase + RainHaze + CloudsMarch,
       uniforms: {
         ...this.#slabUniforms(scene),
         // @ts-expect-error the scene's context is not typed
         ...this.#densityUniforms(scene.context),
+        ...this.#shadowUniforms(scene),
         cloudDepth: depth.name,
         // @ts-expect-error the scene's context is not typed
         maxMap: () => this.#weatherMap.maxTexture(scene.context),

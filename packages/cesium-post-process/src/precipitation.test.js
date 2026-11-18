@@ -1,6 +1,6 @@
 import {test, mock} from 'node:test';
 import assert from 'node:assert/strict';
-import {Cartographic, Rectangle} from '@cesium/core';
+import {Cartesian3, Cartographic, Rectangle} from '@cesium/core';
 import Clouds from './clouds.js';
 import Precipitation from './precipitation.js';
 
@@ -27,18 +27,26 @@ const fakeViewer = (height = 1000) => {
       },
       // for Clouds in the same scene
       postRender: {addEventListener: () => {}, removeEventListener: () => {}},
-      camera: {positionCartographic: Cartographic.fromDegrees(6, 47, height)},
+      camera: {positionCartographic: Cartographic.fromDegrees(6, 47, height), positionWC: Cartesian3.fromDegrees(6, 47, height), directionWC: Cartesian3.UNIT_Z},
+      // for the box that keeps the depth cleared
+      primitives: {add: (/** @type {any} */ primitive) => primitive, remove: () => true},
       light: {intensity: 2},
       shadowMap: {enabled: true},
     },
   };
 };
 
+// a frame: the scene's preRender listeners, the effect's and the depth's box's
+const frame = (/** @type {{listeners: Function[]}} */ viewer) => viewer.listeners.forEach((listener) => listener());
+
 // a map raining at half intensity over 5 to 7 east and 46 to 48 north
 const map = {
   image: {width: 1, height: 1, data: new Uint8ClampedArray([128, 0, 0, 255])},
   rectangle: Rectangle.fromDegrees(5, 46, 7, 48),
 };
+
+// the share of the scene's light the effect's overcast takes
+const shadeOf = (/** @type {Precipitation} */ precipitation) => /** @type {any} */ (precipitation.stage_).get(2).uniforms.shade();
 
 // the effect renders at its frame rate on a timer while active
 const withTimers = (/** @type {() => void} */ run) => {
@@ -57,8 +65,9 @@ test('activating adds the stage, tests the depth against the terrain and makes i
     precipitation.active = true;
     assert.equal(viewer.calls[0][0], 'add');
     assert.equal(viewer.scene.globe.depthTestAgainstTerrain, true);
-    assert.equal(viewer.listeners.length, 1);
-    assert.equal(viewer.scene.light.intensity, 1);
+    assert.equal(viewer.listeners.length, 2);
+    assert.equal(shadeOf(precipitation), 0.5);
+    assert.equal(viewer.scene.light.intensity, 2);
     assert.equal(viewer.scene.shadowMap.enabled, false);
     precipitation.active = false;
     assert.ok(viewer.calls.some(([name]) => name === 'remove'));
@@ -75,25 +84,25 @@ test('the intensity at the camera is the map there, 1 without a map', () => {
       const viewer = fakeViewer();
       const precipitation = new Precipitation(/** @type {any} */ (viewer), options);
       precipitation.active = true;
-      viewer.listeners[0]();
+      frame(viewer);
       assert.ok(Math.abs(precipitation.localIntensity - expected) < 1e-9);
       precipitation.active = false;
     }
   });
 });
 
-test('below the cloud base, the light dims and the shadows go as it rains harder at the camera', () => {
+test('below the cloud base, the scene dims and the shadows go as it rains harder at the camera', () => {
   withTimers(() => {
     const viewer = fakeViewer();
     const precipitation = new Precipitation(/** @type {any} */ (viewer), {map});
     precipitation.active = true;
-    viewer.listeners[0]();
-    assert.ok(Math.abs(viewer.scene.light.intensity - 2 * (1 - 0.5 * (128 / 255))) < 1e-9);
+    frame(viewer);
+    assert.ok(Math.abs(shadeOf(precipitation) - 0.5 * (128 / 255)) < 1e-9);
     assert.equal(viewer.scene.shadowMap.enabled, false);
     precipitation.map = undefined;
     precipitation.map = {...map, image: {...map.image, data: new Uint8ClampedArray([0, 0, 0, 255])}};
-    viewer.listeners[0]();
-    assert.equal(viewer.scene.light.intensity, 2);
+    frame(viewer);
+    assert.equal(shadeOf(precipitation), 0);
     assert.equal(viewer.scene.shadowMap.enabled, true);
     precipitation.active = false;
   });
@@ -104,26 +113,31 @@ test('above the cloud base, there is no overcast, wherever it rains', () => {
     const viewer = fakeViewer(300000);
     const precipitation = new Precipitation(/** @type {any} */ (viewer), {map: {...map, image: {...map.image, data: new Uint8ClampedArray([255, 0, 0, 255])}}});
     precipitation.active = true;
-    viewer.listeners[0]();
-    assert.equal(viewer.scene.light.intensity, 2);
+    frame(viewer);
+    assert.equal(shadeOf(precipitation), 0);
     assert.equal(viewer.scene.shadowMap.enabled, true);
     precipitation.active = false;
   });
 });
 
-test('rain and snow share the overcast: the last one deactivated restores the light', () => {
+test('rain and snow share the overcast: the one with the most of it dims the scene, the last one deactivated restores the shadows', () => {
   withTimers(() => {
     const viewer = fakeViewer();
     const rain = new Precipitation(/** @type {any} */ (viewer));
     const snow = new Precipitation(/** @type {any} */ (viewer), {snow: 1});
     rain.active = true;
     snow.active = true;
-    assert.equal(viewer.scene.light.intensity, 1);
-    rain.active = false;
-    assert.equal(viewer.scene.light.intensity, 1);
+    assert.equal(shadeOf(rain), 0.5);
+    assert.equal(shadeOf(snow), 0);
+    // the rain stops: its pass is disabled, the snow dims the scene
+    rain.intensity = 0;
+    frame(viewer);
+    assert.equal(shadeOf(rain), 0);
+    assert.equal(shadeOf(snow), 0.5);
     assert.equal(viewer.scene.shadowMap.enabled, false);
+    rain.active = false;
+    assert.equal(shadeOf(snow), 0.5);
     snow.active = false;
-    assert.equal(viewer.scene.light.intensity, 2);
     assert.equal(viewer.scene.shadowMap.enabled, true);
   });
 });
@@ -156,6 +170,8 @@ test('the drops pass knows while Clouds draws the clouds in the scene, to leave 
     const clouds = new Clouds(/** @type {any} */ (viewer));
     clouds.active = true;
     assert.equal(drops.uniforms.clouds(), 1);
+    // their shadow dims the scene, not the overcast as well
+    assert.equal(drops.uniforms.shade(), 0);
     // in another scene, they do not count
     const other = new Clouds(/** @type {any} */ (fakeViewer()));
     other.active = true;
@@ -173,7 +189,7 @@ test('the precipitation crossfades to the next map, at the camera and in the sha
     precipitation.active = true;
     precipitation.nextMap = {image: {width: 1, height: 1, data: new Uint8ClampedArray([0, 0, 0, 255])}, rectangle: map.rectangle};
     precipitation.mapBlend = 0.5;
-    viewer.listeners[0]();
+    frame(viewer);
     assert.ok(Math.abs(precipitation.localIntensity - 64 / 255) < 1e-9);
     assert.equal(/** @type {any} */ (precipitation.stage_).get(0).uniforms.mapBlend(), 0.5);
     precipitation.active = false;
