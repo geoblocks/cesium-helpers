@@ -120,7 +120,7 @@ test('above the cloud base, there is no overcast, wherever it rains', () => {
   });
 });
 
-test('rain and snow share the overcast: the first one active dims the scene, the last one deactivated restores the shadows', () => {
+test('rain and snow share the overcast: the one with the most of it dims the scene, the last one deactivated restores the shadows', () => {
   withTimers(() => {
     const viewer = fakeViewer();
     const rain = new Precipitation(/** @type {any} */ (viewer));
@@ -129,9 +129,14 @@ test('rain and snow share the overcast: the first one active dims the scene, the
     snow.active = true;
     assert.equal(shadeOf(rain), 0.5);
     assert.equal(shadeOf(snow), 0);
-    rain.active = false;
+    // the rain stops: its pass is disabled, the snow dims the scene
+    rain.intensity = 0;
+    frame(viewer);
+    assert.equal(shadeOf(rain), 0);
     assert.equal(shadeOf(snow), 0.5);
     assert.equal(viewer.scene.shadowMap.enabled, false);
+    rain.active = false;
+    assert.equal(shadeOf(snow), 0.5);
     snow.active = false;
     assert.equal(viewer.scene.shadowMap.enabled, true);
   });

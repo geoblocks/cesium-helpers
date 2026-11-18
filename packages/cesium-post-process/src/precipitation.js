@@ -76,45 +76,42 @@ const CLOUD_BASE_FADE = 50;
  * @typedef {WeatherMapOptions} PrecipitationMapOptions
  */
 
-// the scenes under clouds, with the effects active in them and their shadows before: rain and snow
-// may be active at once, the first one dims the scene, the last one restores the shadows
-/** @type {WeakMap<Scene, {effects: Precipitation[], shadows: boolean}>} */
+// the scenes under clouds, with the effects active in them, each with its overcast, and their shadows
+// before: rain and snow may be active at once, the one with the most overcast at the camera dims the
+// scene and turns the shadows off, the last one deactivated restores them
+/** @type {WeakMap<Scene, {effects: Map<Precipitation, number>, shadows: boolean}>} */
 const overcast = new WeakMap();
 
 /**
+ * An effect's overcast, from 0 to 1, and the shadows under the clouds, off as it rains harder at the
+ * camera under any of them.
  * @param {Scene} scene
  * @param {Precipitation} effect
- */
-function acquireOvercast(scene, effect) {
-  const clouds = overcast.get(scene);
-  if (clouds) {
-    clouds.effects.push(effect);
-    return;
-  }
-  overcast.set(scene, {effects: [effect], shadows: scene.shadowMap.enabled});
-  scene.shadowMap.enabled = false;
-}
-
-/**
- * The shadows under the clouds, off as it rains harder at the camera.
- * @param {Scene} scene
  * @param {number} local
  */
-function shadeOvercast(scene, local) {
-  const clouds = overcast.get(scene);
+function shadeOvercast(scene, effect, local) {
+  let clouds = overcast.get(scene);
   if (!clouds) {
-    return;
+    clouds = {effects: new Map(), shadows: scene.shadowMap.enabled};
+    overcast.set(scene, clouds);
   }
-  scene.shadowMap.enabled = clouds.shadows && local < 0.5;
+  clouds.effects.set(effect, local);
+  scene.shadowMap.enabled = clouds.shadows && Math.max(...clouds.effects.values()) < 0.5;
 }
 
 /**
- * Whether the effect dims the scene: the first one active in it.
+ * The overcast the effect dims the scene by: the most of the effects', from the first one that has
+ * it, 0 from the others.
  * @param {Scene} scene
  * @param {Precipitation} effect
  */
-function dimsOvercast(scene, effect) {
-  return overcast.get(scene)?.effects[0] === effect;
+function dimmingOvercast(scene, effect) {
+  const effects = overcast.get(scene)?.effects;
+  if (!effects) {
+    return 0;
+  }
+  const most = Math.max(...effects.values());
+  return effects.entries().find(([, local]) => local === most)?.[0] === effect ? most : 0;
 }
 
 /**
@@ -126,8 +123,8 @@ function releaseOvercast(scene, effect) {
   if (!clouds) {
     return;
   }
-  clouds.effects = clouds.effects.filter((other) => other !== effect);
-  if (clouds.effects.length === 0) {
+  clouds.effects.delete(effect);
+  if (clouds.effects.size === 0) {
     scene.shadowMap.enabled = clouds.shadows;
     overcast.delete(scene);
   }
@@ -156,7 +153,7 @@ export default class Precipitation extends Effect {
   #weatherMap = new WeatherMap(1);
   // the map's intensity at the camera, read each frame
   #localIntensity = 1;
-  // the same below the cloud base, 0 above it, where the sun shines
+  // the same below the cloud base, 0 above it, where the sun shines, and without an intensity
   #overcast = 1;
   // the scroll of the grid, added up from frame to frame: the speed changes with the snow, and
   // time times the speed would move all the drops when it does
@@ -199,8 +196,8 @@ export default class Precipitation extends Effect {
       this.#localIntensity = this.#weatherMap.intensityAt(longitude, latitude);
       // above the clouds, the sun shines
       const below = 1 - smoothstep(this.#cloudBase - CLOUD_BASE_FADE, this.#cloudBase + CLOUD_BASE_FADE, height);
-      this.#overcast = this.#localIntensity * below;
-      shadeOvercast(this.viewer.scene, this.#overcast);
+      this.#overcast = this.#intensity > 0 ? this.#localIntensity * below : 0;
+      shadeOvercast(this.viewer.scene, this, this.#overcast);
       this.#drawSkyTable(this.viewer.scene);
     };
   }
@@ -340,9 +337,9 @@ export default class Precipitation extends Effect {
             ...shared,
             shaftTexture: blurredShafts.name,
             localIntensity: () => this.#localIntensity,
-            // the share of the scene's light the overcast takes, by the first effect active, none
-            // with Clouds, whose shadow does it where they are
-            shade: () => (dimsOvercast(scene, this) && !hasCloudCover(scene) ? (1 - OVERCAST) * this.#overcast : 0),
+            // the share of the scene's light the overcast takes, by the effect with the most of it,
+            // none with Clouds, whose shadow does it where they are
+            shade: () => (hasCloudCover(scene) ? 0 : (1 - OVERCAST) * dimmingOvercast(scene, this)),
             clouds: () => (hasCloudCover(scene) ? 1 : 0),
             shadowed: () => (cloudShadow(scene) ? 1 : 0),
             // @ts-expect-error the scene's context is not typed
@@ -371,7 +368,7 @@ export default class Precipitation extends Effect {
     this.#lastTime = performance.now() / 1000;
     this.#updateLayers();
     scene.preRender.addEventListener(this.#onPreRender);
-    acquireOvercast(scene, this);
+    shadeOvercast(scene, this, this.#intensity > 0 ? this.#overcast : 0);
     if (this.#intensity > 0) {
       acquireFrames(scene, FRAME_RATE);
     }
