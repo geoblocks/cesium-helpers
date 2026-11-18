@@ -40,6 +40,9 @@ const map = {
   rectangle: Rectangle.fromDegrees(5, 46, 7, 48),
 };
 
+// the share of the scene's light the effect's overcast takes
+const shadeOf = (/** @type {Precipitation} */ precipitation) => /** @type {any} */ (precipitation.stage_).get(2).uniforms.shade();
+
 // the effect renders at its frame rate on a timer while active
 const withTimers = (/** @type {() => void} */ run) => {
   mock.timers.enable({apis: ['setInterval']});
@@ -58,7 +61,8 @@ test('activating adds the stage, tests the depth against the terrain and makes i
     assert.equal(viewer.calls[0][0], 'add');
     assert.equal(viewer.scene.globe.depthTestAgainstTerrain, true);
     assert.equal(viewer.listeners.length, 1);
-    assert.equal(viewer.scene.light.intensity, 1);
+    assert.equal(shadeOf(precipitation), 0.5);
+    assert.equal(viewer.scene.light.intensity, 2);
     assert.equal(viewer.scene.shadowMap.enabled, false);
     precipitation.active = false;
     assert.ok(viewer.calls.some(([name]) => name === 'remove'));
@@ -82,18 +86,18 @@ test('the intensity at the camera is the map there, 1 without a map', () => {
   });
 });
 
-test('below the cloud base, the light dims and the shadows go as it rains harder at the camera', () => {
+test('below the cloud base, the scene dims and the shadows go as it rains harder at the camera', () => {
   withTimers(() => {
     const viewer = fakeViewer();
     const precipitation = new Precipitation(/** @type {any} */ (viewer), {map});
     precipitation.active = true;
     viewer.listeners[0]();
-    assert.ok(Math.abs(viewer.scene.light.intensity - 2 * (1 - 0.5 * (128 / 255))) < 1e-9);
+    assert.ok(Math.abs(shadeOf(precipitation) - 0.5 * (128 / 255)) < 1e-9);
     assert.equal(viewer.scene.shadowMap.enabled, false);
     precipitation.map = undefined;
     precipitation.map = {...map, image: {...map.image, data: new Uint8ClampedArray([0, 0, 0, 255])}};
     viewer.listeners[0]();
-    assert.equal(viewer.scene.light.intensity, 2);
+    assert.equal(shadeOf(precipitation), 0);
     assert.equal(viewer.scene.shadowMap.enabled, true);
     precipitation.active = false;
   });
@@ -105,25 +109,25 @@ test('above the cloud base, there is no overcast, wherever it rains', () => {
     const precipitation = new Precipitation(/** @type {any} */ (viewer), {map: {...map, image: {...map.image, data: new Uint8ClampedArray([255, 0, 0, 255])}}});
     precipitation.active = true;
     viewer.listeners[0]();
-    assert.equal(viewer.scene.light.intensity, 2);
+    assert.equal(shadeOf(precipitation), 0);
     assert.equal(viewer.scene.shadowMap.enabled, true);
     precipitation.active = false;
   });
 });
 
-test('rain and snow share the overcast: the last one deactivated restores the light', () => {
+test('rain and snow share the overcast: the first one active dims the scene, the last one deactivated restores the shadows', () => {
   withTimers(() => {
     const viewer = fakeViewer();
     const rain = new Precipitation(/** @type {any} */ (viewer));
     const snow = new Precipitation(/** @type {any} */ (viewer), {snow: 1});
     rain.active = true;
     snow.active = true;
-    assert.equal(viewer.scene.light.intensity, 1);
+    assert.equal(shadeOf(rain), 0.5);
+    assert.equal(shadeOf(snow), 0);
     rain.active = false;
-    assert.equal(viewer.scene.light.intensity, 1);
+    assert.equal(shadeOf(snow), 0.5);
     assert.equal(viewer.scene.shadowMap.enabled, false);
     snow.active = false;
-    assert.equal(viewer.scene.light.intensity, 2);
     assert.equal(viewer.scene.shadowMap.enabled, true);
   });
 });
@@ -156,6 +160,8 @@ test('the drops pass knows while Clouds draws the clouds in the scene, to leave 
     const clouds = new Clouds(/** @type {any} */ (viewer));
     clouds.active = true;
     assert.equal(drops.uniforms.clouds(), 1);
+    // their shadow dims the scene, not the overcast as well
+    assert.equal(drops.uniforms.shade(), 0);
     // in another scene, they do not count
     const other = new Clouds(/** @type {any} */ (fakeViewer()));
     other.active = true;

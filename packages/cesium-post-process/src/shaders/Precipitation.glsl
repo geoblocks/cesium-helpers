@@ -29,6 +29,8 @@ uniform float clouds;
 uniform float shadowed;
 // the map's intensity at the camera, 0 to 1
 uniform float localIntensity;
+// the share of the scene's light the overcast takes, from precipitation.js
+uniform float shade;
 // from the CPU, as they change with the snow: the length of a drop's trail, its motion over the
 // exposure, in cells, and the scroll of the grid along the fall, in cells, wrapped at PERIOD, which
 // has to follow the speed without a jump
@@ -119,6 +121,10 @@ void main() {
   vec4 eye = eyeAt(depthTexture, v_textureCoordinates);
   vec3 view = normalize(eye.xyz);
   float sceneDistance = eye.w == 0.0 ? SKY_DISTANCE : length(eye.xyz);
+  // the ground and what stands on it under the overcast, not the sky, as Clouds' shadow
+  if (eye.w != 0.0) {
+    sceneColor.rgb *= 1.0 - shade;
+  }
   float pixel = 2.0 / (czm_projection[1][1] * czm_viewport.w);
 
   // the local frame at the camera, in world coordinates

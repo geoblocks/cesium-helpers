@@ -23,7 +23,7 @@ import SkyTable from './shaders/SkyTable.js';
 import WeatherMapShader from './shaders/WeatherMap.js';
 import WeatherMap from './weather-map.js';
 
-/** @import {CesiumWidget, Light, Scene} from '@cesium/engine' */
+/** @import {CesiumWidget, Scene} from '@cesium/engine' */
 /** @import {WeatherMapOptions} from './weather-map.js' */
 
 // the streaks are the drops' motion over a frame's exposure
@@ -64,7 +64,9 @@ const MAX_STEP = 0.1;
 const SHAFT_SCALE = 0.125;
 // the sky table's texels toward the horizon, besides the one overhead, RainHaze.glsl's SKY_TABLE
 const SKY_TABLE = 64;
-// the sunlight under the clouds, as a share of its intensity
+// the scene's light under the clouds, as a share of its light in the sun: the scene is dimmed in
+// the shader rather than by the light's intensity, which Cesium caps at 1 in czm_lightColor, so
+// that the default sun's 2 halved changes nothing on the globe
 const OVERCAST = 0.5;
 // the camera goes from under the clouds to above them over this height around the cloud base, in
 // meters, as the drops in Precipitation.glsl
@@ -74,27 +76,27 @@ const CLOUD_BASE_FADE = 50;
  * @typedef {WeatherMapOptions} PrecipitationMapOptions
  */
 
-// the scenes under clouds, with their light and shadows before: rain and snow may be active at
-// once, the first one dims the light, the last one restores it
-/** @type {WeakMap<Scene, {count: number, light: Light, intensity: number, shadows: boolean}>} */
+// the scenes under clouds, with the effects active in them and their shadows before: rain and snow
+// may be active at once, the first one dims the scene, the last one restores the shadows
+/** @type {WeakMap<Scene, {effects: Precipitation[], shadows: boolean}>} */
 const overcast = new WeakMap();
 
 /**
  * @param {Scene} scene
+ * @param {Precipitation} effect
  */
-function acquireOvercast(scene) {
+function acquireOvercast(scene, effect) {
   const clouds = overcast.get(scene);
   if (clouds) {
-    clouds.count++;
+    clouds.effects.push(effect);
     return;
   }
-  overcast.set(scene, {count: 1, light: scene.light, intensity: scene.light.intensity, shadows: scene.shadowMap.enabled});
-  scene.light.intensity *= OVERCAST;
+  overcast.set(scene, {effects: [effect], shadows: scene.shadowMap.enabled});
   scene.shadowMap.enabled = false;
 }
 
 /**
- * The sunlight and the shadows under the clouds, in proportion to how hard it rains at the camera.
+ * The shadows under the clouds, off as it rains harder at the camera.
  * @param {Scene} scene
  * @param {number} local
  */
@@ -103,21 +105,32 @@ function shadeOvercast(scene, local) {
   if (!clouds) {
     return;
   }
-  clouds.light.intensity = clouds.intensity * (1 - (1 - OVERCAST) * local);
   scene.shadowMap.enabled = clouds.shadows && local < 0.5;
 }
 
 /**
+ * Whether the effect dims the scene: the first one active in it.
  * @param {Scene} scene
+ * @param {Precipitation} effect
  */
-function releaseOvercast(scene) {
+function dimsOvercast(scene, effect) {
+  return overcast.get(scene)?.effects[0] === effect;
+}
+
+/**
+ * @param {Scene} scene
+ * @param {Precipitation} effect
+ */
+function releaseOvercast(scene, effect) {
   const clouds = overcast.get(scene);
-  if (!clouds || --clouds.count > 0) {
+  if (!clouds) {
     return;
   }
-  clouds.light.intensity = clouds.intensity;
-  scene.shadowMap.enabled = clouds.shadows;
-  overcast.delete(scene);
+  clouds.effects = clouds.effects.filter((other) => other !== effect);
+  if (clouds.effects.length === 0) {
+    scene.shadowMap.enabled = clouds.shadows;
+    overcast.delete(scene);
+  }
 }
 
 /**
@@ -126,7 +139,7 @@ function releaseOvercast(scene) {
  * hidden behind what is nearer, a haze veiling the distance and shafts of
  * heavier precipitation below the cloud base, in a gusting wind. Between rain
  * and snow, the same drops slow down, shorten and soften, as in sleet. While
- * active, the sky is overcast: no shadows, and a dimmer sunlight. The
+ * active, the sky is overcast: no shadows, and a dimmer scene. The
  * precipitation falls, so while active with an intensity the scene renders at
  * 30 frames per second, also in requestRenderMode. With a map, it falls where
  * the map says, in cells seen from outside through their shafts and haze,
@@ -143,6 +156,8 @@ export default class Precipitation extends Effect {
   #weatherMap = new WeatherMap(1);
   // the map's intensity at the camera, read each frame
   #localIntensity = 1;
+  // the same below the cloud base, 0 above it, where the sun shines
+  #overcast = 1;
   // the scroll of the grid, added up from frame to frame: the speed changes with the snow, and
   // time times the speed would move all the drops when it does
   #offset = 0;
@@ -184,7 +199,8 @@ export default class Precipitation extends Effect {
       this.#localIntensity = this.#weatherMap.intensityAt(longitude, latitude);
       // above the clouds, the sun shines
       const below = 1 - smoothstep(this.#cloudBase - CLOUD_BASE_FADE, this.#cloudBase + CLOUD_BASE_FADE, height);
-      shadeOvercast(this.viewer.scene, this.#localIntensity * below);
+      this.#overcast = this.#localIntensity * below;
+      shadeOvercast(this.viewer.scene, this.#overcast);
       this.#drawSkyTable(this.viewer.scene);
     };
   }
@@ -324,6 +340,9 @@ export default class Precipitation extends Effect {
             ...shared,
             shaftTexture: blurredShafts.name,
             localIntensity: () => this.#localIntensity,
+            // the share of the scene's light the overcast takes, by the first effect active, none
+            // with Clouds, whose shadow does it where they are
+            shade: () => (dimsOvercast(scene, this) && !hasCloudCover(scene) ? (1 - OVERCAST) * this.#overcast : 0),
             clouds: () => (hasCloudCover(scene) ? 1 : 0),
             shadowed: () => (cloudShadow(scene) ? 1 : 0),
             // @ts-expect-error the scene's context is not typed
@@ -352,7 +371,7 @@ export default class Precipitation extends Effect {
     this.#lastTime = performance.now() / 1000;
     this.#updateLayers();
     scene.preRender.addEventListener(this.#onPreRender);
-    acquireOvercast(scene);
+    acquireOvercast(scene, this);
     if (this.#intensity > 0) {
       acquireFrames(scene, FRAME_RATE);
     }
@@ -367,7 +386,7 @@ export default class Precipitation extends Effect {
     if (this.#intensity > 0) {
       releaseFrames(scene, FRAME_RATE);
     }
-    releaseOvercast(scene);
+    releaseOvercast(scene, this);
     scene.preRender.removeEventListener(this.#onPreRender);
     this.#destroySkyTable();
     this.#weatherMap.destroy();
