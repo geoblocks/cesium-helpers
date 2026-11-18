@@ -62,8 +62,8 @@ const float OCTAVE_ECCENTRICITY = 0.5;
 // the light on the top of the cloud above a point that reaches it scattered many times, which the
 // few samples toward the sun miss and which makes an overcast gray rather than black from below:
 // the transmission of a layer of optical depth tau that scatters without absorbing, in the
-// two-stream (Eddington) approximation, 1 / (1 + 0.75 (1 - g) tau), less the direct beam,
-// exp(-tau), that the samples toward the sun carry. The asymmetry of the light the droplets of a
+// two-stream (Eddington) approximation, 1 / (1 + 0.75 (1 - g) tau), less the direct beam
+// that the samples toward the sun carry, exp(-tau / mu) along its slanted path, the sun mu high. The asymmetry of the light the droplets of a
 // cloud scatter, about 0.85 in the visible
 const float CLOUD_ASYMMETRY = 0.85;
 const vec3 MOONLIGHT = vec3(0.60, 0.63, 0.70);
@@ -164,6 +164,13 @@ void main() {
       opticalDepth += EXTINCTION * cloudDensity(pointWC + lightWC * distanceToward, heightAt(pointEC + czm_lightDirectionEC * distanceToward), footprint, unused, unused, unused) * (distanceToward - previous);
       previous = distanceToward;
     }
+    // the samples reach 700 m toward the sun, a fifth of the way through a deck 1500 m thick under a
+    // sun 23 degrees high: the shadow map has the whole way, so where the samples find a thin spot
+    // deep in the cloud the sun does not shine through it. Its texels and its four depths are too
+    // coarse for the billows near the top of a column, which the samples alone light
+    float shadowed = shadowDepth(pointWC);
+    float deep = 1.0 - clamp(column, 0.0, 1.0);
+    opticalDepth = max(opticalDepth, shadowed * deep);
     float sunThrough = 0.0;
     float occlusion = 1.0;
     for (int n = 0; n < OCTAVES; n++) {
@@ -173,10 +180,11 @@ void main() {
     float y = clamp((h - cloudBase) / (cloudTop - cloudBase), 0.0, 1.0);
     float ambientOcclusion = sqrt(max(1.0 - dimensional, 0.0)) * pow(mix(0.1, 1.0, clamp((column - DARK_BASE.x) / (DARK_BASE.y - DARK_BASE.x), 0.0, 1.0)), 0.8);
     // the clouds above the point, from the shadow map along the sun's rays, as deep as they are
-    // thick: lighter under their thin parts, darker under their thick ones. Toward the top of its
-    // column, the samples toward the sun and their octaves already carry the light scattered there
-    float tau = shadowDepth(pointWC) * sunHeight;
-    float diffuse = (1.0 / (1.0 + 0.75 * (1.0 - CLOUD_ASYMMETRY) * tau) - exp(-tau)) * (1.0 - clamp(column, 0.0, 1.0));
+    // thick: lighter under their thin parts, darker under their thick ones; deep in its column, as
+    // toward its top the samples toward the sun and their octaves already carry the light
+    // scattered there
+    float tau = shadowed * sunHeight;
+    float diffuse = (1.0 / (1.0 + 0.75 * (1.0 - CLOUD_ASYMMETRY) * tau) - exp(-shadowed)) * deep;
     vec3 scattered = sunLight * sunThrough + mix(groundBelow, skyAbove, y) * ambientOcclusion + onTop * diffuse;
     float stepTransmittance = exp(-sigma * dt);
     // the light scattered over the step, the integral of the source over it, (S - S T) / sigma_t
