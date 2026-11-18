@@ -5,11 +5,12 @@
 // that repeats in world coordinates, read from a texture made once (cloud-noise.js): wispy over
 // light rain and solid over heavy rain, with details eroding their edges, not their cores. The sun lights them through a few
 // samples toward it, with a silver lining toward it, its light scattered more than once brightening
-// their cores, and the sky lights them, brighter at their top: thick clouds are dark gray from
-// below and white from above. The steps are short near the camera and longer with the distance, so
+// their cores, and the sky lights them, brighter at their top; the light on their top reaches
+// their lower parts scattered many times, through as much cloud as the shadow map finds above
+// them: an overcast is gray from below, lighter under its thin parts, and white from above. The steps are short near the camera and longer with the distance, so
 // a camera inside a cloud is in its fog. Precipitation, activated after them, draws the rain's haze
-// over them. Needs EyeFromDepth, Height, CloudsSlab, WeatherMap, CloudsDensity, Fog, Phase and
-// RainHaze.
+// over them. Needs EyeFromDepth, Height, CloudsSlab, WeatherMap, CloudsDensity, CloudsShadow, Fog,
+// Phase and RainHaze.
 precision highp sampler2D;
 uniform sampler2D depthTexture;
 // the farthest distance of the scene in this texel's block of pixels, from CloudsDepth.glsl
@@ -58,6 +59,13 @@ const int OCTAVES = 2;
 const float OCTAVE_SCATTERING = 0.5;
 const float OCTAVE_EXTINCTION = 0.5;
 const float OCTAVE_ECCENTRICITY = 0.5;
+// the light on the top of the cloud above a point that reaches it scattered many times, which the
+// few samples toward the sun miss and which makes an overcast gray rather than black from below:
+// the transmission of a layer of optical depth tau that scatters without absorbing, in the
+// two-stream (Eddington) approximation, 1 / (1 + 0.75 (1 - g) tau), less the direct beam,
+// exp(-tau), that the samples toward the sun carry. The asymmetry of the light the droplets of a
+// cloud scatter, about 0.85 in the visible
+const float CLOUD_ASYMMETRY = 0.85;
 const vec3 MOONLIGHT = vec3(0.60, 0.63, 0.70);
 
 // Henyey-Greenstein's phase function, times 4 pi: 1 for light scattered alike in all directions
@@ -118,6 +126,11 @@ void main() {
   vec3 skyHue = mix(vec3(1.0), zenith / max(czm_luminance(zenith), 1e-3), SKY_SATURATION);
   vec3 skyAbove = mix(MOONLIGHT, skyHue, day) * czm_luminance(AMBIENT_TOP);
   vec3 groundBelow = AMBIENT_BASE * mix(MOONLIGHT, czm_lightColor * clamp(dot(up, czm_lightDirectionEC) / HIGH_SUN, 0.0, 1.0), day);
+  // the sun and the clear sky on the top of the clouds, on a level surface: Cesium's sky, in the
+  // tops' desaturated hue, as skyAbove, raised for the tops not to look gray, would light the bases
+  // brighter than the sun does
+  float sunHeight = max(dot(up, czm_lightDirectionEC), 0.0);
+  vec3 onTop = sunLight * sunHeight + skyHue * czm_luminance(zenith) * day;
   // interleaved gradient noise, a different start along the ray for each pixel, and at each frame,
   // by the golden ratio (Wolfe 2020)
   // the angle a pixel of this pass covers
@@ -159,7 +172,12 @@ void main() {
     }
     float y = clamp((h - cloudBase) / (cloudTop - cloudBase), 0.0, 1.0);
     float ambientOcclusion = sqrt(max(1.0 - dimensional, 0.0)) * pow(mix(0.1, 1.0, clamp((column - DARK_BASE.x) / (DARK_BASE.y - DARK_BASE.x), 0.0, 1.0)), 0.8);
-    vec3 scattered = sunLight * sunThrough + mix(groundBelow, skyAbove, y) * ambientOcclusion;
+    // the clouds above the point, from the shadow map along the sun's rays, as deep as they are
+    // thick: lighter under their thin parts, darker under their thick ones. Toward the top of its
+    // column, the samples toward the sun and their octaves already carry the light scattered there
+    float tau = shadowDepth(pointWC) * sunHeight;
+    float diffuse = (1.0 / (1.0 + 0.75 * (1.0 - CLOUD_ASYMMETRY) * tau) - exp(-tau)) * (1.0 - clamp(column, 0.0, 1.0));
+    vec3 scattered = sunLight * sunThrough + mix(groundBelow, skyAbove, y) * ambientOcclusion + onTop * diffuse;
     float stepTransmittance = exp(-sigma * dt);
     // the light scattered over the step, the integral of the source over it, (S - S T) / sigma_t
     // (Hillaire 2016, eq. 17): the albedo, sigma_s / sigma_t, of what the step intercepts
