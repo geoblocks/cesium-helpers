@@ -20,6 +20,8 @@ const fakeViewer = (height = 1000) => {
       },
       requestRender: () => {},
       isDestroyed: () => false,
+      // for the box that keeps the depth cleared
+      primitives: {add: (/** @type {any} */ primitive) => primitive, remove: () => true},
       preRender: {
         addEventListener: (/** @type {Function} */ listener) => listeners.push(listener),
         removeEventListener: (/** @type {Function} */ listener) => listeners.splice(listeners.indexOf(listener), 1),
@@ -27,6 +29,7 @@ const fakeViewer = (height = 1000) => {
       camera: {
         positionCartographic: Cartographic.fromDegrees(7.9, 46.7, height),
         positionWC: Cartographic.toCartesian(Cartographic.fromDegrees(7.9, 46.7, height)),
+        directionWC: Cartesian3.UNIT_Z,
         heading: 0,
         viewMatrix: Matrix4.IDENTITY,
       },
@@ -57,7 +60,8 @@ const frame = (t, viewer, options, random = () => 0) => {
   now = 100;
   // after the stage is made, whose name is drawn at random
   const draw = t.mock.method(Math, 'random', random);
-  viewer.listeners[0]();
+  // the scene's preRender listeners, the effect's and the depth's box's
+  viewer.listeners.forEach((listener) => listener());
   draw.mock.restore();
   const glows = uniforms.strikeGlow().map((/** @type {Cartesian4} */ glow) => Cartesian4.clone(glow));
   const above = uniforms.above();

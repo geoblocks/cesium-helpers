@@ -1,4 +1,4 @@
-import {acquireTerrainDepth, releaseTerrainDepth} from './depth-test.js';
+import {acquireDepthTexture, releaseDepthTexture} from './depth-test.js';
 import {acquireFrames, releaseFrames} from './frame-clock.js';
 
 /** @import {CesiumWidget, PostProcessStage, PostProcessStageComposite, Scene} from '@cesium/engine' */
@@ -58,7 +58,7 @@ export default class Effect {
       this.stage_ = this.createStage_(scene);
       scene.postProcessStages.add(this.stage_);
       if (this.terrainDepth_) {
-        acquireTerrainDepth(scene);
+        acquireDepthTexture(scene);
       }
       if (this.frameRate_ > 0) {
         acquireFrames(scene, this.frameRate_);
@@ -73,7 +73,7 @@ export default class Effect {
         releaseFrames(scene, this.frameRate_);
       }
       if (this.terrainDepth_) {
-        releaseTerrainDepth(scene);
+        releaseDepthTexture(scene);
       }
       // removing a stage also destroys it
       scene.postProcessStages.remove(this.stage_);

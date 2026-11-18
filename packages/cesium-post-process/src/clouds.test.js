@@ -66,6 +66,8 @@ const fakeViewer = (height = 1000) => {
       isDestroyed: () => false,
       globe: {depthTestAgainstTerrain: false},
       context: fakeContext(),
+      // for the box that keeps the depth cleared
+      primitives: {add: (/** @type {any} */ primitive) => primitive, remove: () => true},
       preRender: {
         addEventListener: (/** @type {Function} */ listener) => listeners.push(listener),
         removeEventListener: (/** @type {Function} */ listener) => listeners.splice(listeners.indexOf(listener), 1),
@@ -77,6 +79,7 @@ const fakeViewer = (height = 1000) => {
       camera: {
         positionCartographic: Cartographic.fromDegrees(6, 47, height),
         positionWC: Cartesian3.fromDegrees(6, 47, height),
+        directionWC: Cartesian3.UNIT_Z,
         viewMatrix: Matrix4.clone(Matrix4.IDENTITY),
         inverseViewMatrix: Matrix4.clone(Matrix4.IDENTITY),
         frustum: {projectionMatrix: Matrix4.clone(Matrix4.IDENTITY)},
@@ -85,6 +88,9 @@ const fakeViewer = (height = 1000) => {
     clock: {currentTime: JulianDate.fromIso8601('2026-10-04T08:30:00Z')},
   };
 };
+
+// a frame: the scene's preRender listeners, the effect's and the depth's box's
+const frame = (/** @type {{listeners: Function[]}} */ viewer) => viewer.listeners.forEach((listener) => listener());
 
 // a map raining at half intensity over 5 to 7 east and 46 to 48 north
 const map = {
@@ -100,7 +106,7 @@ test('activating adds the stage and tests the depth against the terrain, deactiv
   clouds.active = true;
   assert.equal(viewer.calls[0][0], 'add');
   assert.equal(viewer.scene.globe.depthTestAgainstTerrain, true);
-  assert.equal(viewer.listeners.length, 1);
+  assert.equal(viewer.listeners.length, 2);
   clouds.active = false;
   assert.ok(viewer.calls.some(([name]) => name === 'remove'));
   assert.equal(viewer.scene.globe.depthTestAgainstTerrain, false);
@@ -159,7 +165,7 @@ test('the density at the camera is the map inside the clouds, 0 outside them', (
     const viewer = fakeViewer(height);
     const clouds = new TestClouds(/** @type {any} */ (viewer), {map});
     clouds.active = true;
-    viewer.listeners[0]();
+    frame(viewer);
     assert.ok(Math.abs(clouds.localDensity - expected) < 1e-9, `at ${height} m`);
     // a frame starts the renders that let the clouds settle, until they are deactivated
     clouds.active = false;
@@ -170,7 +176,7 @@ test('without a map there is no cloud at the camera', () => {
   const viewer = fakeViewer(4000);
   const clouds = new TestClouds(/** @type {any} */ (viewer));
   clouds.active = true;
-  viewer.listeners[0]();
+  frame(viewer);
   assert.equal(clouds.localDensity, 0);
   clouds.active = false;
 });
@@ -238,13 +244,13 @@ test('the scene renders for a moment after a change, for the accumulation to set
     const viewer = fakeViewer();
     const clouds = new TestClouds(/** @type {any} */ (viewer), {map});
     clouds.active = true;
-    viewer.listeners[0]();
+    frame(viewer);
     viewer.postListeners[0]();
     viewer.calls.length = 0;
     mock.timers.tick(200);
     assert.ok(viewer.calls.some(([name]) => name === 'render'));
     mock.timers.tick(1000);
-    viewer.listeners[0]();
+    frame(viewer);
     viewer.postListeners[0]();
     viewer.calls.length = 0;
     mock.timers.tick(1000);
@@ -266,7 +272,7 @@ test('the shadow map is drawn again when the camera moves, the clock or the clou
     const drawn = (/** @type {number} */ milliseconds) => {
       mock.timers.tick(milliseconds);
       const before = draws.length;
-      viewer.listeners[0]();
+      frame(viewer);
       return draws.length > before;
     };
     const cameraAt = (/** @type {number} */ longitude, height = 1000) => {

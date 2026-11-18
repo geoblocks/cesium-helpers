@@ -1,6 +1,6 @@
 import {test, mock} from 'node:test';
 import assert from 'node:assert/strict';
-import {Cartographic, Rectangle} from '@cesium/core';
+import {Cartesian3, Cartographic, Rectangle} from '@cesium/core';
 import Clouds from './clouds.js';
 import Precipitation from './precipitation.js';
 
@@ -27,12 +27,17 @@ const fakeViewer = (height = 1000) => {
       },
       // for Clouds in the same scene
       postRender: {addEventListener: () => {}, removeEventListener: () => {}},
-      camera: {positionCartographic: Cartographic.fromDegrees(6, 47, height)},
+      camera: {positionCartographic: Cartographic.fromDegrees(6, 47, height), positionWC: Cartesian3.fromDegrees(6, 47, height), directionWC: Cartesian3.UNIT_Z},
+      // for the box that keeps the depth cleared
+      primitives: {add: (/** @type {any} */ primitive) => primitive, remove: () => true},
       light: {intensity: 2},
       shadowMap: {enabled: true},
     },
   };
 };
+
+// a frame: the scene's preRender listeners, the effect's and the depth's box's
+const frame = (/** @type {{listeners: Function[]}} */ viewer) => viewer.listeners.forEach((listener) => listener());
 
 // a map raining at half intensity over 5 to 7 east and 46 to 48 north
 const map = {
@@ -60,7 +65,7 @@ test('activating adds the stage, tests the depth against the terrain and makes i
     precipitation.active = true;
     assert.equal(viewer.calls[0][0], 'add');
     assert.equal(viewer.scene.globe.depthTestAgainstTerrain, true);
-    assert.equal(viewer.listeners.length, 1);
+    assert.equal(viewer.listeners.length, 2);
     assert.equal(shadeOf(precipitation), 0.5);
     assert.equal(viewer.scene.light.intensity, 2);
     assert.equal(viewer.scene.shadowMap.enabled, false);
@@ -79,7 +84,7 @@ test('the intensity at the camera is the map there, 1 without a map', () => {
       const viewer = fakeViewer();
       const precipitation = new Precipitation(/** @type {any} */ (viewer), options);
       precipitation.active = true;
-      viewer.listeners[0]();
+      frame(viewer);
       assert.ok(Math.abs(precipitation.localIntensity - expected) < 1e-9);
       precipitation.active = false;
     }
@@ -91,12 +96,12 @@ test('below the cloud base, the scene dims and the shadows go as it rains harder
     const viewer = fakeViewer();
     const precipitation = new Precipitation(/** @type {any} */ (viewer), {map});
     precipitation.active = true;
-    viewer.listeners[0]();
+    frame(viewer);
     assert.ok(Math.abs(shadeOf(precipitation) - 0.5 * (128 / 255)) < 1e-9);
     assert.equal(viewer.scene.shadowMap.enabled, false);
     precipitation.map = undefined;
     precipitation.map = {...map, image: {...map.image, data: new Uint8ClampedArray([0, 0, 0, 255])}};
-    viewer.listeners[0]();
+    frame(viewer);
     assert.equal(shadeOf(precipitation), 0);
     assert.equal(viewer.scene.shadowMap.enabled, true);
     precipitation.active = false;
@@ -108,7 +113,7 @@ test('above the cloud base, there is no overcast, wherever it rains', () => {
     const viewer = fakeViewer(300000);
     const precipitation = new Precipitation(/** @type {any} */ (viewer), {map: {...map, image: {...map.image, data: new Uint8ClampedArray([255, 0, 0, 255])}}});
     precipitation.active = true;
-    viewer.listeners[0]();
+    frame(viewer);
     assert.equal(shadeOf(precipitation), 0);
     assert.equal(viewer.scene.shadowMap.enabled, true);
     precipitation.active = false;
@@ -179,7 +184,7 @@ test('the precipitation crossfades to the next map, at the camera and in the sha
     precipitation.active = true;
     precipitation.nextMap = {image: {width: 1, height: 1, data: new Uint8ClampedArray([0, 0, 0, 255])}, rectangle: map.rectangle};
     precipitation.mapBlend = 0.5;
-    viewer.listeners[0]();
+    frame(viewer);
     assert.ok(Math.abs(precipitation.localIntensity - 64 / 255) < 1e-9);
     assert.equal(/** @type {any} */ (precipitation.stage_).get(0).uniforms.mapBlend(), 0.5);
     precipitation.active = false;
