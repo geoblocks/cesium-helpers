@@ -1,10 +1,10 @@
-// The clear sky the haze scatters, drawn by precipitation.js into a small table at each frame,
+// The clear sky a haze or a fog scatters, drawn by sky-table.js into a small table at each frame,
 // rather than computed twice for each pixel: its first SKY_TABLE texels at SKY_ELEVATION above the
 // horizon, at azimuths from the sun's to its opposite, the sky being symmetric about the sun's
-// vertical plane, and its last overhead, seen from no higher than the cloud base. In world
-// coordinates, the camera's up the ellipsoid's normal under it, so that the camera turning between
-// frames does not skew it. Needs Height, Fog, Phase and RainHaze.
-// meters above the ellipsoid, the precipitation's
+// vertical plane, and its last overhead, seen from no higher than the precipitation's cloud base or
+// the fog's top. In world coordinates, the camera's up the ellipsoid's normal under it, so that the
+// camera turning between frames does not skew it. Needs Height, Fog, Phase and RainHaze.
+// meters above the ellipsoid
 uniform float cloudBase;
 in vec2 v_textureCoordinates;
 
