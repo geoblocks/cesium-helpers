@@ -30,11 +30,12 @@ uniform vec2 sceneSize;
 // back to the last empty one and goes on fine, lighting each sample, until EMPTY fine samples in a
 // row find none (the cheap and the expensive samples of Schneider 2015): the steps in the clouds
 // are short, for their edges to be sharp, and the empty air costs a sample every COARSE. At most
-// MAX_SAMPLES, a ray through that many fine steps of cloud being opaque long before
+// MAX_SAMPLES, the fine steps and a few steps back: a ray through a long, thin cloud is marched to
+// its end
 const int FINE_STEPS = 64;
 const int COARSE = 4;
 const int EMPTY = 4;
-const int MAX_SAMPLES = 48;
+const int MAX_SAMPLES = 72;
 // the clouds fade out over the last part of the march, past this share of MAX_DISTANCE from where
 // the ray enters the slab, so that its end is not an edge
 const float FAR_FADE = 0.6;
@@ -79,7 +80,7 @@ const float SILVER_G = 0.87;
 const float SILVER = 0.35;
 // the light on the top of the cloud above a point that reaches it scattered many times, which the
 // few samples toward the sun miss and which makes an overcast gray rather than black from below:
-// RainHaze.glsl's twoStream, less the direct beam that the samples toward the sun carry,
+// CloudLight.glsl's twoStream, less the direct beam that the samples toward the sun carry,
 // exp(-tau / mu) along its slanted path, the sun mu high
 const vec3 MOONLIGHT = vec3(0.60, 0.63, 0.70);
 // at night, the moon lights them from its direction, this much of the sun's light, in the moonlight's
@@ -91,11 +92,13 @@ float phase(float cosTheta, float g) {
   return 4.0 * czm_pi * henyeyGreenstein(cosTheta, g);
 }
 
-// the march's output, in a texture of 32-bit floats read texel by texel: the light in red and
-// green, packed two halves each with the transmittance, the distance in blue, 0 where the ray meets
-// no slab; one output, which a post-process stage has, rather than two
+// the march's output, in a texture of 32-bit floats read texel by texel: the light's red and green
+// packed as two halves in red, its blue in green, the distance in blue, 0 where the ray meets no
+// slab, and the transmittance in alpha; one output, which a post-process stage has, rather than
+// two. The green half is kept a normal half, at least 2^-14, so that the float the two make is never
+// a denormal a GPU may flush to 0 with the red
 vec4 packCloud(vec3 light, float transmittance, float distance) {
-  return vec4(uintBitsToFloat(packHalf2x16(light.rg)), uintBitsToFloat(packHalf2x16(vec2(light.b, transmittance))), distance, 1.0);
+  return vec4(uintBitsToFloat(packHalf2x16(vec2(light.r, max(light.g, 6.2e-5)))), light.b, distance, transmittance);
 }
 
 void main() {
@@ -127,7 +130,8 @@ void main() {
   segment = slab(dot(direction, up), sceneDistance, cloudTopFor(highest, 1.0));
   span = segment.y - segment.x;
   if (covered <= 0.0 || span <= 0.0) {
-    out_FragColor = packCloud(vec3(0.0), 1.0, segment.x);
+    // no cloud seen: the middle of the segment, where a camera inside the slab still moves past it
+    out_FragColor = packCloud(vec3(0.0), 1.0, 0.5 * (segment.x + segment.y));
     return;
   }
   float day = daylight();
@@ -151,7 +155,10 @@ void main() {
   // 5.9.1). The sky toward the view, at least SKY_ELEVATION above the horizon
   vec3 fogColor = skyToward(direction, max(asin(clamp(dot(direction, up), -1.0, 1.0)), SKY_ELEVATION));
   vec3 sun = sunOnClouds();
-  vec3 sunLight = day > 0.0 ? sun * day : MOON * MOONLIGHT * smoothstep(0.0, 0.1, dot(up, czm_moonDirectionEC));
+  // the moon's light fading in as the sun goes on down after daylight() is 0, so that it does not
+  // pop on at dusk
+  float night = 1.0 - smoothstep(-0.25, -0.1, dot(up, czm_sunDirectionEC));
+  vec3 sunLight = day > 0.0 ? sun * day : MOON * MOONLIGHT * night * smoothstep(0.0, 0.1, dot(up, czm_moonDirectionEC));
   // the sky overhead, and the sunlight from the ground, by day; the moon's at night
   vec3 zenith = clearSkyBelow(cloudBase, czm_inverseViewRotation * up, czm_lightDirectionWC);
   vec3 skyAbove = mix(MOONLIGHT, skyHueOf(zenith), day) * czm_luminance(AMBIENT_TOP);
@@ -210,12 +217,14 @@ void main() {
     }
     empty = 0;
     float dt = span * (2.0 * s + 1.0 / float(FINE_STEPS)) / float(FINE_STEPS);
-    // the sun's light through the cloud toward it; behind cloud that hides a fifth of what is behind
-    // it, from the shadow map alone, whose light reaches the eye dimmed by it (the cheap light samples
-    // of Schneider 2015, there past a transmittance of 0.7: alike to the eye, and cheaper)
+    // the light through the cloud toward it; by day, behind cloud that hides a fifth of what is
+    // behind it, from the shadow map alone, whose light reaches the eye dimmed by it (the cheap
+    // light samples of Schneider 2015, there past a transmittance of 0.7: alike to the eye, and
+    // cheaper). The shadow map is the sun's: by the moon, the samples alone
+    bool cheap = day > 0.0 && transmittance <= CHEAP_LIGHT;
     float opticalDepth = 0.0;
     float previous = 0.0;
-    for (int j = 0; j < (transmittance > CHEAP_LIGHT ? 2 : 0); j++) {
+    for (int j = 0; j < (cheap ? 0 : 2); j++) {
       // jittered as the step, for the samples of neighboring pixels not to band (Hillaire 2016,
       // sec. 5.5.2); without the finest details, which a ray 200 m long toward the light does not see
       float distanceToward = LIGHT_DISTANCES[j] * (0.75 + 0.5 * jitter);
@@ -226,9 +235,11 @@ void main() {
     // sun 23 degrees high: the shadow map has the whole way, so where the samples find a thin spot
     // deep in the cloud the sun does not shine through it. Its texels and its four depths are too
     // coarse for the billows near the top of a column, which the samples alone light
-    float shadowed = shadowDepth(pointWC);
+    float shadowed = day > 0.0 ? shadowDepth(pointWC) : 0.0;
     float deep = 1.0 - clamp(column, 0.0, 1.0);
-    opticalDepth = max(opticalDepth, shadowed * deep);
+    // without the samples, the cloud at the point taken to go on toward the light as far as they
+    // reach, so that the top of a column, where the shadow map is not read, is not in full sun
+    opticalDepth = max(cheap ? sigma * LIGHT_DISTANCES.x : opticalDepth, shadowed * deep);
     float sunThrough = 0.0;
     float occlusion = 1.0;
     for (int n = 0; n < OCTAVES; n++) {
@@ -257,5 +268,5 @@ void main() {
     }
   }
   // without a cloud seen, where the ray enters the slab, near what is seen of it from outside
-  out_FragColor = packCloud(min(light, vec3(1.0)), transmittance, distanceWeight > 1e-4 ? distanceSum / distanceWeight : segment.x);
+  out_FragColor = packCloud(min(light, vec3(1.0)), transmittance, distanceWeight > 1e-4 ? distanceSum / distanceWeight : 0.5 * (segment.x + segment.y));
 }

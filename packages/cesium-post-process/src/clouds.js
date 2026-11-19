@@ -224,7 +224,7 @@ export default class Clouds extends Effect {
       const {camera} = this.viewer.scene;
       this.#drawShadow(this.viewer.scene);
       const {longitude, latitude, height} = camera.positionCartographic;
-      const inside = height >= this.#cloudBase && height <= this.#cloudTop;
+      const inside = height >= this.#slabBottom() && height <= this.#slabTop();
       this.#localDensity = inside ? this.#weatherMap.intensityAt(longitude, latitude) : 0;
       const time = this.viewer.clock.currentTime;
       if (this.#changed || !Matrix4.equals(camera.viewMatrix, this.#lastView) || time.dayNumber !== this.#lastTime.dayNumber || time.secondsOfDay !== this.#lastTime.secondsOfDay) {
@@ -564,6 +564,7 @@ export default class Clouds extends Effect {
   #destroyHistory() {
     this.#historyFramebuffer = this.#historyFramebuffer?.destroy();
     this.#history = this.#history?.destroy();
+    this.#historyValid = false;
   }
 
   /**

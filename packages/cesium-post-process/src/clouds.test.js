@@ -382,3 +382,17 @@ test('the slab reaches below the cloud base, as low as a base swings down under 
   assert.equal(stage.get(2).uniforms.shadowBase(), 2000 - 300 - 250);
   clouds.active = false;
 });
+
+test('the history is not taken after the clouds are drawn again: it went with them', () => {
+  const viewer = fakeViewer();
+  /** @type {any} */ (viewer.scene.postProcessStages).getOutputTexture = () => ({width: 4, height: 4});
+  const clouds = new TestClouds(/** @type {any} */ (viewer), {map});
+  clouds.active = true;
+  viewer.postListeners[0]();
+  const resolve = /** @type {any} */ (clouds.stage_).get(1);
+  assert.equal(resolve.uniforms.hasHistory(), true);
+  clouds.active = false;
+  clouds.active = true;
+  assert.equal(/** @type {any} */ (clouds.stage_).get(1).uniforms.hasHistory(), false);
+  clouds.active = false;
+});

@@ -35,7 +35,7 @@ in vec2 v_textureCoordinates;
 vec4 freshLight(ivec2 block, out float distance) {
   vec4 packed = texelFetch(cloudTexture, clamp(block, ivec2(0), textureSize(cloudTexture, 0) - 1), 0);
   distance = packed.b;
-  return vec4(unpackHalf2x16(floatBitsToUint(packed.r)), unpackHalf2x16(floatBitsToUint(packed.g)));
+  return vec4(unpackHalf2x16(floatBitsToUint(packed.r)), packed.g, packed.a);
 }
 
 vec4 freshLight(ivec2 block) {

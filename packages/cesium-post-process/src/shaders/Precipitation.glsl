@@ -156,7 +156,7 @@ void main() {
   vec3 skyLight;
   float sunlit;
   if (shadowed > 0.0) {
-    skyLight = lightUnderClouds(sampled.w, day, snow);
+    skyLight = lightUnderClouds(sampled.w, snow);
     sunlit = sampled.w;
   } else {
     skyLight = overcastSky(view, snow, overcast);

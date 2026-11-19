@@ -147,8 +147,9 @@ vec3 overcastSky(vec3 view, float snow, float overcast) {
 // light on their top, all of it where the beam comes through, and under a deck what reaches its
 // base, as CloudsMarch.glsl lights the clouds' own base: the rain under a cloud is as bright as
 // the cloud behind it, lighter under its thin parts; whiter in the snow, as the overcast sky's
-vec3 lightUnderClouds(float direct, float day, float snow) {
-  return lightOnClouds(zenithFromTable(), day, sunOnClouds()) * mix(twoStream(DECK_DEPTH), 1.0, direct) * mix(vec3(1.0), SNOW_HAZE / RAIN_HAZE, snow);
+vec3 lightUnderClouds(float direct, float snow) {
+  // by full daylight: rainHazeColor's byDaylight turns it to night, once
+  return lightOnClouds(zenithFromTable(), 1.0, sunOnClouds()) * mix(twoStream(DECK_DEPTH), 1.0, direct) * mix(vec3(1.0), SNOW_HAZE / RAIN_HAZE, snow);
 }
 
 // the haze's light toward the eye along a view direction in eye coordinates: the sky's light on it,
