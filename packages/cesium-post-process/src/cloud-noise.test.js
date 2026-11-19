@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import createCloudNoise, {createMapNoise} from './cloud-noise.js';
+import createCloudNoise, {createCloudDetail, createMapNoise} from './cloud-noise.js';
 
 const SIZE = 32;
 const noise = createCloudNoise(SIZE);
@@ -61,7 +61,7 @@ const mapAt = (/** @type {number} */ x, /** @type {number} */ y, /** @type {numb
 
 test('the map noise has four bytes for each texel, and tiles: across each edge it changes as little as between neighbors inside', () => {
   assert.equal(mapNoise.length, MAP_SIZE * MAP_SIZE * 4);
-  for (let channel = 0; channel < 3; channel++) {
+  for (let channel = 0; channel < 4; channel++) {
     for (const axis of [0, 1]) {
       let seam = 0;
       let inside = 0;
@@ -72,5 +72,32 @@ test('the map noise has four bytes for each texel, and tiles: across each edge i
       }
       assert.ok(seam <= 1.5 * inside + MAP_SIZE, `channel ${channel}, axis ${axis}: ${seam} across, ${inside} inside`);
     }
+  }
+});
+
+const DETAIL_SIZE = 32;
+const detail = createCloudDetail(DETAIL_SIZE);
+const detailAt = (/** @type {number} */ x, /** @type {number} */ y, /** @type {number} */ z) => detail[4 * ((z * DETAIL_SIZE + y) * DETAIL_SIZE + x)];
+
+test('the finest details have four bytes for each voxel, spread over most of the range, and tile: across each face they change as little as between neighbors inside', () => {
+  assert.equal(detail.length, DETAIL_SIZE ** 3 * 4);
+  let min = 255;
+  let max = 0;
+  for (let i = 0; i < detail.length; i += 4) {
+    min = Math.min(min, detail[i]);
+    max = Math.max(max, detail[i]);
+  }
+  assert.ok(min < 16 && max > 240, `${min} to ${max}`);
+  for (const axis of [0, 1, 2]) {
+    let seam = 0;
+    let inside = 0;
+    for (let a = 0; a < DETAIL_SIZE; a++) {
+      for (let b = 0; b < DETAIL_SIZE; b++) {
+        const voxel = (/** @type {number} */ i) => (axis === 0 ? detailAt(i, a, b) : axis === 1 ? detailAt(a, i, b) : detailAt(a, b, i));
+        seam += Math.abs(voxel(DETAIL_SIZE - 1) - voxel(0));
+        inside += Math.abs(voxel(DETAIL_SIZE / 2) - voxel(DETAIL_SIZE / 2 + 1));
+      }
+    }
+    assert.ok(seam <= 1.5 * inside + DETAIL_SIZE * DETAIL_SIZE, `axis ${axis}: ${seam} across, ${inside} inside`);
   }
 });

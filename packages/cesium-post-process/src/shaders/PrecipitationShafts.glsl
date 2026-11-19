@@ -29,6 +29,9 @@ const vec2 SHAFT_EXTINCTION = vec2(0.0006, 0.0015);
 const float DRIFT_VELOCITY = 9.0;
 // the shafts thin out over this height below the cloud base, into the clouds
 const float SHAFT_TOP = 1000.0;
+// the weight of a sample without rain in the share of the rain in the sun, as an extinction per
+// meter: a tenth of a drizzle's
+const float DRY_WEIGHT = 0.00001;
 
 void main() {
   vec4 eye = eyeAt(depthTexture, v_textureCoordinates);
@@ -67,7 +70,7 @@ void main() {
       raining += extinction;
       // the sun through the clouds above the sample, weighted by how much it scatters there
       vec3 sampleWC = czm_viewerPositionWC + rayWC * t;
-      sunlit += extinction * (shadowed > 0.0 ? exp(-shadowDepth(sampleWC)) : 1.0);
+      sunlit += (extinction + DRY_WEIGHT) * (shadowed > 0.0 ? exp(-shadowDepth(sampleWC)) : 1.0);
       wet += smoothstep(0.0, 0.15, local);
       float top = clamp((cloudBase - h) / SHAFT_TOP, 0.0, 1.0);
       density += local * top * smoothstep(threshold - 0.3, threshold + 0.3, patches);
@@ -76,7 +79,9 @@ void main() {
     // share of the heaviest bands', and the share of it in the rain
     share = raining / (float(SHAFT_STEPS) * (1.0 + RAIN_BANDS) * rainExtinction(intensity, snow));
     wet /= float(SHAFT_STEPS);
-    lit = raining > 0.0 ? sunlit / raining : 1.0;
+    // along a ray with hardly any rain, the sun through the clouds over all of it: the haze's light
+    // does not jump where the rain ends, nor follow the one sample that has a drizzle
+    lit = sunlit / (raining + DRY_WEIGHT * float(SHAFT_STEPS));
     float depth = mix(SHAFT_EXTINCTION.x, SHAFT_EXTINCTION.y, snow) * (0.5 + 0.5 * intensity) * density * (sampled - t0) * rayLength / float(SHAFT_STEPS);
     opacity = 1.0 - exp(-depth);
   }

@@ -36,7 +36,7 @@ void main() {
   float h0 = shadowHeight(start);
   // from the top of the slab down to its base, along the ray
   float top = (slabTop - h0) / sine;
-  float base = (cloudBase - h0) / sine;
+  float base = (slabBottom - h0) / sine;
   float covered = 0.0;
   for (int k = 0; k < SHADOW_PROBES; k++) {
     vec2 uv = mapUv(start + czm_lightDirectionWC * mix(top, base, (float(k) + 0.5) / float(SHADOW_PROBES)));

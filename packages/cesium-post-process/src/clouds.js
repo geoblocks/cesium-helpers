@@ -1,4 +1,4 @@
-import {Cartesian3, Ellipsoid, Matrix4, PixelDatatype, Rectangle, Math as CesiumMath} from '@cesium/core';
+import {Cartesian2, Cartesian3, Ellipsoid, JulianDate, Matrix4, PixelDatatype, Math as CesiumMath} from '@cesium/core';
 import {PostProcessStage, PostProcessStageComposite, TextureMagnificationFilter, TextureMinificationFilter} from '@cesium/engine';
 // @ts-expect-error the engine exports its 3D textures and samplers, but does not type them
 import {Sampler, Texture3D, TextureWrap} from '@cesium/engine';
@@ -6,14 +6,13 @@ import {Sampler, Texture3D, TextureWrap} from '@cesium/engine';
 import {Framebuffer, RenderState, Texture} from '@cesium/engine';
 import {acquireCloudCover, releaseCloudCover} from './cloud-cover.js';
 import createCloudMap from './cloud-map.js';
-import createCloudNoise, {createMapNoise} from './cloud-noise.js';
+import createCloudNoise, {createCloudDetail, createMapNoise} from './cloud-noise.js';
 import Effect from './effect.js';
 import {acquireFrames, releaseFrames} from './frame-clock.js';
 import {heightUniforms} from './height.js';
-import CloudsBlur from './shaders/CloudsBlur.js';
+import CloudLight from './shaders/CloudLight.js';
 import CloudsComposite from './shaders/CloudsComposite.js';
 import CloudsDensity from './shaders/CloudsDensity.js';
-import CloudsDepth from './shaders/CloudsDepth.js';
 import CloudsMarch from './shaders/CloudsMarch.js';
 import CloudsResolve from './shaders/CloudsResolve.js';
 import CloudsShadow from './shaders/CloudsShadow.js';
@@ -21,6 +20,7 @@ import CloudsShadowMap from './shaders/CloudsShadowMap.js';
 import CloudsSlab from './shaders/CloudsSlab.js';
 import EyeFromDepth from './shaders/EyeFromDepth.js';
 import Fog from './shaders/Fog.js';
+import Hash from './shaders/Hash.js';
 import Height from './shaders/Height.js';
 import Phase from './shaders/Phase.js';
 import RainHaze from './shaders/RainHaze.js';
@@ -31,25 +31,34 @@ import WeatherMap from './weather-map.js';
 /** @import {WeatherMapOptions} from './weather-map.js' */
 /** @import {CesiumWidget, Scene} from '@cesium/engine' */
 
-// the clouds are kilometers wide and soft: a quarter of the resolution, a 16th of the pixels, is
-// enough for their raymarch (CloudsComposite.glsl's CLOUD_SCALE)
+// the march marches one pixel of each block of 4 x 4 at each frame, a 16th of the pixels, in a
+// texture of a quarter of the resolution, in this order of the pixels of a block, a Bayer matrix's,
+// so that consecutive frames march pixels far apart; CloudsResolve.glsl builds the full resolution,
+// a pixel's n-th sample since the view last changed weighing 1 / n in it, a running mean, down to
+// this share, so that the clouds still follow the light as it moves less than LIGHT_TIME's
 const CLOUD_SCALE = 0.25;
-// voxels along each side of the noise, CloudsDensity.glsl's NOISE_VOXELS
+const LEAST_FRESH = 0.2;
+const BAYER = [0, 10, 2, 8, 5, 15, 7, 13, 1, 11, 3, 9, 4, 14, 6, 12].map((i) => new Cartesian2(i % 4, Math.floor(i / 4)));
+// voxels along each side of the noise and of its finest details, CloudsDensity.glsl's
+// NOISE_VOXELS and DETAIL_VOXELS
 const NOISE_SIZE = 64;
-// the share of the previous frames in each frame's clouds, about 10 frames' worth (Hillaire 2016,
-// sec. 5.5.3, blends 0.1 of the current one)
-const HISTORY_WEIGHT = 0.9;
-// after the camera, the clock or the map changes, the scene renders this long, in milliseconds, at
-// this frame rate, for the accumulation to settle, also in requestRenderMode
-const SETTLE_TIME = 500;
+const DETAIL_VOXELS = 32;
+// after the camera, the light or the clouds change, the scene renders this long, in milliseconds, at
+// this frame rate, for the accumulation to settle, also in requestRenderMode: four rounds of the 16
+// pixels of each block, four samples of each pixel
+const SETTLE_TIME = 2000;
 const SETTLE_RATE = 30;
-// with a drift, the clouds move all the time: the scene renders at this frame rate while they are
-// active, also in requestRenderMode
-const DRIFT_RATE = 30;
+// the clock changes the clouds only through their light, the sun's or the moon's direction, which
+// moves about a quarter of a degree in this many seconds: a clock playing at its own pace changes
+// nothing between frames, a change of more than this does. Likewise a crossfade played with it, as
+// the weather demo plays an hour's, moves the map's blend a little at each frame, which the
+// running mean follows: a change of the blend by this much or more starts the accumulation over
+const LIGHT_TIME = 60;
+const BLEND_STEP = 1 / 60;
 // the shadow map: its texels across, over a square centered on the ground point under the camera,
 // this many times as wide as the camera is high, between these sides, in meters, so that it covers
 // the view from high above; drawn again once that point moves a 40th of it, its side changes by a
-// quarter, or the clock or the clouds change, rather than at each frame
+// quarter, the light or the clouds change, rather than at each frame
 const SHADOW_SIZE = 512;
 const SHADOW_SPREAD = 4;
 const SHADOW_EXTENTS = [80000, 800000];
@@ -67,18 +76,24 @@ void main() {
   out_FragColor = texture(source, v_textureCoordinates);
 }
 `;
-// the clouds over the lightest rain are this thick, in meters, CloudsDensity.glsl's THIN_DEPTH
+// the clouds over the lightest rain are this thick, in meters, and their base and top swing by
+// these, CloudsDensity.glsl's THIN_DEPTH, BASE_SWING, BASE_DROP and TOP_SWING
 const THIN_DEPTH = 1500;
-// the wind's offset of the noise wraps at this many meters, a period of its tile, CloudsMarch.glsl's
-// NOISE_TILE, and of its larger lookup, the tile over LARGE_SCALE (0.27): single precision would
-// lose the offset after days of wind
-const WIND_PERIOD = 100 * 16000;
+const BASE_SWING = 300;
+const BASE_DROP = 250;
+const TOP_SWING = 0.3;
 
 /**
  * The noise's voxels, made once for all the clouds of the page: about a third of a second.
  * @type {Uint8Array | undefined}
  */
 let noise;
+
+/**
+ * The finest details' voxels, made once for all the clouds of the page.
+ * @type {Uint8Array | undefined}
+ */
+let detail;
 
 /**
  * The noise over the clouds' map, made once for all the clouds of the page.
@@ -92,32 +107,25 @@ const MAP_NOISE_SIZE = 256;
 const groundScratch = new Cartesian3();
 
 /**
- * Clouds from a map of the rain: a slab above the cloud base where the map
- * has rain, a flat layer over drizzle and towers up to the cloud top over the
- * heaviest rain, eroded by noise, lit by the sun with a silver lining toward
- * it and by the sky, brighter at their top. Seen from far above they are
- * cloud tops; the camera flies into them as it comes down. Activated before
- * Precipitation, the rain, its shafts and its haze are drawn over them, so
- * from below the cloud base they are seen through the rain. They are
- * raymarched at a quarter of
- * the resolution, accumulated over the frames, and upscaled by the scene's
- * depth. Their noise drifts with the wind by the scene's clock, and with a
- * drift by the real time; after a change, the scene renders for half a second
- * for them to settle, then rests, unless they drift.
+ * Clouds from a map of the rain: a slab about the cloud base where the map
+ * has rain, a deck over drizzle and towers up to the cloud top over the
+ * heaviest rain, their bases and tops uneven, eroded by noise, lit by the sun
+ * with a silver lining toward it, or the moon at night, and by the sky,
+ * brighter at their top. Seen from far above they are cloud tops; the camera
+ * flies into them as it comes down. Activated before Precipitation, the rain,
+ * its shafts and its haze are drawn over them, so from below the cloud base
+ * they are seen through the rain. One pixel of each block of 4 x 4 is
+ * raymarched at each frame, and the full resolution built from them over the
+ * frames. After a change, the scene renders for two seconds for them to
+ * settle, then rests.
  * Without a map, there are no clouds.
  */
 export default class Clouds extends Effect {
   #cloudBase;
   #cloudTop;
   #density;
-  #wind;
-  #drift;
   // without a map, no clouds
   #weatherMap = new WeatherMap(0);
-  // the wind's direction for the map's rectangle it was computed for
-  /** @type {Rectangle | undefined} */
-  #windRectangle = undefined;
-  #windVector;
   /** @type {WeatherMapOptions | undefined} */
   #map;
   /** @type {WeatherMapOptions | undefined} */
@@ -128,10 +136,15 @@ export default class Clouds extends Effect {
   /** @type {any} */
   #noiseTexture = undefined;
   /** @type {any} */
+  #detailTexture = undefined;
+  /** @type {any} */
   #mapNoiseTexture = undefined;
-  // the accumulation over the frames: the frames drawn, the previous frames' clouds, their share,
-  // the previous frame's view and projection, and what makes the scene render until it settles
+  // the accumulation over the frames: the frames drawn, the previous frames' clouds, whether they
+  // are to be taken, the previous frame's view and projection, and what makes the scene render
+  // until it settles
   #frame = 0;
+  // the frames since the camera, the light or the clouds last changed
+  #stillFrames = 0;
   /** @type {any} */
   #history = undefined;
   /** @type {any} */
@@ -140,12 +153,17 @@ export default class Clouds extends Effect {
   #copy = undefined;
   /** @type {any} */
   #copySource = undefined;
-  #historyWeight = 0;
+  // whether the history is to be taken: not before one is kept, nor after another map's clouds
+  #historyValid = false;
+  #sceneSize = new Cartesian2();
   #previousViewProjection = new Matrix4();
   #reprojection = new Matrix4();
   #lastView = new Matrix4();
-  #lastTime;
+  /** @type {JulianDate | undefined} */
+  #lastTime = undefined;
   #changed = false;
+  // the map's blend when the accumulation last started over for it
+  #settledBlend = 0;
   #settling = false;
   #settleUntil = 0;
   // the shadow map, its ground point and time, and whether the clouds changed since it was drawn
@@ -157,7 +175,8 @@ export default class Clouds extends Effect {
   #shadowCommand = undefined;
   #shadowCenter = new Cartesian3();
   #shadowExtent;
-  #shadowTime;
+  /** @type {JulianDate | undefined} */
+  #shadowTime = undefined;
   #shadowDrawnAt;
   #shadowChanged = true;
   /** @type {CloudShadow} */
@@ -167,7 +186,7 @@ export default class Clouds extends Effect {
 
   /**
    * @param {CesiumWidget} viewer
-   * @param {{name?: string, map?: WeatherMapOptions, cloudBase?: number, cloudTop?: number, density?: number, wind?: number, drift?: number}} [options]
+   * @param {{name?: string, map?: WeatherMapOptions, cloudBase?: number, cloudTop?: number, density?: number}} [options]
    */
   constructor(viewer, options = {}) {
     super(viewer, options);
@@ -175,29 +194,25 @@ export default class Clouds extends Effect {
     this.#cloudBase = options.cloudBase ?? 2500;
     this.#cloudTop = options.cloudTop ?? 9000;
     this.#density = options.density ?? 1;
-    this.#wind = options.wind ?? 10;
-    this.#drift = options.drift ?? 0;
-    this.#windVector = Cartesian3.ZERO;
     // the maps of the rain, from which the clouds' maps are made
     this.#map = options.map;
     this.#weatherMap.map = options.map && createCloudMap(options.map);
-    this.#lastTime = {dayNumber: 0, secondsOfDay: 0};
     this.#shadowExtent = SHADOW_EXTENTS[0];
-    this.#shadowTime = {dayNumber: 0, secondsOfDay: 0};
     this.#shadowDrawnAt = -Infinity;
     // for Precipitation, which lights its haze through it
-    this.#shadowSource = {texture: () => this.#shadow, center: this.#shadowCenter, extent: () => this.#shadowExtent, base: () => this.#cloudBase, top: () => this.#slabTop()};
+    this.#shadowSource = {texture: () => this.#shadow, center: this.#shadowCenter, extent: () => this.#shadowExtent, base: () => this.#slabBottom(), top: () => this.#slabTop()};
     this.#onPreRender = () => {
       const {camera} = this.viewer.scene;
       this.#drawShadow(this.viewer.scene);
       const {longitude, latitude, height} = camera.positionCartographic;
-      const inside = height >= this.#cloudBase && height <= this.#cloudTop;
+      const inside = height >= this.#slabBottom() && height <= this.#slabTop();
       this.#localDensity = inside ? this.#weatherMap.intensityAt(longitude, latitude) : 0;
       const time = this.viewer.clock.currentTime;
-      if (this.#changed || !Matrix4.equals(camera.viewMatrix, this.#lastView) || time.dayNumber !== this.#lastTime.dayNumber || time.secondsOfDay !== this.#lastTime.secondsOfDay) {
+      if (this.#changed || !Matrix4.equals(camera.viewMatrix, this.#lastView) || !JulianDate.equalsEpsilon(time, this.#lastTime, LIGHT_TIME)) {
         this.#changed = false;
+        this.#stillFrames = 0;
         Matrix4.clone(camera.viewMatrix, this.#lastView);
-        this.#lastTime = {dayNumber: time.dayNumber, secondsOfDay: time.secondsOfDay};
+        this.#lastTime = JulianDate.clone(time, this.#lastTime);
         this.#settleUntil = Date.now() + SETTLE_TIME;
         if (!this.#settling) {
           this.#settling = true;
@@ -209,7 +224,9 @@ export default class Clouds extends Effect {
       const {scene} = this.viewer;
       this.#keepHistory(scene);
       Matrix4.multiply(scene.camera.frustum.projectionMatrix, scene.camera.viewMatrix, this.#previousViewProjection);
+      // a whole number of rounds of the blocks' pixels
       this.#frame = (this.#frame + 1) % 1024;
+      this.#stillFrames++;
       if (this.#settling && Date.now() > this.#settleUntil) {
         this.#settling = false;
         releaseFrames(scene, SETTLE_RATE);
@@ -223,61 +240,50 @@ export default class Clouds extends Effect {
    * @param {Scene} scene
    */
   createStage_(scene) {
-    // the farthest depth of each block of pixels of the march, at its resolution
-    const depth = new PostProcessStage({
-      fragmentShader: EyeFromDepth + CloudsDepth,
-      textureScale: CLOUD_SCALE,
-      pixelDatatype: PixelDatatype.FLOAT,
-    });
+    const frameOffset = () => BAYER[this.#frame % BAYER.length];
+    // its texture of 32-bit floats holds the light, the transmittance and the distance packed
     const march = new PostProcessStage({
-      fragmentShader: EyeFromDepth + Height + CloudsSlab + WeatherMapShader + CloudsDensity + CloudsShadow + Fog + Phase + RainHaze + CloudsMarch,
+      fragmentShader: EyeFromDepth + Hash + Height + CloudsSlab + WeatherMapShader + CloudsDensity + CloudsShadow + Fog + Phase + CloudLight + RainHaze + CloudsMarch,
       uniforms: {
         ...this.#slabUniforms(scene),
         // @ts-expect-error the scene's context is not typed
         ...this.#densityUniforms(scene.context),
         ...this.#shadowUniforms(scene),
-        cloudDepth: depth.name,
         // @ts-expect-error the scene's context is not typed
         maxMap: () => this.#weatherMap.maxTexture(scene.context),
         frame: () => this.#frame,
+        frameOffset,
+        sceneSize: () => Cartesian2.fromElements(scene.drawingBufferWidth, scene.drawingBufferHeight, this.#sceneSize),
         skyLightIntensity: () => scene.skyAtmosphere?.atmosphereLightIntensity ?? 50,
       },
       textureScale: CLOUD_SCALE,
+      pixelDatatype: PixelDatatype.FLOAT,
     });
-    // accumulated over the frames
+    // at the full resolution, built over the frames
     const resolve = new PostProcessStage({
       fragmentShader: EyeFromDepth + Height + CloudsSlab + CloudsResolve,
       uniforms: {
         ...this.#slabUniforms(scene),
-        cloudDepth: depth.name,
         cloudTexture: march.name,
         // @ts-expect-error the scene's context is not typed
         historyTexture: () => this.#history ?? scene.context.defaultTexture,
         reprojection: () => Matrix4.multiply(this.#previousViewProjection, scene.camera.inverseViewMatrix, this.#reprojection),
-        historyWeight: () => (this.#history ? this.#historyWeight : 0),
+        hasHistory: () => this.#historyValid,
+        frameOffset,
+        fresh: () => Math.max(1 / (1 + Math.floor(this.#stillFrames / BAYER.length)), LEAST_FRESH),
       },
-      textureScale: CLOUD_SCALE,
       pixelDatatype: PixelDatatype.HALF_FLOAT,
-    });
-    // blurred at the same resolution
-    const blurred = new PostProcessStage({
-      fragmentShader: CloudsBlur,
-      uniforms: {cloudTexture: resolve.name, cloudDepth: depth.name},
-      textureScale: CLOUD_SCALE,
     });
     return new PostProcessStageComposite({
       ...this.named_,
       stages: [
-        depth,
         march,
         resolve,
-        blurred,
         new PostProcessStage({
           fragmentShader: EyeFromDepth + CloudsShadow + CloudsComposite,
           uniforms: {
             ...this.#shadowUniforms(scene),
-            cloudTexture: blurred.name,
-            cloudDepth: depth.name,
+            cloudTexture: resolve.name,
           },
         }),
       ],
@@ -294,40 +300,15 @@ export default class Clouds extends Effect {
   #slabTop() {
     // the clouds' map's tallest type, in blue
     const type = this.#weatherMap.maxValues[2];
-    return this.#cloudBase + THIN_DEPTH + (this.#cloudTop - this.#cloudBase - THIN_DEPTH) * type;
+    return this.#cloudBase + (THIN_DEPTH + (this.#cloudTop - this.#cloudBase - THIN_DEPTH) * type) * (1 + TOP_SWING);
   }
 
   /**
-   * The direction the wind blows toward, in world coordinates: the east at the map's center, fixed
-   * for the map rather than turning with the camera, which would shift the drifted noise.
+   * The lowest a cloud's base goes, as CloudsDensity.glsl's cloudDensity lowers it: where the base
+   * swings down, under the heaviest rain.
    */
-  #windDirection() {
-    const rectangle = this.#weatherMap.map?.rectangle;
-    if (!rectangle) {
-      return Cartesian3.ZERO;
-    }
-    // computed again only for another map's rectangle: it is read by every stage on every frame
-    if (rectangle !== this.#windRectangle) {
-      this.#windRectangle = rectangle;
-      const up = Ellipsoid.WGS84.geodeticSurfaceNormalCartographic(Rectangle.center(rectangle));
-      this.#windVector = Cartesian3.normalize(Cartesian3.cross(Cartesian3.UNIT_Z, up, new Cartesian3()), new Cartesian3());
-    }
-    return this.#windVector;
-  }
-
-  /**
-   * How far the wind has carried the noise by the scene's clock, still while it is paused, and the
-   * drift by the real time, in world coordinates, in double precision and wrapped at WIND_PERIOD.
-   * @param {number} [seconds] the real time
-   */
-  #windOffset(seconds = performance.now() / 1000) {
-    const {dayNumber, secondsOfDay} = this.viewer.clock.currentTime;
-    const distance = this.#wind * (dayNumber * 86400 + secondsOfDay) + this.#drift * seconds;
-    const offset = Cartesian3.multiplyByScalar(this.#windDirection(), distance, new Cartesian3());
-    offset.x %= WIND_PERIOD;
-    offset.y %= WIND_PERIOD;
-    offset.z %= WIND_PERIOD;
-    return offset;
+  #slabBottom() {
+    return this.#cloudBase - BASE_SWING - BASE_DROP;
   }
 
   /**
@@ -335,7 +316,7 @@ export default class Clouds extends Effect {
    * @param {Scene} scene
    */
   #slabUniforms(scene) {
-    return {...heightUniforms(scene), cloudBase: () => this.#cloudBase, slabTop: () => this.#slabTop()};
+    return {...heightUniforms(scene), cloudBase: () => this.#cloudBase, slabBottom: () => this.#slabBottom(), slabTop: () => this.#slabTop()};
   }
 
   /**
@@ -349,11 +330,10 @@ export default class Clouds extends Effect {
       mapBlend: () => this.#weatherMap.blend,
       mapBounds: () => this.#weatherMap.bounds,
       cloudNoise: () => this.#createNoiseTexture(context),
+      cloudDetail: () => this.#createDetailTexture(context),
       mapNoise: () => this.#createMapNoiseTexture(context),
       cloudTop: () => this.#cloudTop,
       density: () => this.#density,
-      windDirection: () => this.#windDirection(),
-      windOffset: () => this.#windOffset(),
     };
   }
 
@@ -367,7 +347,7 @@ export default class Clouds extends Effect {
       shadowMap: () => this.#shadow ?? scene.context.defaultTexture,
       shadowCenter: () => this.#shadowCenter,
       shadowExtent: () => this.#shadowExtent,
-      shadowBase: () => this.#cloudBase,
+      shadowBase: () => this.#slabBottom(),
       shadowTop: () => this.#slabTop(),
     };
   }
@@ -383,18 +363,15 @@ export default class Clouds extends Effect {
   /**
    * Whether the shadow map, drawn around a ground point at a time, is to be drawn again.
    * @param {Cartesian3} ground the ground point under the camera, in world coordinates
-   * @param {{dayNumber: number, secondsOfDay: number}} time the clock's
+   * @param {JulianDate} time the clock's
    * @param {number} [extent] the side it would have now, in meters
    */
   #shadowStale(ground, time, extent = this.#shadowExtent) {
     return (
       this.#shadowChanged ||
-      time.dayNumber !== this.#shadowTime.dayNumber ||
-      time.secondsOfDay !== this.#shadowTime.secondsOfDay ||
+      !JulianDate.equalsEpsilon(time, this.#shadowTime, LIGHT_TIME) ||
       Cartesian3.distance(ground, this.#shadowCenter) > SHADOW_MOVE * this.#shadowExtent ||
-      Math.abs(extent - this.#shadowExtent) > SHADOW_RESIZE * this.#shadowExtent ||
-      // the drifting clouds, at every frame
-      this.#drift > 0
+      Math.abs(extent - this.#shadowExtent) > SHADOW_RESIZE * this.#shadowExtent
     );
   }
 
@@ -402,7 +379,7 @@ export default class Clouds extends Effect {
    * Whether the shadow map is to be drawn again now: stale, and not drawn in the last
    * SHADOW_INTERVAL.
    * @param {Cartesian3} ground
-   * @param {{dayNumber: number, secondsOfDay: number}} time
+   * @param {JulianDate} time
    * @param {number} now milliseconds
    * @param {number} [extent] the side it would have now, in meters
    */
@@ -412,14 +389,14 @@ export default class Clouds extends Effect {
 
   /**
    * @param {Cartesian3} ground
-   * @param {{dayNumber: number, secondsOfDay: number}} time
+   * @param {JulianDate} time
    * @param {number} [now] milliseconds
    * @param {number} [extent] its side, in meters
    */
   #shadowDrawn(ground, time, now = Date.now(), extent = this.#shadowExtent) {
     Cartesian3.clone(ground, this.#shadowCenter);
     this.#shadowExtent = extent;
-    this.#shadowTime = {dayNumber: time.dayNumber, secondsOfDay: time.secondsOfDay};
+    this.#shadowTime = JulianDate.clone(time, this.#shadowTime);
     this.#shadowDrawnAt = now;
     this.#shadowChanged = false;
   }
@@ -477,7 +454,7 @@ export default class Clouds extends Effect {
    */
   #keepHistory(scene) {
     // @ts-expect-error the collection's output textures are not typed
-    const output = this.stage_ && scene.postProcessStages.getOutputTexture?.(this.stage_.get(2).name);
+    const output = this.stage_ && scene.postProcessStages.getOutputTexture?.(this.stage_.get(1).name);
     if (!output) {
       return;
     }
@@ -487,43 +464,63 @@ export default class Clouds extends Effect {
       this.#destroyHistory();
       this.#history = this.createTexture_({context, width: output.width, height: output.height, pixelDatatype: PixelDatatype.HALF_FLOAT});
       this.#historyFramebuffer = this.createFramebuffer_({context, colorTextures: [this.#history], destroyAttachments: false});
-      this.#historyWeight = 0;
+      this.#historyValid = false;
     }
     this.#copySource = output;
     this.#copy ??= context.createViewportQuadCommand(COPY, {uniformMap: {source: () => this.#copySource}});
     this.#copy.framebuffer = this.#historyFramebuffer;
     this.#copy.renderState = this.renderState_({x: 0, y: 0, width: output.width, height: output.height});
     this.#copy.execute(context);
-    this.#historyWeight = HISTORY_WEIGHT;
+    this.#historyValid = true;
   }
 
   #destroyHistory() {
     this.#historyFramebuffer = this.#historyFramebuffer?.destroy();
     this.#history = this.#history?.destroy();
+    this.#historyValid = false;
   }
 
   /**
-   * The noise's texture, repeating in every direction, with its mipmaps for the far clouds.
+   * The noise's texture.
    * @param {any} context the scene's context
    */
   #createNoiseTexture(context) {
-    if (!this.#noiseTexture) {
-      noise ??= createCloudNoise(NOISE_SIZE);
-      this.#noiseTexture = this.createTexture3D_({
-        context,
-        flipY: false,
-        source: {width: NOISE_SIZE, height: NOISE_SIZE, depth: NOISE_SIZE, arrayBufferView: noise},
-        sampler: new Sampler({
-          wrapS: TextureWrap.REPEAT,
-          wrapT: TextureWrap.REPEAT,
-          wrapR: TextureWrap.REPEAT,
-          minificationFilter: TextureMinificationFilter.LINEAR_MIPMAP_LINEAR,
-          magnificationFilter: TextureMagnificationFilter.LINEAR,
-        }),
-      });
-      this.#noiseTexture.generateMipmap();
-    }
+    noise ??= createCloudNoise(NOISE_SIZE);
+    this.#noiseTexture ??= this.#createRepeating3D(context, NOISE_SIZE, noise);
     return this.#noiseTexture;
+  }
+
+  /**
+   * The finest details' texture.
+   * @param {any} context the scene's context
+   */
+  #createDetailTexture(context) {
+    detail ??= createCloudDetail(DETAIL_VOXELS);
+    this.#detailTexture ??= this.#createRepeating3D(context, DETAIL_VOXELS, detail);
+    return this.#detailTexture;
+  }
+
+  /**
+   * A cube of voxels as a texture repeating in every direction, with its mipmaps for the far clouds.
+   * @param {any} context the scene's context
+   * @param {number} size voxels along each side
+   * @param {Uint8Array} voxels RGBA bytes
+   */
+  #createRepeating3D(context, size, voxels) {
+    const texture = this.createTexture3D_({
+      context,
+      flipY: false,
+      source: {width: size, height: size, depth: size, arrayBufferView: voxels},
+      sampler: new Sampler({
+        wrapS: TextureWrap.REPEAT,
+        wrapT: TextureWrap.REPEAT,
+        wrapR: TextureWrap.REPEAT,
+        minificationFilter: TextureMinificationFilter.LINEAR_MIPMAP_LINEAR,
+        magnificationFilter: TextureMagnificationFilter.LINEAR,
+      }),
+    });
+    texture.generateMipmap();
+    return texture;
   }
 
   /**
@@ -554,9 +551,6 @@ export default class Clouds extends Effect {
    * @param {Scene} scene
    */
   activated_(scene) {
-    if (this.#drift > 0) {
-      acquireFrames(scene, DRIFT_RATE);
-    }
     scene.preRender.addEventListener(this.#onPreRender);
     scene.postRender.addEventListener(this.#onPostRender);
     acquireCloudCover(scene, this.#shadowSource);
@@ -575,15 +569,13 @@ export default class Clouds extends Effect {
       this.#settling = false;
       releaseFrames(scene, SETTLE_RATE);
     }
-    if (this.#drift > 0) {
-      releaseFrames(scene, DRIFT_RATE);
-    }
     this.#destroyHistory();
     this.#destroyShadow();
     this.#copy?.shaderProgram?.destroy();
     this.#copy = undefined;
     this.#weatherMap.destroy();
     this.#noiseTexture = this.#noiseTexture?.destroy();
+    this.#detailTexture = this.#detailTexture?.destroy();
     this.#mapNoiseTexture = this.#mapNoiseTexture?.destroy();
   }
 
@@ -600,9 +592,15 @@ export default class Clouds extends Effect {
   set map(value) {
     this.#map = value;
     this.#weatherMap.map = value && createCloudMap(value);
-    this.#shadowChanged = true;
     // the previous map's clouds would linger
-    this.#historyWeight = 0;
+    this.#historyValid = false;
+    this.#cloudsChanged();
+  }
+
+  // the clouds changed: their shadow map is drawn again, and their accumulation starts over and
+  // settles
+  #cloudsChanged() {
+    this.#shadowChanged = true;
     this.#changed = true;
     this.viewer.scene.requestRender();
   }
@@ -618,8 +616,7 @@ export default class Clouds extends Effect {
   set nextMap(value) {
     this.#nextMap = value;
     this.#weatherMap.nextMap = value && createCloudMap(value);
-    this.#shadowChanged = true;
-    this.viewer.scene.requestRender();
+    this.#cloudsChanged();
   }
 
   /**
@@ -630,9 +627,17 @@ export default class Clouds extends Effect {
   }
 
   set mapBlend(value) {
+    if (value === this.#weatherMap.blend) {
+      return;
+    }
     this.#weatherMap.blend = value;
-    this.#shadowChanged = true;
-    this.viewer.scene.requestRender();
+    if (Math.abs(value - this.#settledBlend) >= BLEND_STEP) {
+      this.#settledBlend = value;
+      this.#cloudsChanged();
+    } else {
+      this.#shadowChanged = true;
+      this.viewer.scene.requestRender();
+    }
   }
 
   /**
@@ -645,8 +650,7 @@ export default class Clouds extends Effect {
 
   set cloudBase(value) {
     this.#cloudBase = value;
-    this.#shadowChanged = true;
-    this.viewer.scene.requestRender();
+    this.#cloudsChanged();
   }
 
   /**
@@ -659,8 +663,7 @@ export default class Clouds extends Effect {
 
   set cloudTop(value) {
     this.#cloudTop = value;
-    this.#shadowChanged = true;
-    this.viewer.scene.requestRender();
+    this.#cloudsChanged();
   }
 
   /**
@@ -672,42 +675,7 @@ export default class Clouds extends Effect {
 
   set density(value) {
     this.#density = value;
-    this.#shadowChanged = true;
-    this.viewer.scene.requestRender();
-  }
-
-  /**
-   * Speed of the wind that carries the clouds' noise toward the east, in m/s,
-   * by the scene's clock: a time-lapse while it runs faster, still while it
-   * is paused.
-   */
-  get wind() {
-    return this.#wind;
-  }
-
-  set wind(value) {
-    this.#wind = value;
-    this.#shadowChanged = true;
-    this.viewer.scene.requestRender();
-  }
-
-  /**
-   * Speed of the drift of the clouds' noise toward the east, in m/s, by the
-   * real time rather than the scene's clock: the clouds move while the clock
-   * is paused, and the scene renders all the time while they are active. 0,
-   * by default, for none.
-   */
-  get drift() {
-    return this.#drift;
-  }
-
-  set drift(value) {
-    const drifting = this.#drift > 0;
-    this.#drift = value;
-    if (this.stage_ && drifting !== value > 0) {
-      (value > 0 ? acquireFrames : releaseFrames)(this.viewer.scene, DRIFT_RATE);
-    }
-    this.viewer.scene.requestRender();
+    this.#cloudsChanged();
   }
 
   /**

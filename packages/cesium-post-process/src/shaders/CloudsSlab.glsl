@@ -1,7 +1,9 @@
 // The slab of the clouds along a view ray, which the march and the resolve share: where the ray's
 // height reaches a height, and the part of the ray in the slab. Needs Height.
-// meters above the ellipsoid
+// meters above the ellipsoid; the slab reaches down to slabBottom, the lowest a cloud's base goes,
+// CloudsDensity.glsl's BASE_SWING and BASE_DROP under it, from clouds.js
 uniform float cloudBase;
+uniform float slabBottom;
 // the top of the tallest cloud the map makes, where the march starts from above, from clouds.js
 uniform float slabTop;
 
@@ -10,6 +12,11 @@ uniform float slabTop;
 // steps longer than the billows and turn the far clouds into streaks; deeper than this into the
 // slab, it is nearly always behind a cloud
 const float MAX_DISTANCE = 40000.0;
+// the march marches one pixel of each block of BLOCK x BLOCK at each frame, clouds.js's
+// CLOUD_SCALE, in rounds of BLOCK x BLOCK frames
+const float BLOCK = 4.0;
+// the sky's distance, past any slab, in meters
+const float BEYOND_SLAB = 1e9;
 
 // where the height along the view ray, at a distance t in direction k = dot(direction, up), reaches
 // c: the height is cameraHeight + k t + (1 - k k) t t / (2 radius), as heightAt's. False if it never
@@ -42,8 +49,8 @@ vec2 slab(float k, float sceneDistance, float top) {
   }
   float start = max(near, 0.0);
   float end = far;
-  if (crossings(cloudBase, k, near, far)) {
-    if (cameraHeight >= cloudBase) {
+  if (crossings(slabBottom, k, near, far)) {
+    if (cameraHeight >= slabBottom) {
       // going down below the base
       if (near > 0.0) {
         end = min(end, near);

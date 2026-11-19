@@ -7,6 +7,7 @@ import Effect from './effect.js';
 import {acquireFrames, releaseFrames} from './frame-clock.js';
 import {heightUniforms} from './height.js';
 import {smoothstep} from './smoothstep.js';
+import CloudLight from './shaders/CloudLight.js';
 import CloudsShadow from './shaders/CloudsShadow.js';
 import EyeFromDepth from './shaders/EyeFromDepth.js';
 import Fog from './shaders/Fog.js';
@@ -215,7 +216,7 @@ export default class Precipitation extends Effect {
     if (!this.#skyTable) {
       this.#skyTable = new Texture({context, width: SKY_TABLE + 1, height: 1});
       this.#skyTableFramebuffer = new Framebuffer({context, colorTextures: [this.#skyTable], destroyAttachments: false});
-      this.#skyTableCommand = context.createViewportQuadCommand(Height + Fog + Phase + RainHaze + SkyTable, {
+      this.#skyTableCommand = context.createViewportQuadCommand(Height + Fog + Phase + CloudLight + RainHaze + SkyTable, {
         framebuffer: this.#skyTableFramebuffer,
         renderState: RenderState.fromCache({viewport: {x: 0, y: 0, width: SKY_TABLE + 1, height: 1}}),
         uniformMap: {
@@ -300,7 +301,7 @@ export default class Precipitation extends Effect {
       snow: () => this.#snow,
     };
     const shafts = new PostProcessStage({
-      fragmentShader: EyeFromDepth + Noise + Height + PrecipitationWind + WeatherMapShader + Fog + Phase + RainHaze + CloudsShadow + PrecipitationShafts,
+      fragmentShader: EyeFromDepth + Noise + Height + PrecipitationWind + WeatherMapShader + Fog + Phase + CloudLight + RainHaze + CloudsShadow + PrecipitationShafts,
       uniforms: {
         ...shared,
         // the shadow map of the clouds in the scene, whose gaps light the haze
@@ -332,7 +333,7 @@ export default class Precipitation extends Effect {
         shafts,
         blurredShafts,
         new PostProcessStage({
-          fragmentShader: EyeFromDepth + Hash + Height + PrecipitationWind + Fog + Phase + RainHaze + PrecipitationShader,
+          fragmentShader: EyeFromDepth + Hash + Height + PrecipitationWind + Fog + Phase + CloudLight + RainHaze + PrecipitationShader,
           uniforms: {
             ...shared,
             shaftTexture: blurredShafts.name,

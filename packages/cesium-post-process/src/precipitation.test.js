@@ -209,7 +209,7 @@ test('the shafts read the shadow map of the clouds in the same scene, and none w
     assert.equal(shafts.uniforms.shadowed(), 1);
     assert.equal(drops.uniforms.shadowed(), 1);
     // the clouds' own shadow, as their last stage reads it
-    const composite = /** @type {any} */ (clouds.stage_).get(4);
+    const composite = /** @type {any} */ (clouds.stage_).get(2);
     assert.equal(shafts.uniforms.shadowCenter(), composite.uniforms.shadowCenter());
     assert.equal(shafts.uniforms.shadowTop(), composite.uniforms.shadowTop());
     clouds.active = false;

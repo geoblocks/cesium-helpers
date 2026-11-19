@@ -1,27 +1,46 @@
-// Clouds from a map of the rain, raymarched at a fraction of the resolution: the light they scatter
-// toward the camera, and the share of the scene still seen through them, along each view ray. They
-// fill a slab above the cloud base where the map has rain: a flat layer over drizzle, towers up to
-// the cloud top over the heaviest rain, with a rounded base and top, shaped by billows of noise
+// Clouds from a map of the rain, raymarched for one pixel of each block of 4 x 4 at each frame, in
+// a texture of a quarter of the resolution, CloudsResolve.glsl building the full resolution from
+// them over the frames: the light they scatter toward the camera, the share of the scene still seen
+// through them, and how far they are, along the pixel's view ray. They
+// fill a slab about the cloud base where the map has rain: a deck over drizzle, towers up to the
+// cloud top over the heaviest rain, their bases and tops uneven, shaped by billows of noise
 // that repeats in world coordinates, read from a texture made once (cloud-noise.js): wispy over
 // light rain and solid over heavy rain, with details eroding their edges, not their cores. The sun lights them through a few
 // samples toward it, with a silver lining toward it, its light scattered more than once brightening
 // their cores, and the sky lights them, brighter at their top; the light on their top reaches
 // their lower parts scattered many times, through as much cloud as the shadow map finds above
 // them: an overcast is gray from below, lighter under its thin parts, and white from above. The steps are short near the camera and longer with the distance, so
-// a camera inside a cloud is in its fog. Precipitation, activated after them, draws the rain's haze
-// over them. Needs EyeFromDepth, Height, CloudsSlab, WeatherMap, CloudsDensity, CloudsShadow, Fog,
-// Phase and RainHaze.
+// a camera inside a cloud is in its fog; across the empty air they are four times as long, and short
+// again in the clouds, lit only there. Precipitation, activated after them, draws the rain's haze
+// over them. Needs EyeFromDepth, Hash, Height, CloudsSlab, WeatherMap, CloudsDensity, CloudsShadow,
+// Fog, Phase, CloudLight and RainHaze.
 precision highp sampler2D;
 uniform sampler2D depthTexture;
-// the farthest distance of the scene in this texel's block of pixels, from CloudsDepth.glsl
-uniform sampler2D cloudDepth;
 // the highest rain around each block of the map's pixels, over both maps, from weather-map.js
 uniform sampler2D maxMap;
-// the frames drawn, for the jitter to change at each, and CloudsResolve.glsl to accumulate them
+// the frames drawn, for the jitter to change at each of a pixel's marches
 uniform float frame;
-in vec2 v_textureCoordinates;
+// the pixel of each block of 4 x 4 marched this frame, and the scene's size in pixels, from
+// clouds.js
+uniform vec2 frameOffset;
+uniform vec2 sceneSize;
 
-const int STEPS = 32;
+// the ray's samples: FINE_STEPS of them from its start to its end, closer near the camera; across
+// the empty air a coarse step spans COARSE of them, and where it finds a cloud the march steps
+// back to the last empty one and goes on fine, lighting each sample, until EMPTY fine samples in a
+// row find none (the cheap and the expensive samples of Schneider 2015): the steps in the clouds
+// are short, for their edges to be sharp, and the empty air costs a sample every COARSE. At most
+// MAX_SAMPLES, the fine steps and a few steps back: a ray through a long, thin cloud is marched to
+// its end
+const int FINE_STEPS = 64;
+const int COARSE = 4;
+const int EMPTY = 4;
+const int MAX_SAMPLES = 72;
+// the clouds fade out over the last part of the march, past this share of MAX_DISTANCE from where
+// the ray enters the slab, so that its end is not an edge
+const float FAR_FADE = 0.6;
+// below this transmittance, the samples are lit from the shadow map alone
+const float CHEAP_LIGHT = 0.8;
 // the ray is probed at this many points of the max map before its march, less than a block of it
 // apart over MAX_DISTANCE, 5 km for the 4 km blocks of a 1 km map: the march starts where the ray
 // drops below the tallest cloud they find, and is skipped where they find no rain, rather than
@@ -37,10 +56,6 @@ const vec2 LIGHT_DISTANCES = vec2(200.0, 700.0);
 const vec3 AMBIENT_BASE = vec3(0.32, 0.35, 0.40);
 const vec3 AMBIENT_TOP = vec3(0.62, 0.66, 0.72);
 const float HIGH_SUN = 0.5;
-// the sky's color on the clouds' tops is desaturated toward its gray, keeping this share of it: in
-// full, its hue turns the tops sky blue, where the sun's white light dominates them (Hillaire 2016,
-// sec. 5.5.1, lets artists desaturate the sky's light)
-const float SKY_SATURATION = 0.3;
 // the sky's light inside a cloud is occluded by its dimensional profile, its height profile times
 // its coverage, pow(1 - dimensional_profile, 0.5) (Schneider 2022): bright at its edges and top,
 // dark in its core; and by the lack of light from below at its base, in the share of its column's height
@@ -48,8 +63,7 @@ const float SKY_SATURATION = 0.3;
 const vec2 DARK_BASE = vec2(0.07, 0.14);
 // the clouds over the heaviest rain absorb this share of the light they intercept, for the
 // "foreboding dark clouds" of Horizon Zero Dawn (Schneider 2015)
-const float RAIN_ALBEDO = 0.8;
-const float SUN = 0.8;
+const float RAIN_ALBEDO = 0.6;
 // the sun's light scattered more than once, as octaves of the light scattered once (Wrenninge's,
 // Hillaire 2016, sec. 5.8, eq. 19-20): octave n has a^n of the scattering, b^n of the extinction and
 // c^n of the phase's eccentricity, so it reaches deeper into the cloud, more alike in all
@@ -59,29 +73,46 @@ const int OCTAVES = 2;
 const float OCTAVE_SCATTERING = 0.5;
 const float OCTAVE_EXTINCTION = 0.5;
 const float OCTAVE_ECCENTRICITY = 0.5;
+// the silver lining: a narrow lobe toward the sun, the larger of it and the broad phase, this
+// eccentric and this strong, max(HG(g), silver_intensity HG(0.99 - silver_spread)) (Schneider 2015):
+// thin edges near the sun glow, where the broad lobe's 0.6 lights them a tenth as much
+const float SILVER_G = 0.87;
+const float SILVER = 0.35;
 // the light on the top of the cloud above a point that reaches it scattered many times, which the
 // few samples toward the sun miss and which makes an overcast gray rather than black from below:
-// the transmission of a layer of optical depth tau that scatters without absorbing, in the
-// two-stream (Eddington) approximation, 1 / (1 + 0.75 (1 - g) tau), less the direct beam
-// that the samples toward the sun carry, exp(-tau / mu) along its slanted path, the sun mu high. The asymmetry of the light the droplets of a
-// cloud scatter, about 0.85 in the visible
-const float CLOUD_ASYMMETRY = 0.85;
+// CloudLight.glsl's twoStream, less the direct beam that the samples toward the sun carry,
+// exp(-tau / mu) along its slanted path, the sun mu high
 const vec3 MOONLIGHT = vec3(0.60, 0.63, 0.70);
+// at night, the moon lights them from its direction, this much of the sun's light, in the moonlight's
+// tint, as it rises above the horizon: by day the sun is their one light, at night the moon
+const float MOON = 0.1;
 
 // Henyey-Greenstein's phase function, times 4 pi: 1 for light scattered alike in all directions
 float phase(float cosTheta, float g) {
   return 4.0 * czm_pi * henyeyGreenstein(cosTheta, g);
 }
 
+// the march's output, in a texture of 32-bit floats read texel by texel: the light's red and green
+// packed as two halves in red, its blue in green, the distance in blue, 0 where the ray meets no
+// slab, and the transmittance in alpha; one output, which a post-process stage has, rather than
+// two. The green half is kept a normal half, at least 2^-14, so that the float the two make is never
+// a denormal a GPU may flush to 0 with the red
+vec4 packCloud(vec3 light, float transmittance, float distance) {
+  return vec4(uintBitsToFloat(packHalf2x16(vec2(light.r, max(light.g, 6.2e-5)))), light.b, distance, transmittance);
+}
+
 void main() {
-  vec4 eye = eyeAt(depthTexture, v_textureCoordinates);
+  // the pixel of the block this texel stands for, marched this frame
+  vec2 pixel = min(BLOCK * floor(gl_FragCoord.xy) + frameOffset, sceneSize - 1.0) + 0.5;
+  vec2 uv = pixel / sceneSize;
+  vec4 eye = eyeAt(depthTexture, uv);
   vec3 direction = normalize(eye.xyz);
-  // the farthest of the texel's pixels, the sky past the slab: the slab ends its rays
-  float sceneDistance = texture(cloudDepth, v_textureCoordinates).r;
+  // the sky past the slab: the slab ends its rays
+  float sceneDistance = eye.w == 0.0 ? BEYOND_SLAB : length(eye.xyz);
   vec2 segment = slab(dot(direction, up), sceneDistance, slabTop);
   float span = segment.y - segment.x;
   if (span <= 0.0) {
-    out_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+    out_FragColor = packCloud(vec3(0.0), 1.0, 0.0);
     return;
   }
   vec3 directionWC = czm_inverseViewRotation * direction;
@@ -96,81 +127,119 @@ void main() {
       highest = max(highest, cell.b);
     }
   }
-  segment = slab(dot(direction, up), sceneDistance, cloudBase + mix(THIN_DEPTH, cloudTop - cloudBase, highest));
+  segment = slab(dot(direction, up), sceneDistance, cloudTopFor(highest, 1.0));
   span = segment.y - segment.x;
   if (covered <= 0.0 || span <= 0.0) {
-    out_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+    // no cloud seen: the middle of the segment, where a camera inside the slab still moves past it
+    out_FragColor = packCloud(vec3(0.0), 1.0, 0.5 * (segment.x + segment.y));
     return;
   }
-  vec3 lightWC = czm_inverseViewRotation * czm_lightDirectionEC;
-  // a forward lobe for the silver lining, a weak backward one, for each octave: the sun is a
+  float day = daylight();
+  // the light they are lit by, the sun by day, the moon at night
+  vec3 lightEC = day > 0.0 ? czm_lightDirectionEC : czm_moonDirectionEC;
+  vec3 lightWC = czm_inverseViewRotation * lightEC;
+  // a forward lobe for the silver lining, a weak backward one, for each octave: the light is a
   // direction, the angle is the same along the ray
-  float cosTheta = dot(direction, czm_lightDirectionEC);
+  float cosTheta = dot(direction, lightEC);
   float octaves[OCTAVES];
   float contribution = 1.0;
   float eccentricity = 1.0;
   for (int n = 0; n < OCTAVES; n++) {
-    octaves[n] = contribution * mix(phase(cosTheta, -0.2 * eccentricity), phase(cosTheta, 0.6 * eccentricity), 0.7);
+    octaves[n] = contribution * max(mix(phase(cosTheta, -0.2 * eccentricity), phase(cosTheta, 0.6 * eccentricity), 0.7), SILVER * phase(cosTheta, SILVER_G * eccentricity));
     contribution *= OCTAVE_SCATTERING;
     eccentricity *= OCTAVE_ECCENTRICITY;
   }
-  float day = daylight();
   // the far clouds fade into the sky behind them as Cesium's fog fades the terrain, by its factor at
   // each step's distance: the same aerial perspective on the clouds as on the earth, without which
   // "a visual discrepancy happens at the horizon between clouds and earth" (Hillaire 2016, sec.
   // 5.9.1). The sky toward the view, at least SKY_ELEVATION above the horizon
   vec3 fogColor = skyToward(direction, max(asin(clamp(dot(direction, up), -1.0, 1.0)), SKY_ELEVATION));
-  vec3 sunLight = SUN * czm_lightColor * day;
+  vec3 sun = sunOnClouds();
+  // the moon's light fading in as the sun goes on down after daylight() is 0, so that it does not
+  // pop on at dusk
+  float night = 1.0 - smoothstep(-0.25, -0.1, dot(up, czm_sunDirectionEC));
+  vec3 sunLight = day > 0.0 ? sun * day : MOON * MOONLIGHT * night * smoothstep(0.0, 0.1, dot(up, czm_moonDirectionEC));
   // the sky overhead, and the sunlight from the ground, by day; the moon's at night
   vec3 zenith = clearSkyBelow(cloudBase, czm_inverseViewRotation * up, czm_lightDirectionWC);
-  vec3 skyHue = mix(vec3(1.0), zenith / max(czm_luminance(zenith), 1e-3), SKY_SATURATION);
-  vec3 skyAbove = mix(MOONLIGHT, skyHue, day) * czm_luminance(AMBIENT_TOP);
+  vec3 skyAbove = mix(MOONLIGHT, skyHueOf(zenith), day) * czm_luminance(AMBIENT_TOP);
   vec3 groundBelow = AMBIENT_BASE * mix(MOONLIGHT, czm_lightColor * clamp(dot(up, czm_lightDirectionEC) / HIGH_SUN, 0.0, 1.0), day);
-  // the sun and the clear sky on the top of the clouds, on a level surface: Cesium's sky, in the
-  // tops' desaturated hue, as skyAbove, raised for the tops not to look gray, would light the bases
-  // brighter than the sun does
   float sunHeight = max(dot(up, czm_lightDirectionEC), 0.0);
-  vec3 onTop = sunLight * sunHeight + skyHue * czm_luminance(zenith) * day;
-  // interleaved gradient noise, a different start along the ray for each pixel, and at each frame,
-  // by the golden ratio (Wolfe 2020)
-  // the angle a pixel of this pass covers
-  float pixelAngle = 2.0 / (czm_projection[1][1] * czm_viewport.w);
-  float jitter = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))) + 0.618034 * frame);
+  vec3 onTop = lightOnClouds(zenith, day, sun);
+  // the angle a pixel of the scene covers: the full resolution is built from the marches
+  float pixelAngle = 2.0 / (czm_projection[1][1] * sceneSize.y);
+  // a different start along the ray for each pixel, at random, and at each of its marches, one in
+  // 16 frames, by the golden ratio (Wolfe 2020): interleaved gradient noise's diagonal pattern
+  // would show, each pixel being marched so seldom
+  float jitter = fract(hash(pixel) + 0.618034 * floor(frame / (BLOCK * BLOCK)));
+  // the distance of what the march sees, weighted by the light it hides, for the reprojection
+  float distanceSum = 0.0;
+  float distanceWeight = 0.0;
   vec3 light = vec3(0.0);
   float transmittance = 1.0;
   float rain;
   float column;
   float dimensional;
   float unused;
-  for (int i = 0; i < STEPS; i++) {
-    float s = (float(i) + jitter) / float(STEPS);
+  // the fine step the march is at, whether it goes coarse, the empty fine samples in a row, and the
+  // fine step a coarse one found a cloud at, which it does not go coarse again before
+  int k = 0;
+  bool coarse = true;
+  int empty = 0;
+  int found = 0;
+  for (int i = 0; i < MAX_SAMPLES; i++) {
+    if (k >= FINE_STEPS) {
+      break;
+    }
+    float s = (float(k) + jitter) / float(FINE_STEPS);
     float t = segment.x + span * s * s;
-    float dt = span * (2.0 * s + 1.0 / float(STEPS)) / float(STEPS);
     vec3 pointEC = direction * t;
     float h = heightAt(pointEC);
     vec3 pointWC = czm_viewerPositionWC + directionWC * t;
     float footprint = t * pixelAngle;
-    float sigma = EXTINCTION * cloudDensity(pointWC, h, footprint, rain, column, dimensional);
-    if (sigma <= 0.0) {
+    float density = cloudDensity(pointWC, h, footprint, rain, column, dimensional);
+    if (coarse) {
+      if (density > 0.0) {
+        coarse = false;
+        empty = 0;
+        found = k;
+        k = max(k - COARSE + 1, 0);
+      } else {
+        k += COARSE;
+      }
       continue;
     }
-    // the sun's light through the cloud toward it
+    k++;
+    float sigma = EXTINCTION * density * (1.0 - smoothstep(FAR_FADE, 1.0, (t - segment.x) / MAX_DISTANCE));
+    if (sigma <= 0.0) {
+      empty++;
+      coarse = empty >= EMPTY && k > found;
+      continue;
+    }
+    empty = 0;
+    float dt = span * (2.0 * s + 1.0 / float(FINE_STEPS)) / float(FINE_STEPS);
+    // the light through the cloud toward it; by day, behind cloud that hides a fifth of what is
+    // behind it, from the shadow map alone, whose light reaches the eye dimmed by it (the cheap
+    // light samples of Schneider 2015, there past a transmittance of 0.7: alike to the eye, and
+    // cheaper). The shadow map is the sun's: by the moon, the samples alone
+    bool cheap = day > 0.0 && transmittance <= CHEAP_LIGHT;
     float opticalDepth = 0.0;
     float previous = 0.0;
-    for (int j = 0; j < 2; j++) {
+    for (int j = 0; j < (cheap ? 0 : 2); j++) {
       // jittered as the step, for the samples of neighboring pixels not to band (Hillaire 2016,
-      // sec. 5.5.2)
+      // sec. 5.5.2); without the finest details, which a ray 200 m long toward the light does not see
       float distanceToward = LIGHT_DISTANCES[j] * (0.75 + 0.5 * jitter);
-      opticalDepth += EXTINCTION * cloudDensity(pointWC + lightWC * distanceToward, heightAt(pointEC + czm_lightDirectionEC * distanceToward), footprint, unused, unused, unused) * (distanceToward - previous);
+      opticalDepth += EXTINCTION * cloudDensity(pointWC + lightWC * distanceToward, heightAt(pointEC + lightEC * distanceToward), max(footprint, FINE_FOOTPRINT.x), unused, unused, unused) * (distanceToward - previous);
       previous = distanceToward;
     }
     // the samples reach 700 m toward the sun, a fifth of the way through a deck 1500 m thick under a
     // sun 23 degrees high: the shadow map has the whole way, so where the samples find a thin spot
     // deep in the cloud the sun does not shine through it. Its texels and its four depths are too
     // coarse for the billows near the top of a column, which the samples alone light
-    float shadowed = shadowDepth(pointWC);
+    float shadowed = day > 0.0 ? shadowDepth(pointWC) : 0.0;
     float deep = 1.0 - clamp(column, 0.0, 1.0);
-    opticalDepth = max(opticalDepth, shadowed * deep);
+    // without the samples, the cloud at the point taken to go on toward the light as far as they
+    // reach, so that the top of a column, where the shadow map is not read, is not in full sun
+    opticalDepth = max(cheap ? sigma * LIGHT_DISTANCES.x : opticalDepth, shadowed * deep);
     float sunThrough = 0.0;
     float occlusion = 1.0;
     for (int n = 0; n < OCTAVES; n++) {
@@ -184,17 +253,20 @@ void main() {
     // toward its top the samples toward the sun and their octaves already carry the light
     // scattered there
     float tau = shadowed * sunHeight;
-    float diffuse = (1.0 / (1.0 + 0.75 * (1.0 - CLOUD_ASYMMETRY) * tau) - exp(-shadowed)) * deep;
+    float diffuse = (twoStream(tau) - exp(-shadowed)) * deep;
     vec3 scattered = sunLight * sunThrough + mix(groundBelow, skyAbove, y) * ambientOcclusion + onTop * diffuse;
     float stepTransmittance = exp(-sigma * dt);
     // the light scattered over the step, the integral of the source over it, (S - S T) / sigma_t
     // (Hillaire 2016, eq. 17): the albedo, sigma_s / sigma_t, of what the step intercepts
     vec3 seen = czm_fog(t, scattered * mix(1.0, RAIN_ALBEDO, rain), fogColor, czm_fogVisualDensityScalar);
     light += transmittance * seen * (1.0 - stepTransmittance);
+    distanceSum += t * transmittance * (1.0 - stepTransmittance);
+    distanceWeight += transmittance * (1.0 - stepTransmittance);
     transmittance *= stepTransmittance;
     if (transmittance < 0.03) {
       break;
     }
   }
-  out_FragColor = vec4(min(light, vec3(1.0)), transmittance);
+  // without a cloud seen, where the ray enters the slab, near what is seen of it from outside
+  out_FragColor = packCloud(min(light, vec3(1.0)), transmittance, distanceWeight > 1e-4 ? distanceSum / distanceWeight : 0.5 * (segment.x + segment.y));
 }

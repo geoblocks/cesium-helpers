@@ -34,10 +34,7 @@ createViewer('cesiumContainer').then(viewer => {
   });
 
   // in the order of the stages: the clouds, the rain in front of them, then the lightning
-  // the clock plays an hour every FRAME_DURATION, about 5000 times as fast: a slow drift of the
-  // clouds' billows rather than 36 km at each hour; and they drift in real time too, as a
-  // strong wind at their height would carry them, also while the clock is paused
-  const clouds = new Clouds(viewer, {wind: 0.05, drift: 15});
+  const clouds = new Clouds(viewer);
   // the radar's map alone says how hard it rains, at the camera and along each view
   const precipitation = new Precipitation(viewer, {intensity: 1});
   // striking once it has a map, which says where: within 30 km from the ground, farther from higher up

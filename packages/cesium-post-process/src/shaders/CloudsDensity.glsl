@@ -1,30 +1,38 @@
 // The clouds' density at a point, which the march and the shadow map share: as tall and as solid
-// as the rain under it is heavy, shaped by billows of noise that drift with the wind. Needs
+// as the rain under it is heavy, shaped by billows of noise. Needs
 // CloudsSlab and WeatherMap.
 // the noise: the billows of the base shape in red, the details in green and blue
 precision highp sampler2D;
 uniform highp sampler3D cloudNoise;
+// the finest details, a smaller cube that repeats every DETAIL_TILE, from cloud-noise.js
+uniform highp sampler3D cloudDetail;
 // the noise over the clouds' map, a square that repeats, from cloud-noise.js
 uniform sampler2D mapNoise;
 // meters above the ellipsoid
 uniform float cloudTop;
-// the direction the wind blows toward, and how far it has carried the noise, in world coordinates
-uniform vec3 windDirection;
-uniform vec3 windOffset;
 // scale of the opacity
 uniform float density;
 
 // the clouds over the lightest rain are this thick, in meters, clouds.js's THIN_DEPTH
 const float THIN_DEPTH = 1500.0;
-// the clouds' base is flat, reaching their full density over this share of their height,
-// remap(h, 0, 0.05, 0, 1): the lifting condensation level is about the same across an air mass; the
-// deck is full up to this share of its height, then thins out to its top; towers thin out all the
-// way up, in the convective envelope pow(1 - h, 1.5) (Schneider 2022); and spread an anvil from
+// the clouds reach their full density over this share of their height from their base, a band the
+// noise carves into an uneven underside; the lifting condensation level is about the same across
+// an air mass, but no air mass is uniform: the base of each column rises and falls by this many
+// meters with a noise over 2 km, and the rain lowers it by up to this many meters under the
+// heaviest, where the air below is moist (clouds.js's BASE_SWING and BASE_DROP). The deck is full
+// up to this share of its height, then thins out to its top, the top of each column rising and
+// falling by this share of its depth with the coverage's noise over 8 km, higher where the clouds
+// are fuller (clouds.js's TOP_SWING): neither end is one flat plane. A wider band at the base and a
+// thinner full deck open holes to the ground in the decks over heavy rain. Towers thin out all the
+// way up, in the convective envelope pow(1 - h, 1.5) (Schneider 2022), and spread an anvil from
 // this share of their height to this one, their coverage raised to a power from 1 to this one,
-// pow(coverage, remap(h, 0.7, 0.8, 1, lerp(1, 0.5, anvil_bias))) (Schneider 2017). The report
-// gives these as starting points, not from a source it could check
-const float FLAT_BASE = 0.05;
-const float DECK_TOP = 0.65;
+// pow(coverage, remap(h, 0.7, 0.8, 1, lerp(1, 0.5, anvil_bias))) (Schneider 2017). Tuned by eye on
+// the weather demo, not from a source
+const float FLAT_BASE = 0.12;
+const float BASE_SWING = 300.0;
+const float BASE_DROP = 250.0;
+const float DECK_TOP = 0.55;
+const float TOP_SWING = 0.3;
 const float TOWER_ENVELOPE = 1.5;
 const vec3 ANVIL = vec3(0.7, 0.8, 0.5);
 // the cloud shield over dry ground is broken: its coverage is this share of the clouds' over the
@@ -40,12 +48,20 @@ const float MAP_JITTER = 0.3;
 const float COVERAGE_NOISE = 0.4;
 const float MAP_TILE_CELLS = 64.0;
 
-// the clouds' map at a point in world coordinates, jittered, its coverage varied, 0 outside the map
-vec4 cloudMapAt(vec3 positionWC) {
+// the top of a column of clouds of a type, 0 to 1, its top swinging by -1 to 1, in meters above the
+// ellipsoid: a deck THIN_DEPTH thick over drizzle to towers up to the cloud top over heavy rain
+float cloudTopFor(float type, float swing) {
+  return cloudBase + mix(THIN_DEPTH, cloudTop - cloudBase, type) * (1.0 + TOP_SWING * swing);
+}
+
+// the clouds' map at a point in world coordinates, jittered, its coverage varied, 0 outside the map;
+// and how far its base and its top swing, -1 to 1
+vec4 cloudMapAt(vec3 positionWC, out vec2 swing) {
   vec2 cells = vec2(textureSize(map, 0));
   vec2 uv = mapUv(positionWC);
-  // the jitter in red and green, the coverage's variation in blue, -1 to 1
-  vec3 noise = texture(mapNoise, uv * cells / MAP_TILE_CELLS).rgb * 2.0 - 1.0;
+  // the jitter in red and green, the coverage's variation in blue, the base's in alpha, -1 to 1
+  vec4 noise = texture(mapNoise, uv * cells / MAP_TILE_CELLS) * 2.0 - 1.0;
+  swing = noise.ab;
   uv += MAP_JITTER * noise.rg / cells;
   if (any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0)))) {
     return vec4(0.0);
@@ -64,16 +80,21 @@ const float DETAIL_SIZE = 1000.0;
 // the scale of the larger lookup of the noise, not a fraction that would line its tiles up
 const float LARGE_SCALE = 0.27;
 // the noise is read this many mipmaps blurrier than a pixel's footprint: its features then span a
-// few pixels of the pass, rather than one that the upscale would turn into a square
+// few pixels, rather than one, which each pixel's few samples would leave grainy
 const float LOD_BIAS = 1.5;
-// the clouds lean downwind by this many meters from the base to the top of the slab,
-// p += height_fraction * wind_direction * 500 (Schneider 2017)
-const float WIND_SKEW = 500.0;
 // how much the details erode the thin edges of the clouds
 const float EROSION = 0.6;
 // the details are wisps at the base of a cloud, billows above this share of its height: inverted
 // Worley noise at the base for "some nice whispy shapes" (Schneider 2015)
 const float WISPY_BASE = 0.3;
+// the finest details repeat every this many meters, with this many voxels, 62.5 m each (Schneider
+// 2015's detail noise, a 32 voxel cube); they erode the edges by this much more, faded in as a
+// pixel's footprint shrinks from the first size to the second, in meters: larger, sampled once a
+// pixel, they would alias into speckles, and the shadow map's texels never see them
+const float DETAIL_TILE = 2000.0;
+const float DETAIL_VOXELS = 32.0;
+const float FINE_EROSION = 0.5;
+const vec2 FINE_FOOTPRINT = vec2(250.0, 60.0);
 
 // the cloud's density at a point, 0 to the density uniform, from the clouds' map (cloud-map.js):
 // where its shield covers the ground, as tall as its type, a deck over drizzle to towers over heavy
@@ -83,7 +104,8 @@ const float WISPY_BASE = 0.3;
 // alias into speckles
 float cloudDensity(vec3 positionWC, float h, float footprint, out float rain, out float column, out float dimensional) {
   // the rain in red, the shield's coverage in green, the clouds' type in blue
-  vec4 cell = cloudMapAt(positionWC);
+  vec2 swing;
+  vec4 cell = cloudMapAt(positionWC, swing);
   float m = cell.r;
   float type = cell.b;
   rain = m;
@@ -92,8 +114,9 @@ float cloudDensity(vec3 positionWC, float h, float footprint, out float rain, ou
   if (cell.g <= 0.0) {
     return 0.0;
   }
-  float top = cloudBase + mix(THIN_DEPTH, cloudTop - cloudBase, type);
-  float y = (h - cloudBase) / (top - cloudBase);
+  float bottom = cloudBase + BASE_SWING * swing.x - BASE_DROP * m;
+  float top = cloudTopFor(type, swing.y);
+  float y = (h - bottom) / (top - bottom);
   column = y;
   if (y <= 0.0 || y >= 1.0) {
     return 0.0;
@@ -101,10 +124,7 @@ float cloudDensity(vec3 positionWC, float h, float footprint, out float rain, ou
   float base = clamp(y / FLAT_BASE, 0.0, 1.0);
   float profile = base * mix(1.0 - smoothstep(DECK_TOP, 1.0, y), pow(1.0 - y, TOWER_ENVELOPE), type);
   float lod = max(log2(footprint * NOISE_VOXELS / NOISE_TILE) + LOD_BIAS, 0.0);
-  // the noise drifts with the wind and the map does not, so the clouds stay where it rains and
-  // their billows pass through them (Schneider 2017)
-  float slabFraction = clamp((h - cloudBase) / (cloudTop - cloudBase), 0.0, 1.0);
-  vec3 q = (positionWC - windOffset - WIND_SKEW * slabFraction * windDirection) / NOISE_TILE;
+  vec3 q = positionWC / NOISE_TILE;
   vec4 noise = textureLod(cloudNoise, fract(q), lod);
   // the same noise about four times larger, its axes swapped, breaks up the repetition of the tile,
   // which far views would show as a grid
@@ -116,14 +136,22 @@ float cloudDensity(vec3 positionWC, float h, float footprint, out float rain, ou
   // the profile times the coverage carves the noise rather than scaling it,
   // saturate(noise - (1 - dimensional_profile)) (Schneider 2022): the core stays solid, and only
   // the noise's highest billows reach the top and the base. Ramped up over a softness rather than
-  // sharpened by a power as in Nubis Cubed (Schneider 2023): with 250 m voxels, a sharp edge
-  // follows their interpolation in a grid. The edges soften as the pixels grow, which would
-  // otherwise cut them in steps of the pass's resolution
-  float soft = 0.15 + 0.35 * clamp(footprint / 2000.0, 0.0, 1.0);
+  // sharpened by a power as in Nubis Cubed (Schneider 2023): a sharper edge than this, between two
+  // of the march's fine steps, shows as contour lines along it. The edges soften as the pixels grow,
+  // which would otherwise cut them in steps of a pixel
+  float soft = 0.05 + 0.45 * clamp(footprint / 2000.0, 0.0, 1.0);
   float shape = smoothstep(0.0, soft, noise.r - (1.0 - profile * coverage));
   // the details erode where the cloud is thin, its edges, and leave its core solid
   float billows = mix(noise.g, noise.b, 0.4);
   float detail = mix(1.0 - billows, billows, clamp(y / WISPY_BASE, 0.0, 1.0)) * (1.0 - smoothstep(0.25, 0.5, footprint / DETAIL_SIZE));
   float erosion = EROSION * detail * (1.0 - shape);
+  // the finest details, on the edges only: the core is solid, and outside the cloud there is nothing
+  // to erode
+  float fine = 1.0 - smoothstep(FINE_FOOTPRINT.y, FINE_FOOTPRINT.x, footprint);
+  if (fine > 0.0 && shape > 0.0 && shape < 1.0) {
+    float fineLod = max(log2(footprint * DETAIL_VOXELS / DETAIL_TILE) + LOD_BIAS, 0.0);
+    float f = textureLod(cloudDetail, fract(positionWC / DETAIL_TILE), fineLod).r;
+    erosion = min(erosion + FINE_EROSION * fine * mix(1.0 - f, f, clamp(y / WISPY_BASE, 0.0, 1.0)) * (1.0 - shape), 0.95);
+  }
   return density * clamp((shape - erosion) / (1.0 - erosion), 0.0, 1.0);
 }
