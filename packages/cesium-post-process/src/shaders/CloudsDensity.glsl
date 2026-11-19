@@ -18,15 +18,24 @@ uniform float density;
 
 // the clouds over the lightest rain are this thick, in meters, clouds.js's THIN_DEPTH
 const float THIN_DEPTH = 1500.0;
-// the clouds' base is flat, reaching their full density over this share of their height,
-// remap(h, 0, 0.05, 0, 1): the lifting condensation level is about the same across an air mass; the
-// deck is full up to this share of its height, then thins out to its top; towers thin out all the
-// way up, in the convective envelope pow(1 - h, 1.5) (Schneider 2022); and spread an anvil from
+// the clouds reach their full density over this share of their height from their base, a band the
+// noise carves into an uneven underside; the lifting condensation level is about the same across
+// an air mass, but no air mass is uniform: the base of each column rises and falls by this many
+// meters with a noise over 2 km, and the rain lowers it by up to this many meters under the
+// heaviest, where the air below is moist (clouds.js's BASE_SWING and BASE_DROP). The deck is full
+// up to this share of its height, then thins out to its top, the top of each column rising and
+// falling by this share of its depth with the coverage's noise over 8 km, higher where the clouds
+// are fuller (clouds.js's TOP_SWING): neither end is one flat plane. A wider band at the base and a
+// thinner full deck open holes to the ground in the decks over heavy rain. Towers thin out all the
+// way up, in the convective envelope pow(1 - h, 1.5) (Schneider 2022), and spread an anvil from
 // this share of their height to this one, their coverage raised to a power from 1 to this one,
-// pow(coverage, remap(h, 0.7, 0.8, 1, lerp(1, 0.5, anvil_bias))) (Schneider 2017). The report
-// gives these as starting points, not from a source it could check
-const float FLAT_BASE = 0.05;
-const float DECK_TOP = 0.65;
+// pow(coverage, remap(h, 0.7, 0.8, 1, lerp(1, 0.5, anvil_bias))) (Schneider 2017). Tuned by eye on
+// the weather demo, not from a source
+const float FLAT_BASE = 0.12;
+const float BASE_SWING = 300.0;
+const float BASE_DROP = 250.0;
+const float DECK_TOP = 0.55;
+const float TOP_SWING = 0.3;
 const float TOWER_ENVELOPE = 1.5;
 const vec3 ANVIL = vec3(0.7, 0.8, 0.5);
 // the cloud shield over dry ground is broken: its coverage is this share of the clouds' over the
@@ -42,12 +51,14 @@ const float MAP_JITTER = 0.3;
 const float COVERAGE_NOISE = 0.4;
 const float MAP_TILE_CELLS = 64.0;
 
-// the clouds' map at a point in world coordinates, jittered, its coverage varied, 0 outside the map
-vec4 cloudMapAt(vec3 positionWC) {
+// the clouds' map at a point in world coordinates, jittered, its coverage varied, 0 outside the map;
+// and how far its base and its top swing, -1 to 1
+vec4 cloudMapAt(vec3 positionWC, out vec2 swing) {
   vec2 cells = vec2(textureSize(map, 0));
   vec2 uv = mapUv(positionWC);
-  // the jitter in red and green, the coverage's variation in blue, -1 to 1
-  vec3 noise = texture(mapNoise, uv * cells / MAP_TILE_CELLS).rgb * 2.0 - 1.0;
+  // the jitter in red and green, the coverage's variation in blue, the base's in alpha, -1 to 1
+  vec4 noise = texture(mapNoise, uv * cells / MAP_TILE_CELLS) * 2.0 - 1.0;
+  swing = noise.ab;
   uv += MAP_JITTER * noise.rg / cells;
   if (any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0)))) {
     return vec4(0.0);
@@ -93,7 +104,8 @@ const vec2 FINE_FOOTPRINT = vec2(250.0, 60.0);
 // alias into speckles
 float cloudDensity(vec3 positionWC, float h, float footprint, out float rain, out float column, out float dimensional) {
   // the rain in red, the shield's coverage in green, the clouds' type in blue
-  vec4 cell = cloudMapAt(positionWC);
+  vec2 swing;
+  vec4 cell = cloudMapAt(positionWC, swing);
   float m = cell.r;
   float type = cell.b;
   rain = m;
@@ -102,8 +114,9 @@ float cloudDensity(vec3 positionWC, float h, float footprint, out float rain, ou
   if (cell.g <= 0.0) {
     return 0.0;
   }
-  float top = cloudBase + mix(THIN_DEPTH, cloudTop - cloudBase, type);
-  float y = (h - cloudBase) / (top - cloudBase);
+  float bottom = cloudBase + BASE_SWING * swing.x - BASE_DROP * m;
+  float top = cloudBase + mix(THIN_DEPTH, cloudTop - cloudBase, type) * (1.0 + TOP_SWING * swing.y);
+  float y = (h - bottom) / (top - bottom);
   column = y;
   if (y <= 0.0 || y >= 1.0) {
     return 0.0;

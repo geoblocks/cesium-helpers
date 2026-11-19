@@ -6,7 +6,8 @@
 // edges. A second, smaller cube for the finest details, which tiles every 2 km rather than 16 km:
 // inverted Worley noise at three octaves summed, as Schneider's detail noise. And a square of
 // texels that tiles over the clouds' map, for CloudsDensity.glsl to read once rather than compute
-// noise at each sample: red and green jitter the map's lookup, blue varies its coverage. Each
+// noise at each sample: red and green jitter the map's lookup, blue varies its coverage and the
+// height of the clouds' tops, alpha the height of their base, over 2 km. Each
 // channel is stretched over the bytes' range: between its 1st and 99th percentiles, its contrast
 // would rise and open holes in the decks over heavy rain, whose coverage CloudsDensity.glsl is
 // tuned for.
@@ -20,6 +21,7 @@ const DETAIL_CELLS = 2;
 const MAP_TILE_CELLS = 64;
 const JITTER_CELLS = 2;
 const COVERAGE_CELLS = 8;
+const BASE_CELLS_ACROSS = 2;
 
 /**
  * A hash of a lattice point, 0 to 1.
@@ -202,7 +204,8 @@ export function createCloudDetail(size = 32) {
 }
 
 /**
- * Channels of values as RGBA bytes, each stretched over the bytes' range, alpha opaque.
+ * Channels of values as RGBA bytes, each stretched over the bytes' range, alpha opaque unless
+ * given.
  * @param {Float32Array[]} channels
  */
 function toBytes(channels) {
@@ -218,16 +221,18 @@ function toBytes(channels) {
       bytes[4 * j + channel] = Math.round((255 * (values[j] - min)) / (max - min));
     }
   });
-  for (let j = 3; j < bytes.length; j += 4) {
-    bytes[j] = 255;
+  if (channels.length < 4) {
+    for (let j = 3; j < bytes.length; j += 4) {
+      bytes[j] = 255;
+    }
   }
   return bytes;
 }
 
 /**
  * The noise over the clouds' map as RGBA bytes, x fastest: a square that tiles, MAP_TILE_CELLS
- * cells of the map across, with gradient noise over JITTER_CELLS in red and green and over
- * COVERAGE_CELLS in blue.
+ * cells of the map across, with gradient noise over JITTER_CELLS in red and green, over
+ * COVERAGE_CELLS in blue and over BASE_CELLS_ACROSS in alpha.
  * @param {number} [size] texels along each side
  */
 export function createMapNoise(size = 256) {
@@ -235,6 +240,7 @@ export function createMapNoise(size = 256) {
     [perlin(MAP_TILE_CELLS / JITTER_CELLS, 70), JITTER_CELLS],
     [perlin(MAP_TILE_CELLS / JITTER_CELLS, 80), JITTER_CELLS],
     [perlin(MAP_TILE_CELLS / COVERAGE_CELLS, 90), COVERAGE_CELLS],
+    [perlin(MAP_TILE_CELLS / BASE_CELLS_ACROSS, 95), BASE_CELLS_ACROSS],
   ];
   const channels = noises.map(() => new Float32Array(size * size));
   for (let y = 0; y < size; y++) {

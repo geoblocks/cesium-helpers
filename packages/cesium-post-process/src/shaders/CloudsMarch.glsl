@@ -118,7 +118,7 @@ void main() {
       highest = max(highest, cell.b);
     }
   }
-  segment = slab(dot(direction, up), sceneDistance, cloudBase + mix(THIN_DEPTH, cloudTop - cloudBase, highest));
+  segment = slab(dot(direction, up), sceneDistance, cloudBase + mix(THIN_DEPTH, cloudTop - cloudBase, highest) * (1.0 + TOP_SWING));
   span = segment.y - segment.x;
   if (covered <= 0.0 || span <= 0.0) {
     out_FragColor = packCloud(vec3(0.0), 1.0, segment.x);

@@ -71,8 +71,12 @@ void main() {
   out_FragColor = texture(source, v_textureCoordinates);
 }
 `;
-// the clouds over the lightest rain are this thick, in meters, CloudsDensity.glsl's THIN_DEPTH
+// the clouds over the lightest rain are this thick, in meters, and their base and top swing by
+// these, CloudsDensity.glsl's THIN_DEPTH, BASE_SWING, BASE_DROP and TOP_SWING
 const THIN_DEPTH = 1500;
+const BASE_SWING = 300;
+const BASE_DROP = 250;
+const TOP_SWING = 0.3;
 // the wind moves the noise less than this between two frames, in meters: more is its offset
 // wrapping, or the clock jumping, and the history is not moved with it
 const MOST_WIND_MOTION = 1000;
@@ -209,7 +213,7 @@ export default class Clouds extends Effect {
     this.#shadowTime = {dayNumber: 0, secondsOfDay: 0};
     this.#shadowDrawnAt = -Infinity;
     // for Precipitation, which lights its haze through it
-    this.#shadowSource = {texture: () => this.#shadow, center: this.#shadowCenter, extent: () => this.#shadowExtent, base: () => this.#cloudBase, top: () => this.#slabTop()};
+    this.#shadowSource = {texture: () => this.#shadow, center: this.#shadowCenter, extent: () => this.#shadowExtent, base: () => this.#slabBottom(), top: () => this.#slabTop()};
     this.#onPreRender = () => {
       const {camera} = this.viewer.scene;
       this.#drawShadow(this.viewer.scene);
@@ -312,7 +316,15 @@ export default class Clouds extends Effect {
   #slabTop() {
     // the clouds' map's tallest type, in blue
     const type = this.#weatherMap.maxValues[2];
-    return this.#cloudBase + THIN_DEPTH + (this.#cloudTop - this.#cloudBase - THIN_DEPTH) * type;
+    return this.#cloudBase + (THIN_DEPTH + (this.#cloudTop - this.#cloudBase - THIN_DEPTH) * type) * (1 + TOP_SWING);
+  }
+
+  /**
+   * The lowest a cloud's base goes, as CloudsDensity.glsl's cloudDensity lowers it: where the base
+   * swings down, under the heaviest rain.
+   */
+  #slabBottom() {
+    return this.#cloudBase - BASE_SWING - BASE_DROP;
   }
 
   /**
@@ -366,7 +378,7 @@ export default class Clouds extends Effect {
    * @param {Scene} scene
    */
   #slabUniforms(scene) {
-    return {...heightUniforms(scene), cloudBase: () => this.#cloudBase, slabTop: () => this.#slabTop()};
+    return {...heightUniforms(scene), cloudBase: () => this.#cloudBase, slabBottom: () => this.#slabBottom(), slabTop: () => this.#slabTop()};
   }
 
   /**
@@ -399,7 +411,7 @@ export default class Clouds extends Effect {
       shadowMap: () => this.#shadow ?? scene.context.defaultTexture,
       shadowCenter: () => this.#shadowCenter,
       shadowExtent: () => this.#shadowExtent,
-      shadowBase: () => this.#cloudBase,
+      shadowBase: () => this.#slabBottom(),
       shadowTop: () => this.#slabTop(),
     };
   }

@@ -200,11 +200,12 @@ test('the clouds do not make the scene render on its own', () => {
   }
 });
 
-test('the march starts at the tallest cloud the map makes: 1500 m thick over drizzle, the cloud top over the heaviest rain', () => {
+test('the march starts at the tallest cloud the map makes: 1500 m thick over drizzle, the cloud top over the heaviest rain, their tops 30 % higher where they swing up', () => {
   const rainingAt = (/** @type {number} */ red) => ({image: {width: 1, height: 1, data: new Uint8ClampedArray([red, 0, 0, 255])}, rectangle: map.rectangle});
   // the type at 128, from the rate at that intensity, 10 mm/h times its square
   const type = Math.round((255 * Math.log((10 * (128 / 255) ** 2) / 0.5)) / Math.log(20)) / 255;
-  for (const [red, expected] of [[0, 4000], [255, 9000], [128, 4000 + 5000 * type]]) {
+  for (const [red, depth] of [[0, 1500], [255, 6500], [128, 1500 + 5000 * type]]) {
+    const expected = 2500 + 1.3 * depth;
     const clouds = new TestClouds(/** @type {any} */ (fakeViewer()), {map: rainingAt(red)});
     clouds.active = true;
     const march = /** @type {any} */ (clouds.stage_).get(0);
@@ -370,5 +371,14 @@ test('a still view averages each pixel\'s samples, a moving one starts over', ()
     viewer.postListeners[0]();
   }
   assert.equal(resolve.uniforms.fresh(), 0.2);
+  clouds.active = false;
+});
+
+test('the slab reaches below the cloud base, as low as a base swings down under the heaviest rain, for the march and the shadow map', () => {
+  const clouds = new TestClouds(/** @type {any} */ (fakeViewer()), {map, cloudBase: 2000});
+  clouds.active = true;
+  const stage = /** @type {any} */ (clouds.stage_);
+  assert.equal(stage.get(0).uniforms.slabBottom(), 2000 - 300 - 250);
+  assert.equal(stage.get(2).uniforms.shadowBase(), 2000 - 300 - 250);
   clouds.active = false;
 });

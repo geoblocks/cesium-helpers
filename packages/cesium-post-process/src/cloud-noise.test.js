@@ -61,7 +61,7 @@ const mapAt = (/** @type {number} */ x, /** @type {number} */ y, /** @type {numb
 
 test('the map noise has four bytes for each texel, and tiles: across each edge it changes as little as between neighbors inside', () => {
   assert.equal(mapNoise.length, MAP_SIZE * MAP_SIZE * 4);
-  for (let channel = 0; channel < 3; channel++) {
+  for (let channel = 0; channel < 4; channel++) {
     for (const axis of [0, 1]) {
       let seam = 0;
       let inside = 0;
