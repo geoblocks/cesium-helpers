@@ -12,6 +12,11 @@ uniform float slabTop;
 // steps longer than the billows and turn the far clouds into streaks; deeper than this into the
 // slab, it is nearly always behind a cloud
 const float MAX_DISTANCE = 40000.0;
+// the march marches one pixel of each block of BLOCK x BLOCK at each frame, clouds.js's
+// CLOUD_SCALE, in rounds of BLOCK x BLOCK frames
+const float BLOCK = 4.0;
+// the sky's distance, past any slab, in meters
+const float BEYOND_SLAB = 1e9;
 
 // where the height along the view ray, at a distance t in direction k = dot(direction, up), reaches
 // c: the height is cameraHeight + k t + (1 - k k) t t / (2 radius), as heightAt's. False if it never

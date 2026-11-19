@@ -17,11 +17,12 @@ import {Math as CesiumMath} from '@cesium/core';
 const BASE_CELLS = 4;
 const DETAIL_CELLS = 2;
 // the map noise's square spans this many cells of the map, its jitter varying over this many of
-// them, its coverage over this many: whole periods across the square, for it to tile
+// them, its coverage over this many, the height of the clouds' base over this many: whole periods
+// across the square, for it to tile
 const MAP_TILE_CELLS = 64;
 const JITTER_CELLS = 2;
 const COVERAGE_CELLS = 8;
-const BASE_CELLS_ACROSS = 2;
+const CLOUD_BASE_CELLS = 2;
 
 /**
  * A hash of a lattice point, 0 to 1.
@@ -232,7 +233,7 @@ function toBytes(channels) {
 /**
  * The noise over the clouds' map as RGBA bytes, x fastest: a square that tiles, MAP_TILE_CELLS
  * cells of the map across, with gradient noise over JITTER_CELLS in red and green, over
- * COVERAGE_CELLS in blue and over BASE_CELLS_ACROSS in alpha.
+ * COVERAGE_CELLS in blue and over CLOUD_BASE_CELLS in alpha.
  * @param {number} [size] texels along each side
  */
 export function createMapNoise(size = 256) {
@@ -240,7 +241,7 @@ export function createMapNoise(size = 256) {
     [perlin(MAP_TILE_CELLS / JITTER_CELLS, 70), JITTER_CELLS],
     [perlin(MAP_TILE_CELLS / JITTER_CELLS, 80), JITTER_CELLS],
     [perlin(MAP_TILE_CELLS / COVERAGE_CELLS, 90), COVERAGE_CELLS],
-    [perlin(MAP_TILE_CELLS / BASE_CELLS_ACROSS, 95), BASE_CELLS_ACROSS],
+    [perlin(MAP_TILE_CELLS / CLOUD_BASE_CELLS, 95), CLOUD_BASE_CELLS],
   ];
   const channels = noises.map(() => new Float32Array(size * size));
   for (let y = 0; y < size; y++) {

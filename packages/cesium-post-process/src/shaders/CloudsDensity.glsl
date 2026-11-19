@@ -51,6 +51,12 @@ const float MAP_JITTER = 0.3;
 const float COVERAGE_NOISE = 0.4;
 const float MAP_TILE_CELLS = 64.0;
 
+// the top of a column of clouds of a type, 0 to 1, its top swinging by -1 to 1, in meters above the
+// ellipsoid: a deck THIN_DEPTH thick over drizzle to towers up to the cloud top over heavy rain
+float cloudTopFor(float type, float swing) {
+  return cloudBase + mix(THIN_DEPTH, cloudTop - cloudBase, type) * (1.0 + TOP_SWING * swing);
+}
+
 // the clouds' map at a point in world coordinates, jittered, its coverage varied, 0 outside the map;
 // and how far its base and its top swing, -1 to 1
 vec4 cloudMapAt(vec3 positionWC, out vec2 swing) {
@@ -77,7 +83,7 @@ const float DETAIL_SIZE = 1000.0;
 // the scale of the larger lookup of the noise, not a fraction that would line its tiles up
 const float LARGE_SCALE = 0.27;
 // the noise is read this many mipmaps blurrier than a pixel's footprint: its features then span a
-// few pixels of the pass, rather than one that the upscale would turn into a square
+// few pixels, rather than one, which each pixel's few samples would leave grainy
 const float LOD_BIAS = 1.5;
 // the clouds lean downwind by this many meters from the base to the top of the slab,
 // p += height_fraction * wind_direction * 500 (Schneider 2017)
@@ -119,7 +125,7 @@ float cloudDensity(vec3 positionWC, float h, float footprint, out float rain, ou
     return 0.0;
   }
   float bottom = cloudBase + BASE_SWING * swing.x - BASE_DROP * m;
-  float top = cloudBase + mix(THIN_DEPTH, cloudTop - cloudBase, type) * (1.0 + TOP_SWING * swing.y);
+  float top = cloudTopFor(type, swing.y);
   float y = (h - bottom) / (top - bottom);
   column = y;
   if (y <= 0.0 || y >= 1.0) {
@@ -146,7 +152,7 @@ float cloudDensity(vec3 positionWC, float h, float footprint, out float rain, ou
   // the noise's highest billows reach the top and the base. Ramped up over a softness rather than
   // sharpened by a power as in Nubis Cubed (Schneider 2023): a sharper edge than this, between two
   // of the march's fine steps, shows as contour lines along it. The edges soften as the pixels grow,
-  // which would otherwise cut them in steps of the pass's resolution
+  // which would otherwise cut them in steps of a pixel
   float soft = 0.05 + 0.45 * clamp(footprint / 2000.0, 0.0, 1.0);
   float shape = smoothstep(0.0, soft, noise.r - (1.0 - profile * coverage));
   // the details erode where the cloud is thin, its edges, and leave its core solid

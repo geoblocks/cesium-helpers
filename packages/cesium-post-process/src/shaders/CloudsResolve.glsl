@@ -16,28 +16,20 @@ uniform sampler2D cloudTexture;
 uniform sampler2D historyTexture;
 // from the eye coordinates of this frame to the clip coordinates of the previous one
 uniform mat4 reprojection;
-// 0 when there is no history to take, 1 otherwise
-uniform float historyWeight;
-// the pixel of each block of 4 x 4 marched this frame, and the share of its new sample in its
-// clouds, from clouds.js: 1 / n for its n-th since the view last changed, a running mean
+// whether there is a history to take, none yet or another map's clouds
+uniform bool hasHistory;
+// the pixel of each block marched this frame, and the share of its new sample in its clouds, from
+// clouds.js: 1 / n for its n-th since the view last changed, a running mean; 1 in the first round
+// of the blocks' pixels after a change, while the view moves and the history is clamped. Once still
+// for a round, the reprojection is exact, each pixel's history its own samples, and a clamp to the
+// noisy fresh samples around it would only add their noise
 uniform vec2 frameOffset;
 uniform float fresh;
-// 1 while the view moves, the history clamped; 0 once it has been still for a round of the blocks'
-// pixels: the reprojection is then exact, each pixel's history its own samples, and a clamp to the
-// noisy fresh samples around it would only add their noise
-uniform float moving;
 // how far the wind moved the noise since the last frame, in eye coordinates: the billows seen now
 // were that much upwind then
 uniform vec3 windMotion;
 in vec2 v_textureCoordinates;
 
-// the history is clamped within this many times the fresh samples' range around their bilinear
-// upsampling: the bounds of the 2 x 2 samples themselves are the same for 4 x 4 pixels, which their
-// clamp turned into squares, and four pixels apart and noisy, they would clamp a still view's
-// history into blotches
-const float WIDEN = 1.0;
-// the sky's distance, past any slab, in meters
-const float BEYOND_SLAB = 1e9;
 
 // the march's sample of a block, its light and transmittance, and the distance of what it saw
 vec4 freshLight(ivec2 block, out float distance) {
@@ -89,10 +81,10 @@ void main() {
   }
   // this pixel's block, whose sample was marched at frameOffset in it, and the 2 x 2 samples
   // around the pixel, for the bounds and the upsampling
-  ivec2 block = ivec2(floor(pixel / 4.0));
+  ivec2 block = ivec2(floor(pixel / BLOCK));
   float distance;
   vec4 current = freshLight(block, distance);
-  vec2 grid = (pixel - frameOffset) / 4.0;
+  vec2 grid = (pixel - frameOffset) / BLOCK;
   ivec2 corner = ivec2(floor(grid));
   vec2 f = fract(grid);
   vec4 c00 = freshLight(corner);
@@ -100,15 +92,26 @@ void main() {
   vec4 c01 = freshLight(corner + ivec2(0, 1));
   vec4 c11 = freshLight(corner + ivec2(1, 1));
   vec4 upsampled = mix(mix(c00, c10, f.x), mix(c01, c11, f.x), f.y);
-  vec4 range = WIDEN * (max(max(c00, c10), max(c01, c11)) - min(min(c00, c10), min(c01, c11)));
+  // the history is clamped within the fresh samples' range around their bilinear upsampling: the
+  // bounds of the 2 x 2 samples themselves are the same for a block of pixels, which their clamp
+  // turned into squares
+  vec4 range = max(max(c00, c10), max(c01, c11)) - min(min(c00, c10), min(c01, c11));
   // through the clouds' distance; where the ray meets no slab, nothing is there to move: only the
   // view turns
   vec4 point = distance > 0.0 ? vec4(direction * distance - windMotion, 1.0) : vec4(direction, 0.0);
   vec4 clip = reprojection * point;
   vec2 previous = clip.xy / clip.w * 0.5 + 0.5;
-  bool seen = historyWeight > 0.0 && clip.w > 0.0 && all(greaterThanEqual(previous, vec2(0.0))) && all(lessThanEqual(previous, vec2(1.0)));
+  bool seen = hasHistory && clip.w > 0.0 && all(greaterThanEqual(previous, vec2(0.0))) && all(lessThanEqual(previous, vec2(1.0)));
+  bool marched = all(equal(pixel - BLOCK * vec2(block), frameOffset));
+  // the history read only where it is taken: not where it is off screen, nor for a pixel marched in
+  // the first round after a change, whose new sample is all of it
+  if (!seen || (marched && fresh >= 1.0)) {
+    out_FragColor = marched ? current : upsampled;
+    return;
+  }
   vec4 history = historyAt(previous, size);
-  history = mix(history, clamp(history, upsampled - range, upsampled + range), moving);
-  bool marched = all(equal(pixel - 4.0 * vec2(block), frameOffset));
-  out_FragColor = marched ? (seen ? mix(history, current, fresh) : current) : (seen ? history : upsampled);
+  if (fresh >= 1.0) {
+    history = clamp(history, upsampled - range, upsampled + range);
+  }
+  out_FragColor = marched ? mix(history, current, fresh) : history;
 }

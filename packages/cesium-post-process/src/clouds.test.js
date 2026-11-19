@@ -239,9 +239,9 @@ test('a new map starts the accumulation over', () => {
   clouds.active = true;
   viewer.postListeners[0]();
   const resolve = /** @type {any} */ (clouds.stage_).get(1);
-  assert.equal(resolve.uniforms.historyWeight(), 1);
+  assert.equal(resolve.uniforms.hasHistory(), true);
   clouds.map = map;
-  assert.equal(resolve.uniforms.historyWeight(), 0);
+  assert.equal(resolve.uniforms.hasHistory(), false);
   clouds.active = false;
 });
 
@@ -361,14 +361,12 @@ test('a still view averages each pixel\'s samples, a moving one starts over', ()
   frame(viewer);
   viewer.postListeners[0]();
   assert.equal(resolve.uniforms.fresh(), 1);
-  assert.equal(resolve.uniforms.moving(), 1);
   // the second round of the blocks' pixels: their second samples weigh a half, and the history is
-  // the pixels' own
+  // the pixels' own, no longer clamped
   for (let i = 0; i < 16; i++) {
     viewer.postListeners[0]();
   }
   assert.equal(resolve.uniforms.fresh(), 1 / 2);
-  assert.equal(resolve.uniforms.moving(), 0);
   for (let i = 0; i < 16 * 20; i++) {
     viewer.postListeners[0]();
   }

@@ -2,8 +2,8 @@
 // a texture of a quarter of the resolution, CloudsResolve.glsl building the full resolution from
 // them over the frames: the light they scatter toward the camera, the share of the scene still seen
 // through them, and how far they are, along the pixel's view ray. They
-// fill a slab above the cloud base where the map has rain: a flat layer over drizzle, towers up to
-// the cloud top over the heaviest rain, with a rounded base and top, shaped by billows of noise
+// fill a slab about the cloud base where the map has rain: a deck over drizzle, towers up to the
+// cloud top over the heaviest rain, their bases and tops uneven, shaped by billows of noise
 // that repeats in world coordinates, read from a texture made once (cloud-noise.js): wispy over
 // light rain and solid over heavy rain, with details eroding their edges, not their cores. The sun lights them through a few
 // samples toward it, with a silver lining toward it, its light scattered more than once brightening
@@ -13,7 +13,7 @@
 // a camera inside a cloud is in its fog; across the empty air they are four times as long, and short
 // again in the clouds, lit only there. Precipitation, activated after them, draws the rain's haze
 // over them. Needs EyeFromDepth, Hash, Height, CloudsSlab, WeatherMap, CloudsDensity, CloudsShadow,
-// Fog, Phase and RainHaze.
+// Fog, Phase, CloudLight and RainHaze.
 precision highp sampler2D;
 uniform sampler2D depthTexture;
 // the highest rain around each block of the map's pixels, over both maps, from weather-map.js
@@ -40,8 +40,6 @@ const int MAX_SAMPLES = 48;
 const float FAR_FADE = 0.6;
 // below this transmittance, the samples are lit from the shadow map alone
 const float CHEAP_LIGHT = 0.8;
-// the sky's distance, past any slab, in meters
-const float BEYOND_SLAB = 1e9;
 // the ray is probed at this many points of the max map before its march, less than a block of it
 // apart over MAX_DISTANCE, 5 km for the 4 km blocks of a 1 km map: the march starts where the ray
 // drops below the tallest cloud they find, and is skipped where they find no rain, rather than
@@ -102,7 +100,7 @@ vec4 packCloud(vec3 light, float transmittance, float distance) {
 
 void main() {
   // the pixel of the block this texel stands for, marched this frame
-  vec2 pixel = min(4.0 * floor(gl_FragCoord.xy) + frameOffset, sceneSize - 1.0) + 0.5;
+  vec2 pixel = min(BLOCK * floor(gl_FragCoord.xy) + frameOffset, sceneSize - 1.0) + 0.5;
   vec2 uv = pixel / sceneSize;
   vec4 eye = eyeAt(depthTexture, uv);
   vec3 direction = normalize(eye.xyz);
@@ -126,7 +124,7 @@ void main() {
       highest = max(highest, cell.b);
     }
   }
-  segment = slab(dot(direction, up), sceneDistance, cloudBase + mix(THIN_DEPTH, cloudTop - cloudBase, highest) * (1.0 + TOP_SWING));
+  segment = slab(dot(direction, up), sceneDistance, cloudTopFor(highest, 1.0));
   span = segment.y - segment.x;
   if (covered <= 0.0 || span <= 0.0) {
     out_FragColor = packCloud(vec3(0.0), 1.0, segment.x);
@@ -152,19 +150,20 @@ void main() {
   // "a visual discrepancy happens at the horizon between clouds and earth" (Hillaire 2016, sec.
   // 5.9.1). The sky toward the view, at least SKY_ELEVATION above the horizon
   vec3 fogColor = skyToward(direction, max(asin(clamp(dot(direction, up), -1.0, 1.0)), SKY_ELEVATION));
-  vec3 sunLight = day > 0.0 ? SUN * czm_lightColor * sunThroughAir() * day : MOON * MOONLIGHT * smoothstep(0.0, 0.1, dot(up, czm_moonDirectionEC));
+  vec3 sun = sunOnClouds();
+  vec3 sunLight = day > 0.0 ? sun * day : MOON * MOONLIGHT * smoothstep(0.0, 0.1, dot(up, czm_moonDirectionEC));
   // the sky overhead, and the sunlight from the ground, by day; the moon's at night
   vec3 zenith = clearSkyBelow(cloudBase, czm_inverseViewRotation * up, czm_lightDirectionWC);
   vec3 skyAbove = mix(MOONLIGHT, skyHueOf(zenith), day) * czm_luminance(AMBIENT_TOP);
   vec3 groundBelow = AMBIENT_BASE * mix(MOONLIGHT, czm_lightColor * clamp(dot(up, czm_lightDirectionEC) / HIGH_SUN, 0.0, 1.0), day);
   float sunHeight = max(dot(up, czm_lightDirectionEC), 0.0);
-  vec3 onTop = lightOnClouds(zenith, day);
+  vec3 onTop = lightOnClouds(zenith, day, sun);
   // the angle a pixel of the scene covers: the full resolution is built from the marches
   float pixelAngle = 2.0 / (czm_projection[1][1] * sceneSize.y);
   // a different start along the ray for each pixel, at random, and at each of its marches, one in
   // 16 frames, by the golden ratio (Wolfe 2020): interleaved gradient noise's diagonal pattern
   // would show, each pixel being marched so seldom
-  float jitter = fract(hash(pixel) + 0.618034 * floor(frame / 16.0));
+  float jitter = fract(hash(pixel) + 0.618034 * floor(frame / (BLOCK * BLOCK)));
   // the distance of what the march sees, weighted by the light it hides, for the reprojection
   float distanceSum = 0.0;
   float distanceWeight = 0.0;
@@ -218,9 +217,9 @@ void main() {
     float previous = 0.0;
     for (int j = 0; j < (transmittance > CHEAP_LIGHT ? 2 : 0); j++) {
       // jittered as the step, for the samples of neighboring pixels not to band (Hillaire 2016,
-      // sec. 5.5.2)
+      // sec. 5.5.2); without the finest details, which a ray 200 m long toward the light does not see
       float distanceToward = LIGHT_DISTANCES[j] * (0.75 + 0.5 * jitter);
-      opticalDepth += EXTINCTION * cloudDensity(pointWC + lightWC * distanceToward, heightAt(pointEC + lightEC * distanceToward), footprint, unused, unused, unused) * (distanceToward - previous);
+      opticalDepth += EXTINCTION * cloudDensity(pointWC + lightWC * distanceToward, heightAt(pointEC + lightEC * distanceToward), max(footprint, FINE_FOOTPRINT.x), unused, unused, unused) * (distanceToward - previous);
       previous = distanceToward;
     }
     // the samples reach 700 m toward the sun, a fifth of the way through a deck 1500 m thick under a
