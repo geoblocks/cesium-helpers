@@ -95,14 +95,38 @@ const float DETAIL_TILE = 2000.0;
 const float DETAIL_VOXELS = 32.0;
 const float FINE_EROSION = 0.5;
 const vec2 FINE_FOOTPRINT = vec2(250.0, 60.0);
+// the cauliflower lobes of a cumulus: the billows of the details push its surface out as well as in,
+// by up to this share of the carve, inverted Worley noise of 1 km cells with the finest details' on
+// them, lobes on the lobes (Schneider 2022's billowy composite); on columns of a type from the first
+// value to the second, above this share of their height, decks left flat. They fade out as the
+// pixel's footprint grows from the first size to the second, in meters, about 8 to 15 km away at
+// 1280 pixels across: farther, a pixel is marched too seldom to build their shading, which shows as
+// blotches of the 4 x 4 blocks
+const float LOBES = 0.35;
+const vec2 LOBE_TYPE = vec2(0.4, 0.6);
+const vec2 LOBE_HEIGHT = vec2(0.25, 0.6);
+const vec2 LOBE_FADE = vec2(7.0, 14.0);
+
+// the lobes' weight at a pixel's footprint, in meters
+float lobeFade(float footprint) {
+  return 1.0 - smoothstep(LOBE_FADE.x, LOBE_FADE.y, footprint);
+}
+
+// the finest details at a point, 0 to 1, at the mipmap of a pixel's footprint
+float finestDetail(vec3 positionWC, float footprint) {
+  float lod = max(log2(footprint * DETAIL_VOXELS / DETAIL_TILE) + LOD_BIAS, 0.0);
+  return textureLod(cloudDetail, fract(positionWC / DETAIL_TILE), lod).r;
+}
 
 // the cloud's density at a point, 0 to the density uniform, from the clouds' map (cloud-map.js):
 // where its shield covers the ground, as tall as its type, a deck over drizzle to towers over heavy
 // rain, and as solid as the rain under it is heavy, which it gives, with the share of the height of
 // its column and its dimensional profile. The noise is read at the mipmap of the footprint of a
 // pixel, in meters, and the details fade out as it grows: sampled once a pixel, finer noise would
-// alias into speckles
-float cloudDensity(vec3 positionWC, float h, float footprint, out float rain, out float column, out float dimensional) {
+// alias into speckles. The lobes of cumulus by this weight, 0 to 1, lobeFade's of the pixel's
+// footprint for the march and its first sample toward the light, 0 for the others and the shadow
+// map, whose texels are as wide as a lobe; it gives how lobed the point is, 0 to 1
+float cloudDensity(vec3 positionWC, float h, float footprint, float lobeWeight, out float rain, out float column, out float dimensional, out float lobed) {
   // the rain in red, the shield's coverage in green, the clouds' type in blue
   vec2 swing;
   vec4 cell = cloudMapAt(positionWC, swing);
@@ -111,6 +135,7 @@ float cloudDensity(vec3 positionWC, float h, float footprint, out float rain, ou
   rain = m;
   column = 0.0;
   dimensional = 0.0;
+  lobed = 0.0;
   if (cell.g <= 0.0) {
     return 0.0;
   }
@@ -140,18 +165,33 @@ float cloudDensity(vec3 positionWC, float h, float footprint, out float rain, ou
   // of the march's fine steps, shows as contour lines along it. The edges soften as the pixels grow,
   // which would otherwise cut them in steps of a pixel
   float soft = 0.05 + 0.45 * clamp(footprint / 2000.0, 0.0, 1.0);
-  float shape = smoothstep(0.0, soft, noise.r - (1.0 - profile * coverage));
-  // the details erode where the cloud is thin, its edges, and leave its core solid
   float billows = mix(noise.g, noise.b, 0.4);
-  float detail = mix(1.0 - billows, billows, clamp(y / WISPY_BASE, 0.0, 1.0)) * (1.0 - smoothstep(0.25, 0.5, footprint / DETAIL_SIZE));
+  float carve = noise.r - (1.0 - dimensional);
+  // the finest details at the point, read once, for the lobes or the erosion, whichever wants them
+  // first: -1 until then
+  float finest = -1.0;
+  // the lobes of a cumulus, on the upper part of its column, where the carve's surface is
+  lobed = lobeWeight * smoothstep(LOBE_TYPE.x, LOBE_TYPE.y, type) * smoothstep(LOBE_HEIGHT.x, LOBE_HEIGHT.y, y);
+  float band = LOBES * lobed;
+  if (abs(carve) < band) {
+    finest = finestDetail(positionWC, footprint);
+    // fading out toward the edge of the band, so that the surface it moves does not end there in a
+    // step, a hole cut in the core along it
+    carve += band * (noise.b + finest - 1.0) * (1.0 - smoothstep(0.5, 1.0, abs(carve) / band));
+  }
+  float shape = smoothstep(0.0, soft, carve);
+  // the details erode where the cloud is thin, its edges, and leave its core solid
+  float wispy = clamp(y / WISPY_BASE, 0.0, 1.0);
+  float detail = mix(1.0 - billows, billows, wispy) * (1.0 - smoothstep(0.25, 0.5, footprint / DETAIL_SIZE));
   float erosion = EROSION * detail * (1.0 - shape);
   // the finest details, on the edges only: the core is solid, and outside the cloud there is nothing
   // to erode
   float fine = 1.0 - smoothstep(FINE_FOOTPRINT.y, FINE_FOOTPRINT.x, footprint);
   if (fine > 0.0 && shape > 0.0 && shape < 1.0) {
-    float fineLod = max(log2(footprint * DETAIL_VOXELS / DETAIL_TILE) + LOD_BIAS, 0.0);
-    float f = textureLod(cloudDetail, fract(positionWC / DETAIL_TILE), fineLod).r;
-    erosion = min(erosion + FINE_EROSION * fine * mix(1.0 - f, f, clamp(y / WISPY_BASE, 0.0, 1.0)) * (1.0 - shape), 0.95);
+    if (finest < 0.0) {
+      finest = finestDetail(positionWC, footprint);
+    }
+    erosion = min(erosion + FINE_EROSION * fine * mix(1.0 - finest, finest, wispy) * (1.0 - shape), 0.95);
   }
   return density * clamp((shape - erosion) / (1.0 - erosion), 0.0, 1.0);
 }
