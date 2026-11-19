@@ -1,28 +1,13 @@
 import {StacEndpoint} from '@camptocamp/ogc-client';
-import * as hdf5 from 'jsfive';
+import {EAST, NORTH, SOUTH, WEST} from './radar-extent.js';
 
 const {Rectangle} = Cesium;
 
 // The rain as MeteoSwiss' radars saw it, for Precipitation's map: the CombiPrecip composite of
 // the open data (data.geo.admin.ch, STAC, one item per UTC day, kept 14 days), the last hour's
-// rain in mm adjusted on the rain gauges, so a mean mm/h, decoded in the browser and drawn in
-// longitudes and latitudes.
+// rain in mm adjusted on the rain gauges, so a mean mm/h, decoded in the browser, in a worker
+// (radar-worker.js), and drawn in longitudes and latitudes.
 const COLLECTION = 'https://data.geo.admin.ch/api/stac/v1/collections/ch.meteoschweiz.ogd-radar-precip';
-// the grid of the composites: 1 km cells in LV95, the top left corner of the top left cell
-const CELL = 1000;
-const EAST0 = 2255000;
-const NORTH0 = 1480000;
-const COLUMNS = 710;
-const ROWS = 640;
-// the map: the grid's corners in longitudes and latitudes, and a pixel about a cell wide
-const WEST = 2.68;
-const SOUTH = 43.61;
-const EAST = 12.47;
-const NORTH = 49.38;
-const WIDTH = 1024;
-const HEIGHT = 768;
-// the rain rate, in mm/h, at the map's full intensity: the drizzle still shows, under a square root
-const HEAVY = 10;
 const HOUR = 3600 * 1000;
 // the maps kept, the most recently asked for: about 3 MB each
 const MAX_MAPS = 12;
@@ -91,61 +76,57 @@ export async function latestHour() {
   throw new Error('No CombiPrecip file in the last day');
 }
 
-/**
- * LV95 coordinates of a point, swisstopo's approximate formulas: a meter, far below a cell.
- * @param {number} longitude in degrees
- * @param {number} latitude in degrees
- */
-function toLV95(longitude, latitude) {
-  const lambda = (longitude * 3600 - 26782.5) / 10000;
-  const phi = (latitude * 3600 - 169028.66) / 10000;
-  return {
-    east: 2600072.37 + 211455.93 * lambda - 10938.51 * lambda * phi - 0.36 * lambda * phi * phi - 44.54 * lambda ** 3,
-    north: 1200147.07 + 308807.95 * phi + 3745.25 * lambda * lambda + 76.63 * phi * phi - 194.56 * lambda * lambda * phi + 119.79 * phi ** 3,
-  };
-}
+/** @typedef {{width: number, height: number, data: Uint8ClampedArray}} RadarPixels */
 
 /**
- * The map of a radar file: its rain rates drawn in longitudes and latitudes, the red channel
- * the local intensity, 0 outside the radars' reach and at the edges.
- * @param {ArrayBuffer} buffer an ODIM_H5 composite
+ * A worker that decodes the files, and the calls waiting for it: it answers in the order of the
+ * files. On an error, it is stopped and its calls rejected, the next file starting another.
  */
-function radarMap(buffer) {
-  const file = new hdf5.File(buffer, 'radar.h5');
-  const {gain, offset} = file.get('dataset1/data1/what').attrs;
-  const rates = /** @type {number[]} */ (file.get('dataset1/data1/data').value);
-  const canvas = document.createElement('canvas');
-  canvas.width = WIDTH;
-  canvas.height = HEIGHT;
-  // read back by Precipitation and for the radar colors
-  const context = /** @type {CanvasRenderingContext2D} */ (canvas.getContext('2d', {willReadFrequently: true}));
-  const image = context.createImageData(WIDTH, HEIGHT);
-  for (let y = 0; y < HEIGHT; y++) {
-    const latitude = NORTH - ((y + 0.5) / HEIGHT) * (NORTH - SOUTH);
-    for (let x = 0; x < WIDTH; x++) {
-      const longitude = WEST + ((x + 0.5) / WIDTH) * (EAST - WEST);
-      const {east, north} = toLV95(longitude, latitude);
-      const column = Math.floor((east - EAST0) / CELL);
-      const row = Math.floor((NORTH0 - north) / CELL);
-      if (column < 0 || column >= COLUMNS || row < 0 || row >= ROWS) {
-        continue;
-      }
-      // NaN beyond the radars' reach
-      const rate = rates[row * COLUMNS + column] * gain + offset;
-      if (rate > 0) {
-        image.data[4 * (y * WIDTH + x)] = 255 * Math.sqrt(Math.min(rate / HEAVY, 1));
-      }
+function startDecoder() {
+  /** @type {Array<{resolve: (image: RadarPixels) => void, reject: (error: Error) => void}>} */
+  const waiting = [];
+  const worker = new Worker(new URL('./radar-worker.js', import.meta.url), {type: 'module'});
+  worker.onmessage = ({data: {image, error}}) => {
+    const call = waiting.shift();
+    if (image) {
+      call?.resolve(image);
+    } else {
+      call?.reject(error);
     }
-  }
-  // opaque, for the canvas to keep the colors as drawn
-  for (let i = 3; i < image.data.length; i += 4) {
-    image.data[i] = 255;
-  }
-  context.putImageData(image, 0, 0);
-  return {image: canvas, rectangle: Rectangle.fromDegrees(WEST, SOUTH, EAST, NORTH)};
+  };
+  worker.onerror = (event) => {
+    event.preventDefault();
+    worker.terminate();
+    if (decoder?.worker === worker) {
+      decoder = undefined;
+    }
+    const error = new Error(`The radar worker failed: ${event.message || 'it did not load'}`);
+    for (const call of waiting.splice(0)) {
+      call.reject(error);
+    }
+  };
+  return {worker, waiting};
 }
 
-/** @type {Map<number, Promise<ReturnType<typeof radarMap>>>} */
+/** @type {ReturnType<typeof startDecoder> | undefined} */
+let decoder;
+
+/**
+ * The map of a radar file: its pixels decoded in the worker.
+ * @param {ArrayBuffer} buffer an ODIM_H5 composite, handed to the worker
+ */
+async function radarMap(buffer) {
+  decoder ??= startDecoder();
+  const {worker, waiting} = decoder;
+  /** @type {RadarPixels} */
+  const image = await new Promise((resolve, reject) => {
+    waiting.push({resolve, reject});
+    worker.postMessage(buffer, [buffer]);
+  });
+  return {image, rectangle: Rectangle.fromDegrees(WEST, SOUTH, EAST, NORTH)};
+}
+
+/** @type {Map<number, ReturnType<typeof radarMap>>} */
 const maps = new Map();
 
 /**
@@ -183,5 +164,5 @@ export function hourlyRadarMap(hour) {
       maps.delete(maps.keys().next().value);
     }
   }
-  return /** @type {Promise<ReturnType<typeof radarMap>>} */ (maps.get(time));
+  return /** @type {ReturnType<typeof radarMap>} */ (maps.get(time));
 }
