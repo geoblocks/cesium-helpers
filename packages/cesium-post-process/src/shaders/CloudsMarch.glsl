@@ -81,15 +81,13 @@ const vec2 DARK_BASE = vec2(0.07, 0.14);
 // the clouds over the heaviest rain absorb this share of the light they intercept, for the
 // "foreboding dark clouds" of Horizon Zero Dawn (Schneider 2015)
 const float RAIN_ALBEDO = 0.6;
-// the sun's light scattered more than once, as octaves of the light scattered once (Wrenninge's,
-// Hillaire 2016, sec. 5.8, eq. 19-20): octave n has a^n of the scattering, b^n of the extinction and
-// c^n of the phase's eccentricity, so it reaches deeper into the cloud, more alike in all
-// directions. a <= b keeps it from scattering more light than reaches it; 0.5 each, Unreal's
-// defaults, and 2 octaves, as Unreal and RDR2
-const int OCTAVES = 2;
-const float OCTAVE_SCATTERING = 0.5;
-const float OCTAVE_EXTINCTION = 0.5;
-const float OCTAVE_ECCENTRICITY = 0.5;
+// the sun's light scattered many times inside a cloud, Nubis' multiple scattering (Schneider 2023):
+// with this share of the phase's eccentricity, as Wrenninge's second octave (Hillaire 2016, sec.
+// 5.8), so more alike in all directions; and through this fraction of the optical depth toward the
+// sun, the first away from the sun, the second toward it, Nubis' Remap(sun_dot, 0, 0.9, 0.25, 0.05
+// to 0.25), the middle of its range where it reads the depth to the cloud's surface
+const float INNER_ECCENTRICITY = 0.5;
+const vec2 INNER_EXTINCTION = vec2(0.25, 0.15);
 // the silver lining: a narrow lobe toward the sun, the larger of it and the broad phase, this
 // eccentric and this strong, max(HG(g), silver_intensity HG(0.99 - silver_spread)) (Schneider 2015):
 // thin edges near the sun glow, where the broad lobe's 0.6 lights them a tenth as much
@@ -107,6 +105,11 @@ const float MOON = 0.1;
 // Henyey-Greenstein's phase function, times 4 pi: 1 for light scattered alike in all directions
 float phase(float cosTheta, float g) {
   return 4.0 * czm_pi * henyeyGreenstein(cosTheta, g);
+}
+
+// a forward lobe for the silver lining, a weak backward one, their eccentricities scaled
+float cloudPhase(float cosTheta, float eccentricity) {
+  return max(mix(phase(cosTheta, -0.2 * eccentricity), phase(cosTheta, 0.6 * eccentricity), 0.7), SILVER * phase(cosTheta, SILVER_G * eccentricity));
 }
 
 // the march's output, in a texture of 32-bit floats read texel by texel: the light's red and green
@@ -159,17 +162,12 @@ void main() {
   // the light they are lit by, the sun by day, the moon at night
   vec3 lightEC = day > 0.0 ? czm_lightDirectionEC : czm_moonDirectionEC;
   vec3 lightWC = czm_inverseViewRotation * lightEC;
-  // a forward lobe for the silver lining, a weak backward one, for each octave: the light is a
-  // direction, the angle is the same along the ray
+  // the phases of the light scattered once and many times: the light is a direction, the angle is
+  // the same along the ray
   float cosTheta = dot(direction, lightEC);
-  float octaves[OCTAVES];
-  float contribution = 1.0;
-  float eccentricity = 1.0;
-  for (int n = 0; n < OCTAVES; n++) {
-    octaves[n] = contribution * max(mix(phase(cosTheta, -0.2 * eccentricity), phase(cosTheta, 0.6 * eccentricity), 0.7), SILVER * phase(cosTheta, SILVER_G * eccentricity));
-    contribution *= OCTAVE_SCATTERING;
-    eccentricity *= OCTAVE_ECCENTRICITY;
-  }
+  float once = cloudPhase(cosTheta, 1.0);
+  float inner = cloudPhase(cosTheta, INNER_ECCENTRICITY);
+  float innerDepth = mix(INNER_EXTINCTION.x, INNER_EXTINCTION.y, clamp(cosTheta / 0.9, 0.0, 1.0));
   // the far clouds fade into the sky behind them as Cesium's fog fades the terrain, by its factor at
   // each step's distance: the same aerial perspective on the clouds as on the earth, without which
   // "a visual discrepancy happens at the horizon between clouds and earth" (Hillaire 2016, sec.
@@ -276,18 +274,16 @@ void main() {
     float near = cheap ? sigma * LIGHT_DISTANCES.x : opticalDepth;
     float sunDepth = mix(1.0, SUN_DEPTH, cumulus);
     opticalDepth = near + sunDepth * max(shadowed * deep - near, 0.0);
-    float sunThrough = 0.0;
-    float occlusion = 1.0;
-    for (int n = 0; n < OCTAVES; n++) {
-      sunThrough += octaves[n] * exp(-opticalDepth * occlusion);
-      occlusion *= OCTAVE_EXTINCTION;
-    }
+    // the light scattered once, then many times, as much as the dimensional profile, the depth into
+    // the cloud (Schneider 2023): the light diffusing inside a cloud lights its core, its thin edges
+    // stay darker, where an octave of the light scattered once would light both
+    float sunThrough = once * exp(-opticalDepth) + inner * dimensional * exp(-opticalDepth * innerDepth);
     float y = clamp((h - cloudBase) / (cloudTop - cloudBase), 0.0, 1.0);
     float ambientOcclusion = sqrt(max(1.0 - dimensional, 0.0)) * pow(mix(0.1, 1.0, clamp((column - DARK_BASE.x) / (DARK_BASE.y - DARK_BASE.x), 0.0, 1.0)), 0.8);
     // the clouds above the point, from the shadow map along the sun's rays, as deep as they are
     // thick: lighter under their thin parts, darker under their thick ones; deep in its column, as
-    // toward its top the samples toward the sun and their octaves already carry the light
-    // scattered there
+    // toward its top the samples toward the sun and the light scattered inside already carry
+    // the light scattered there
     float columnDepth = sunDepth * shadowed;
     float tau = columnDepth * sunHeight;
     float diffuse = (twoStream(tau) - exp(-columnDepth)) * deep;
