@@ -1,6 +1,6 @@
 import {Cartesian4, Math as CesiumMath} from '@cesium/core';
 import {PostProcessStage, PostProcessStageComposite} from '@cesium/engine';
-import {cloudShadow, cloudShadowUniforms, hasCloudCover} from './cloud-cover.js';
+import {cloudShadowUniforms, hasCloudCover} from './cloud-cover.js';
 import Effect from './effect.js';
 import {acquireFrames, releaseFrames} from './frame-clock.js';
 import {heightUniforms} from './height.js';
@@ -160,7 +160,7 @@ export default class Precipitation extends Effect {
   #layerLook;
   #onPreRender;
   // the clear sky the haze scatters, drawn at each frame, seen from no higher than the cloud base
-  #skyTable = new SkyTable();
+  #skyTable = new SkyTable(() => this.#cloudBase);
 
   /**
    * @param {CesiumWidget} viewer
@@ -190,7 +190,7 @@ export default class Precipitation extends Effect {
       const below = 1 - smoothstep(this.#cloudBase - CLOUD_BASE_FADE, this.#cloudBase + CLOUD_BASE_FADE, height);
       this.#overcast = this.#intensity > 0 ? this.#localIntensity * below : 0;
       shadeOvercast(this.viewer.scene, this, this.#overcast);
-      this.#skyTable.draw(this.viewer.scene, () => this.#cloudBase);
+      this.#skyTable.draw(this.viewer.scene);
     };
   }
 
@@ -295,7 +295,7 @@ export default class Precipitation extends Effect {
             // none with Clouds, whose shadow does it where they are
             shade: () => (hasCloudCover(scene) ? 0 : (1 - OVERCAST) * dimmingOvercast(scene, this)),
             clouds: () => (hasCloudCover(scene) ? 1 : 0),
-            shadowed: () => (cloudShadow(scene) ? 1 : 0),
+            shadowed: cloudShadowUniforms(scene).shadowed,
             skyTable: () => this.#skyTable.texture(scene),
             trail: () => this.#trail(),
             layerShape: () => this.#layerShape,

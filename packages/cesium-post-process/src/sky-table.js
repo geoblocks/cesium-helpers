@@ -19,6 +19,7 @@ const SKY_TABLE = 64;
  * higher than a height.
  */
 export default class SkyTable {
+  #height;
   /** @type {any} */
   #texture = undefined;
   /** @type {any} */
@@ -27,11 +28,17 @@ export default class SkyTable {
   #command = undefined;
 
   /**
-   * Draws the table, before the effect's stages run.
-   * @param {Scene} scene
    * @param {() => number} height the sky is seen from no higher than this, in meters above the ellipsoid
    */
-  draw(scene, height) {
+  constructor(height) {
+    this.#height = height;
+  }
+
+  /**
+   * Draws the table, before the effect's stages run.
+   * @param {Scene} scene
+   */
+  draw(scene) {
     // @ts-expect-error the scene's context is not typed
     const context = scene.context;
     if (!context) {
@@ -45,7 +52,7 @@ export default class SkyTable {
         renderState: RenderState.fromCache({viewport: {x: 0, y: 0, width: SKY_TABLE + 1, height: 1}}),
         uniformMap: {
           skyLightIntensity: () => scene.skyAtmosphere?.atmosphereLightIntensity ?? 50,
-          cloudBase: height,
+          viewHeight: this.#height,
         },
       });
     }
