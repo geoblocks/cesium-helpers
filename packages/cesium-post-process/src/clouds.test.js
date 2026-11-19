@@ -114,16 +114,21 @@ test('activating adds the stage and tests the depth against the terrain, deactiv
   assert.equal(destroy.mock.callCount(), 1);
 });
 
-test('deactivating destroys the noise texture made when the clouds were drawn', () => {
+test('deactivating destroys the noise textures made when the clouds were drawn', () => {
   const viewer = fakeViewer();
   const clouds = new TestClouds(/** @type {any} */ (viewer), {map});
   clouds.active = true;
   const march = /** @type {any} */ (clouds.stage_).get(1);
-  const noise = march.uniforms.cloudNoise();
-  clouds.active = false;
-  assert.equal(noise.isDestroyed(), true);
-  // made again when the clouds are drawn again
-  assert.notEqual(march.uniforms.cloudNoise(), noise);
+  for (const uniform of ['cloudNoise', 'cloudDetail']) {
+    const texture = march.uniforms[uniform]();
+    // made once while active
+    assert.equal(march.uniforms[uniform](), texture);
+    clouds.active = false;
+    assert.equal(texture.isDestroyed(), true, uniform);
+    // made again when the clouds are drawn again
+    clouds.active = true;
+    assert.notEqual(march.uniforms[uniform](), texture, uniform);
+  }
 });
 
 test('the options are live: setting one changes the uniforms and requests a render', () => {

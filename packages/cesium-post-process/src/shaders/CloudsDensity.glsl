@@ -4,6 +4,8 @@
 // the noise: the billows of the base shape in red, the details in green and blue
 precision highp sampler2D;
 uniform highp sampler3D cloudNoise;
+// the finest details, a smaller cube that repeats every DETAIL_TILE, from cloud-noise.js
+uniform highp sampler3D cloudDetail;
 // the noise over the clouds' map, a square that repeats, from cloud-noise.js
 uniform sampler2D mapNoise;
 // meters above the ellipsoid
@@ -74,6 +76,14 @@ const float EROSION = 0.6;
 // the details are wisps at the base of a cloud, billows above this share of its height: inverted
 // Worley noise at the base for "some nice whispy shapes" (Schneider 2015)
 const float WISPY_BASE = 0.3;
+// the finest details repeat every this many meters, with this many voxels, 62.5 m each (Schneider
+// 2015's detail noise, a 32 voxel cube); they erode the edges by this much more, faded in as a
+// pixel's footprint shrinks from the first size to the second, in meters: larger, sampled once a
+// pixel, they would alias into speckles, and the shadow map's texels never see them
+const float DETAIL_TILE = 2000.0;
+const float DETAIL_VOXELS = 32.0;
+const float FINE_EROSION = 0.5;
+const vec2 FINE_FOOTPRINT = vec2(250.0, 60.0);
 
 // the cloud's density at a point, 0 to the density uniform, from the clouds' map (cloud-map.js):
 // where its shield covers the ground, as tall as its type, a deck over drizzle to towers over heavy
@@ -104,7 +114,8 @@ float cloudDensity(vec3 positionWC, float h, float footprint, out float rain, ou
   // the noise drifts with the wind and the map does not, so the clouds stay where it rains and
   // their billows pass through them (Schneider 2017)
   float slabFraction = clamp((h - cloudBase) / (cloudTop - cloudBase), 0.0, 1.0);
-  vec3 q = (positionWC - windOffset - WIND_SKEW * slabFraction * windDirection) / NOISE_TILE;
+  vec3 drifted = positionWC - windOffset - WIND_SKEW * slabFraction * windDirection;
+  vec3 q = drifted / NOISE_TILE;
   vec4 noise = textureLod(cloudNoise, fract(q), lod);
   // the same noise about four times larger, its axes swapped, breaks up the repetition of the tile,
   // which far views would show as a grid
@@ -125,5 +136,13 @@ float cloudDensity(vec3 positionWC, float h, float footprint, out float rain, ou
   float billows = mix(noise.g, noise.b, 0.4);
   float detail = mix(1.0 - billows, billows, clamp(y / WISPY_BASE, 0.0, 1.0)) * (1.0 - smoothstep(0.25, 0.5, footprint / DETAIL_SIZE));
   float erosion = EROSION * detail * (1.0 - shape);
+  // the finest details, on the edges only: the core is solid, and outside the cloud there is nothing
+  // to erode
+  float fine = 1.0 - smoothstep(FINE_FOOTPRINT.y, FINE_FOOTPRINT.x, footprint);
+  if (fine > 0.0 && shape > 0.0 && shape < 1.0) {
+    float fineLod = max(log2(footprint * DETAIL_VOXELS / DETAIL_TILE) + LOD_BIAS, 0.0);
+    float f = textureLod(cloudDetail, fract(drifted / DETAIL_TILE), fineLod).r;
+    erosion = min(erosion + FINE_EROSION * fine * mix(1.0 - f, f, clamp(y / WISPY_BASE, 0.0, 1.0)) * (1.0 - shape), 0.95);
+  }
   return density * clamp((shape - erosion) / (1.0 - erosion), 0.0, 1.0);
 }

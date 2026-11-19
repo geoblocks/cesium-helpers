@@ -6,7 +6,7 @@ import {Sampler, Texture3D, TextureWrap} from '@cesium/engine';
 import {Framebuffer, RenderState, Texture} from '@cesium/engine';
 import {acquireCloudCover, releaseCloudCover} from './cloud-cover.js';
 import createCloudMap from './cloud-map.js';
-import createCloudNoise, {createMapNoise} from './cloud-noise.js';
+import createCloudNoise, {createCloudDetail, createMapNoise} from './cloud-noise.js';
 import Effect from './effect.js';
 import {acquireFrames, releaseFrames} from './frame-clock.js';
 import {heightUniforms} from './height.js';
@@ -34,8 +34,10 @@ import WeatherMap from './weather-map.js';
 // the clouds are kilometers wide and soft: a quarter of the resolution, a 16th of the pixels, is
 // enough for their raymarch (CloudsComposite.glsl's CLOUD_SCALE)
 const CLOUD_SCALE = 0.25;
-// voxels along each side of the noise, CloudsDensity.glsl's NOISE_VOXELS
+// voxels along each side of the noise and of its finest details, CloudsDensity.glsl's
+// NOISE_VOXELS and DETAIL_VOXELS
 const NOISE_SIZE = 64;
+const DETAIL_SIZE = 32;
 // the share of the previous frames in each frame's clouds, about 10 frames' worth (Hillaire 2016,
 // sec. 5.5.3, blends 0.1 of the current one)
 const HISTORY_WEIGHT = 0.9;
@@ -69,9 +71,9 @@ void main() {
 `;
 // the clouds over the lightest rain are this thick, in meters, CloudsDensity.glsl's THIN_DEPTH
 const THIN_DEPTH = 1500;
-// the wind's offset of the noise wraps at this many meters, a period of its tile, CloudsMarch.glsl's
-// NOISE_TILE, and of its larger lookup, the tile over LARGE_SCALE (0.27): single precision would
-// lose the offset after days of wind
+// the wind's offset of the noise wraps at this many meters, a period of its tile, CloudsDensity.glsl's
+// NOISE_TILE, of its larger lookup, the tile over LARGE_SCALE (0.27), and of the finest details'
+// tile, DETAIL_TILE (2000 m): single precision would lose the offset after days of wind
 const WIND_PERIOD = 100 * 16000;
 
 /**
@@ -79,6 +81,12 @@ const WIND_PERIOD = 100 * 16000;
  * @type {Uint8Array | undefined}
  */
 let noise;
+
+/**
+ * The finest details' voxels, made once for all the clouds of the page.
+ * @type {Uint8Array | undefined}
+ */
+let detail;
 
 /**
  * The noise over the clouds' map, made once for all the clouds of the page.
@@ -127,6 +135,8 @@ export default class Clouds extends Effect {
   // made when the clouds are first drawn, as the map's texture
   /** @type {any} */
   #noiseTexture = undefined;
+  /** @type {any} */
+  #detailTexture = undefined;
   /** @type {any} */
   #mapNoiseTexture = undefined;
   // the accumulation over the frames: the frames drawn, the previous frames' clouds, their share,
@@ -349,6 +359,7 @@ export default class Clouds extends Effect {
       mapBlend: () => this.#weatherMap.blend,
       mapBounds: () => this.#weatherMap.bounds,
       cloudNoise: () => this.#createNoiseTexture(context),
+      cloudDetail: () => this.#createDetailTexture(context),
       mapNoise: () => this.#createMapNoiseTexture(context),
       cloudTop: () => this.#cloudTop,
       density: () => this.#density,
@@ -503,27 +514,46 @@ export default class Clouds extends Effect {
   }
 
   /**
-   * The noise's texture, repeating in every direction, with its mipmaps for the far clouds.
+   * The noise's texture.
    * @param {any} context the scene's context
    */
   #createNoiseTexture(context) {
-    if (!this.#noiseTexture) {
-      noise ??= createCloudNoise(NOISE_SIZE);
-      this.#noiseTexture = this.createTexture3D_({
-        context,
-        flipY: false,
-        source: {width: NOISE_SIZE, height: NOISE_SIZE, depth: NOISE_SIZE, arrayBufferView: noise},
-        sampler: new Sampler({
-          wrapS: TextureWrap.REPEAT,
-          wrapT: TextureWrap.REPEAT,
-          wrapR: TextureWrap.REPEAT,
-          minificationFilter: TextureMinificationFilter.LINEAR_MIPMAP_LINEAR,
-          magnificationFilter: TextureMagnificationFilter.LINEAR,
-        }),
-      });
-      this.#noiseTexture.generateMipmap();
-    }
+    noise ??= createCloudNoise(NOISE_SIZE);
+    this.#noiseTexture ??= this.#createRepeating3D(context, NOISE_SIZE, noise);
     return this.#noiseTexture;
+  }
+
+  /**
+   * The finest details' texture.
+   * @param {any} context the scene's context
+   */
+  #createDetailTexture(context) {
+    detail ??= createCloudDetail(DETAIL_SIZE);
+    this.#detailTexture ??= this.#createRepeating3D(context, DETAIL_SIZE, detail);
+    return this.#detailTexture;
+  }
+
+  /**
+   * A cube of voxels as a texture repeating in every direction, with its mipmaps for the far clouds.
+   * @param {any} context the scene's context
+   * @param {number} size voxels along each side
+   * @param {Uint8Array} voxels RGBA bytes
+   */
+  #createRepeating3D(context, size, voxels) {
+    const texture = this.createTexture3D_({
+      context,
+      flipY: false,
+      source: {width: size, height: size, depth: size, arrayBufferView: voxels},
+      sampler: new Sampler({
+        wrapS: TextureWrap.REPEAT,
+        wrapT: TextureWrap.REPEAT,
+        wrapR: TextureWrap.REPEAT,
+        minificationFilter: TextureMinificationFilter.LINEAR_MIPMAP_LINEAR,
+        magnificationFilter: TextureMagnificationFilter.LINEAR,
+      }),
+    });
+    texture.generateMipmap();
+    return texture;
   }
 
   /**
@@ -584,6 +614,7 @@ export default class Clouds extends Effect {
     this.#copy = undefined;
     this.#weatherMap.destroy();
     this.#noiseTexture = this.#noiseTexture?.destroy();
+    this.#detailTexture = this.#detailTexture?.destroy();
     this.#mapNoiseTexture = this.#mapNoiseTexture?.destroy();
   }
 
