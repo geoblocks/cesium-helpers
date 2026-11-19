@@ -29,13 +29,19 @@ uniform vec2 sceneSize;
 // the empty air a coarse step spans COARSE of them, and where it finds a cloud the march steps
 // back to the last empty one and goes on fine, lighting each sample, until EMPTY fine samples in a
 // row find none (the cheap and the expensive samples of Schneider 2015): the steps in the clouds
-// are short, for their edges to be sharp, and the empty air costs a sample every COARSE. At most
-// MAX_SAMPLES, the fine steps and a few steps back: a ray through a long, thin cloud is marched to
-// its end
-const int FINE_STEPS = 64;
-const int COARSE = 4;
+// are short, for their edges to be sharp, and the empty air costs a sample every COARSE. In a
+// cloud, a step goes through at most STEP_DEPTH of optical depth, a fraction of a fine step, but
+// no shorter than CLOUD_STEP, in meters at the camera and per meter of distance, as Nubis' 3 m plus
+// 60 m per 16 km (Schneider 2022), longer for our budget: through thin cloud, a fine step
+// integrates alike. At most MAX_SAMPLES: a ray through a cloud is opaque in a few
+// hundred meters, EYE_DEPTH's, which the steps follow, and one through a long, thin cloud is
+// marched as far as they reach
+const float FINE_STEPS = 64.0;
+const float COARSE = 4.0;
 const int EMPTY = 4;
-const int MAX_SAMPLES = 72;
+const int MAX_SAMPLES = 128;
+const vec2 CLOUD_STEP = vec2(20.0, 0.02);
+const float STEP_DEPTH = 0.5;
 // the clouds fade out over the last part of the march, past this share of MAX_DISTANCE from where
 // the ray enters the slab, so that its end is not an edge
 const float FAR_FADE = 0.6;
@@ -49,15 +55,15 @@ const int RAY_PROBES = 8;
 // the sun's light through the cloud, sampled at these distances toward it, in meters. Among the
 // lobes of a cumulus, at these three, the first within a lobe's width, through the lobes and with
 // the extinction of a real cumulus' edge, about 0.01 per meter rather than the deck's EXTINCTION,
-// so that a lobe shades the crevice behind it a few tens of meters in; the others, the eye and the
-// clouds without lobes keep the deck's, for which an overcast from below stays gray rather than
+// so that a lobe shades the crevice behind it a few tens of meters in; the others and the clouds
+// without lobes keep the deck's, for which an overcast from below stays gray rather than
 // black and the sunlit lobes near white
 const vec2 LIGHT_DISTANCES = vec2(200.0, 700.0);
 const vec3 LOBE_LIGHT_DISTANCES = vec3(60.0, 180.0, 500.0);
 const float LOBE_EXTINCTION = 0.01;
 // in the fair-weather cumulus, the sun's light from the clouds above a point, the shadow map's, sees
-// this many times their optical depth: the eye sees them with a real cloud's extinction scaled down,
-// about 1.3 km of visibility rather than 50 to 100 m, for their soft look, but the light that far
+// this many times their optical depth: the light sees them with a real cloud's extinction scaled
+// down, about 1.3 km of visibility rather than 50 to 100 m, but the light that far
 // through a cumulus would light its whole base toward the sun, white. Deeper there, their bases are
 // gray under sunlit tops and only their thin edges glow toward the sun; the samples toward the sun
 // near the point keep the cloud's own depth, so their sunlit tops and sides stay bright. The rain's
@@ -149,7 +155,7 @@ void main() {
   }
   // a ray that meets no shield meets only the fair-weather cumulus, everywhere off it, as deep as the
   // thinnest deck: half the fine steps are short enough there
-  int fineSteps = covered > 0.0 ? FINE_STEPS : FINE_STEPS / 2;
+  float fineSteps = covered > 0.0 ? FINE_STEPS : 0.5 * FINE_STEPS;
   covered = max(covered, fairWeather);
   segment = slab(dot(direction, up), sceneDistance, cloudTopFor(highest, 1.0));
   span = segment.y - segment.x;
@@ -201,15 +207,15 @@ void main() {
   float unused;
   // the fine step the march is at, whether it goes coarse, the empty fine samples in a row, and the
   // fine step a coarse one found a cloud at, which it does not go coarse again before
-  int k = 0;
+  float k = 0.0;
   bool coarse = true;
   int empty = 0;
-  int found = 0;
+  float found = 0.0;
   for (int i = 0; i < MAX_SAMPLES; i++) {
     if (k >= fineSteps) {
       break;
     }
-    float s = (float(k) + jitter) / float(fineSteps);
+    float s = (k + jitter) / fineSteps;
     float t = segment.x + span * s * s;
     vec3 pointEC = direction * t;
     float h = heightAt(pointEC);
@@ -224,21 +230,26 @@ void main() {
         coarse = false;
         empty = 0;
         found = k;
-        k = max(k - COARSE + 1, 0);
+        k = max(k - COARSE + 1.0, 0.0);
       } else {
         k += COARSE;
       }
       continue;
     }
-    k++;
-    float sigma = EXTINCTION * density * (1.0 - smoothstep(FAR_FADE, 1.0, (t - segment.x) / MAX_DISTANCE));
+    // the light's extinction, and the eye's
+    float sigmaLight = EXTINCTION * density * (1.0 - smoothstep(FAR_FADE, 1.0, (t - segment.x) / MAX_DISTANCE));
+    float sigma = EYE_DEPTH * sigmaLight;
     if (sigma <= 0.0) {
+      k += 1.0;
       empty++;
       coarse = empty >= EMPTY && k > found;
       continue;
     }
     empty = 0;
-    float dt = span * (2.0 * s + 1.0 / float(fineSteps)) / float(fineSteps);
+    float fineDt = span * (2.0 * s + 1.0 / fineSteps) / fineSteps;
+    float dt = min(fineDt, max(CLOUD_STEP.x + CLOUD_STEP.y * t, STEP_DEPTH / sigma));
+    // the next sample dt farther, the samples spaced as s squared
+    k += (sqrt(s * s + dt / span) - s) * fineSteps;
     // the light through the cloud toward it; by day, behind cloud that hides a fifth of what is
     // behind it, from the shadow map alone, whose light reaches the eye dimmed by it (the cheap
     // light samples of Schneider 2015, there past a transmittance of 0.7: alike to the eye, and
@@ -271,7 +282,7 @@ void main() {
     // in the cumulus, the shadow map's depth beyond what the samples near the point see, the cloud
     // above them, is deeper: the near samples keep the cloud's own depth. For the rain's clouds, the
     // larger of the two
-    float near = cheap ? sigma * LIGHT_DISTANCES.x : opticalDepth;
+    float near = cheap ? sigmaLight * LIGHT_DISTANCES.x : opticalDepth;
     float sunDepth = mix(1.0, SUN_DEPTH, cumulus);
     opticalDepth = near + sunDepth * max(shadowed * deep - near, 0.0);
     // the light scattered once, then many times, as much as the dimensional profile, the depth into
