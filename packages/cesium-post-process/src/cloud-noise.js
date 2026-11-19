@@ -6,8 +6,8 @@
 // edges. A second, smaller cube for the finest details, which tiles every 2 km rather than 16 km:
 // inverted Worley noise at three octaves summed, as Schneider's detail noise. And a square of
 // texels that tiles over the clouds' map, for CloudsDensity.glsl to read once rather than compute
-// noise at each sample: red and green jitter the map's lookup, blue varies its coverage and the
-// height of the clouds' tops, alpha the height of their base, over 2 km. Each
+// noise at each sample: red varies its coverage over 8 cells, and the height of the clouds' tops,
+// green its coverage over 2, blue the height of the clouds' base over 2, alpha opaque. Each
 // channel is stretched over the bytes' range: between its 1st and 99th percentiles, its contrast
 // would rise and open holes in the decks over heavy rain, whose coverage CloudsDensity.glsl is
 // tuned for. Made in cloud-worker.js, which has no Cesium to import (the page's may be a global,
@@ -23,12 +23,12 @@ const mod = (m, n) => ((m % n) + n) % n;
 // cells of the base shape across the cube, and of the finest details' first octave across theirs
 const BASE_CELLS = 4;
 const DETAIL_CELLS = 2;
-// the map noise's square spans this many cells of the map, its jitter varying over this many of
-// them, its coverage over this many, the height of the clouds' base over this many: whole periods
-// across the square, for it to tile
+// the map noise's square spans this many cells of the map, its coverage varying over this many of
+// them and this many, the height of the clouds' base over this many: whole periods across the
+// square, for it to tile
 const MAP_TILE_CELLS = 64;
-const JITTER_CELLS = 2;
 const COVERAGE_CELLS = 8;
+const FINE_COVERAGE_CELLS = 2;
 const CLOUD_BASE_CELLS = 2;
 
 /**
@@ -51,7 +51,7 @@ function hash(x, y, z, seed) {
  * @param {number} period
  * @param {number} seed
  */
-function perlin(period, seed) {
+export function perlin(period, seed) {
   const gradients = new Float32Array(period ** 3 * 3);
   for (let c = 0; c < period ** 3; c++) {
     const cx = c % period;
@@ -239,15 +239,14 @@ function toBytes(channels) {
 
 /**
  * The noise over the clouds' map as RGBA bytes, x fastest: a square that tiles, MAP_TILE_CELLS
- * cells of the map across, with gradient noise over JITTER_CELLS in red and green, over
- * COVERAGE_CELLS in blue and over CLOUD_BASE_CELLS in alpha.
+ * cells of the map across, with gradient noise over COVERAGE_CELLS in red, over
+ * FINE_COVERAGE_CELLS in green and over CLOUD_BASE_CELLS in blue, alpha opaque.
  * @param {number} [size] texels along each side
  */
 export function createMapNoise(size = 256) {
   const noises = [
-    [perlin(MAP_TILE_CELLS / JITTER_CELLS, 70), JITTER_CELLS],
-    [perlin(MAP_TILE_CELLS / JITTER_CELLS, 80), JITTER_CELLS],
     [perlin(MAP_TILE_CELLS / COVERAGE_CELLS, 90), COVERAGE_CELLS],
+    [perlin(MAP_TILE_CELLS / FINE_COVERAGE_CELLS, 85), FINE_COVERAGE_CELLS],
     [perlin(MAP_TILE_CELLS / CLOUD_BASE_CELLS, 95), CLOUD_BASE_CELLS],
   ];
   const channels = noises.map(() => new Float32Array(size * size));

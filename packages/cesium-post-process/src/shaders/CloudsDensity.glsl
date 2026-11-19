@@ -38,14 +38,15 @@ const vec3 ANVIL = vec3(0.7, 0.8, 0.5);
 // the cloud shield over dry ground is broken: its coverage is this share of the clouds' over the
 // rain, which the rain raises to the full
 const float SHIELD_COVERAGE = 0.5;
-// the map's cells are read jittered by up to this share of a cell, uv + 0.3 * perlin2(uv * k)
-// cells, so that their squares do not show; and the coverage varies by up to this share around its
-// mean, by noise over 8 cells, 8 km of the radar's 1 km cells, a pattern that is not the billows'
-// noise, whose tile would show (Högfeldt 2016). Both from a square of noise made once
-// (cloud-noise.js), read once rather than computed three times at each sample, which spans this
-// many of the map's cells, cloud-noise.js's MAP_TILE_CELLS
-const float MAP_JITTER = 0.3;
-const float COVERAGE_NOISE = 0.4;
+// the coverage varies by up to these shares around its mean, by noise over 8 cells, 8 km of the
+// radar's 1 km cells, and over 2, a pattern that is not the billows' noise, whose tile would show
+// (Högfeldt 2016): over dry ground and light rain it breaks the shield into clouds with gaps between
+// them, less as the rain is heavier, from the first intensity to the second, so that the heaviest
+// rain falls from closed cloud. From a square of noise made once (cloud-noise.js), read once rather
+// than computed at each sample, which spans this many of the map's cells, cloud-noise.js's
+// MAP_TILE_CELLS. The map itself is softened and warped by cloud-map.js
+const vec2 COVERAGE_NOISE = vec2(0.6, 0.35);
+const vec2 OPEN_RAIN = vec2(0.3, 0.7);
 const float MAP_TILE_CELLS = 64.0;
 
 // the top of a column of clouds of a type, 0 to 1, its top swinging by -1 to 1, in meters above the
@@ -54,20 +55,21 @@ float cloudTopFor(float type, float swing) {
   return cloudBase + mix(THIN_DEPTH, cloudTop - cloudBase, type) * (1.0 + TOP_SWING * swing);
 }
 
-// the clouds' map at a point in world coordinates, jittered, its coverage varied, 0 outside the map;
-// and how far its base and its top swing, -1 to 1
+// the clouds' map at a point in world coordinates, its coverage varied, 0 outside the map; and how
+// far its base and its top swing, -1 to 1
 vec4 cloudMapAt(vec3 positionWC, out vec2 swing) {
   vec2 cells = vec2(textureSize(map, 0));
   vec2 uv = mapUv(positionWC);
-  // the jitter in red and green, the coverage's variation in blue, the base's in alpha, -1 to 1
+  // the coverage's variation over 8 cells in red, over 2 in green, the base's in blue, -1 to 1
   vec4 noise = texture(mapNoise, uv * cells / MAP_TILE_CELLS) * 2.0 - 1.0;
-  swing = noise.ab;
-  uv += MAP_JITTER * noise.rg / cells;
+  // the top swings with the coverage, higher where the clouds are fuller
+  swing = noise.br;
   if (any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0)))) {
     return vec4(0.0);
   }
   vec4 texel = mix(texture(map, uv), texture(nextMap, uv), mapBlend);
-  texel.g = clamp(texel.g * (1.0 + COVERAGE_NOISE * noise.b), 0.0, 1.0);
+  float open = 1.0 - smoothstep(OPEN_RAIN.x, OPEN_RAIN.y, texel.r);
+  texel.g = clamp(texel.g * (1.0 + open * dot(COVERAGE_NOISE, noise.rg)), 0.0, 1.0);
   return texel;
 }
 // extinction inside a solid cloud, per meter: about 1.3 km of visibility
