@@ -30,7 +30,8 @@ comment. Known cases: smoothstep, damping and Gaussian smoothing, the quantized-
 (`cesium-path-flyover/src/terrain.js`), the hand-built orthographic ENU placement in `cesium-iso` (Cesium's `setView` reads
 the depth buffer), `requestAnimationFrame` loops that must run under `requestRenderMode`, the trail's polyline vertex shader in
 `cesium-path-flyover` (Cesium's own with two lines replaced: Cesium has no public miter limit, and its st.s counts points
-rather than distance), and anything marked `@private`
+rather than distance), the modules a web worker runs (`cesium-post-process`'s `cloud-map.js` and `cloud-noise.js`: the demos'
+Cesium is the page's global, which a worker does not see, so they import nothing), and anything marked `@private`
 or `@internal` in Cesium. Do not use private or internal Cesium APIs.
 
 ## Write ES2025

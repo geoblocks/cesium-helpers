@@ -5,8 +5,7 @@ import {Sampler, Texture3D, TextureWrap} from '@cesium/engine';
 // @ts-expect-error the engine exports its textures, framebuffers and render states, but does not type them
 import {Framebuffer, RenderState, Texture} from '@cesium/engine';
 import {acquireCloudCover, releaseCloudCover} from './cloud-cover.js';
-import createCloudMap from './cloud-map.js';
-import createCloudNoise, {createCloudDetail, createMapNoise} from './cloud-noise.js';
+import cloudWork from './cloud-work.js';
 import Effect from './effect.js';
 import {acquireFrames, releaseFrames} from './frame-clock.js';
 import {heightUniforms} from './height.js';
@@ -25,7 +24,7 @@ import Height from './shaders/Height.js';
 import Phase from './shaders/Phase.js';
 import RainHaze from './shaders/RainHaze.js';
 import WeatherMapShader from './shaders/WeatherMap.js';
-import WeatherMap from './weather-map.js';
+import WeatherMap, {imageData} from './weather-map.js';
 
 /** @import {CloudShadow} from './cloud-cover.js' */
 /** @import {WeatherMapOptions} from './weather-map.js' */
@@ -83,26 +82,34 @@ const BASE_SWING = 300;
 const BASE_DROP = 250;
 const TOP_SWING = 0.3;
 
-/**
- * The noise's voxels, made once for all the clouds of the page: about a third of a second.
- * @type {Uint8Array | undefined}
- */
-let noise;
-
-/**
- * The finest details' voxels, made once for all the clouds of the page.
- * @type {Uint8Array | undefined}
- */
-let detail;
-
-/**
- * The noise over the clouds' map, made once for all the clouds of the page.
- * @type {Uint8Array | undefined}
- */
-let mapNoise;
-
 // texels along each side of the map's noise
 const MAP_NOISE_SIZE = 256;
+
+/**
+ * The noise's voxels, its finest details' and the noise over the clouds' map.
+ * @typedef {{noise: Uint8Array, detail: Uint8Array, mapNoise: Uint8Array}} Noises
+ */
+
+/**
+ * The noises, made once for all the clouds of the page, in the worker: about a third of a second.
+ * @type {Promise<Noises> | undefined}
+ */
+let noises;
+
+/**
+ * The noises, made at the first call.
+ */
+function makeNoises() {
+  noises ??= Promise.all([cloudWork.call('cloudNoise', NOISE_SIZE), cloudWork.call('cloudDetail', DETAIL_VOXELS), cloudWork.call('mapNoise', MAP_NOISE_SIZE)]).then(
+    ([noise, detail, mapNoise]) => ({noise, detail, mapNoise}),
+    (error) => {
+      // made again at the next activation
+      noises = undefined;
+      throw error;
+    },
+  );
+  return noises;
+}
 
 const groundScratch = new Cartesian3();
 
@@ -130,6 +137,14 @@ export default class Clouds extends Effect {
   #map;
   /** @type {WeatherMapOptions | undefined} */
   #nextMap = undefined;
+  // the clouds' maps of the map and the next map, made in the worker, by their rain map's image: at
+  // an hour's change, the map is the previous next map, already made; the others are dropped, their
+  // calls aborted if they are still waiting
+  /** @type {Map<object, {made: Promise<WeatherMapOptions>, controller: AbortController}>} */
+  #cloudMaps = new Map();
+  // the noises, once made: until then the clouds are not drawn
+  /** @type {Noises | undefined} */
+  #noises = undefined;
   // the map's intensity at the camera when it is inside the clouds, read each frame
   #localDensity = 0;
   // made when the clouds are first drawn, as the map's texture
@@ -195,8 +210,7 @@ export default class Clouds extends Effect {
     this.#cloudTop = options.cloudTop ?? 9000;
     this.#density = options.density ?? 1;
     // the maps of the rain, from which the clouds' maps are made
-    this.#map = options.map;
-    this.#weatherMap.map = options.map && createCloudMap(options.map);
+    this.map = options.map;
     this.#shadowExtent = SHADOW_EXTENTS[0];
     this.#shadowDrawnAt = -Infinity;
     // for Precipitation, which lights its haze through it
@@ -274,7 +288,7 @@ export default class Clouds extends Effect {
       },
       pixelDatatype: PixelDatatype.HALF_FLOAT,
     });
-    return new PostProcessStageComposite({
+    const composite = new PostProcessStageComposite({
       ...this.named_,
       stages: [
         march,
@@ -290,6 +304,9 @@ export default class Clouds extends Effect {
       // the clouds are drawn over the scene, not over the march
       inputPreviousStageTexture: false,
     });
+    // drawn once the noises are made
+    composite.enabled = this.#noises !== undefined;
+    return composite;
   }
 
   /**
@@ -408,6 +425,9 @@ export default class Clouds extends Effect {
    * @param {Scene} scene
    */
   #drawShadow(scene) {
+    if (!this.#noises) {
+      return;
+    }
     const ground = Ellipsoid.WGS84.scaleToGeodeticSurface(scene.camera.positionWC, groundScratch);
     const time = this.viewer.clock.currentTime;
     const now = Date.now();
@@ -454,7 +474,7 @@ export default class Clouds extends Effect {
    */
   #keepHistory(scene) {
     // @ts-expect-error the collection's output textures are not typed
-    const output = this.stage_ && scene.postProcessStages.getOutputTexture?.(this.stage_.get(1).name);
+    const output = this.#noises && this.stage_ && scene.postProcessStages.getOutputTexture?.(this.stage_.get(1).name);
     if (!output) {
       return;
     }
@@ -485,8 +505,7 @@ export default class Clouds extends Effect {
    * @param {any} context the scene's context
    */
   #createNoiseTexture(context) {
-    noise ??= createCloudNoise(NOISE_SIZE);
-    this.#noiseTexture ??= this.#createRepeating3D(context, NOISE_SIZE, noise);
+    this.#noiseTexture ??= this.#createRepeating3D(context, NOISE_SIZE, this.#made().noise);
     return this.#noiseTexture;
   }
 
@@ -495,8 +514,7 @@ export default class Clouds extends Effect {
    * @param {any} context the scene's context
    */
   #createDetailTexture(context) {
-    detail ??= createCloudDetail(DETAIL_VOXELS);
-    this.#detailTexture ??= this.#createRepeating3D(context, DETAIL_VOXELS, detail);
+    this.#detailTexture ??= this.#createRepeating3D(context, DETAIL_VOXELS, this.#made().detail);
     return this.#detailTexture;
   }
 
@@ -524,16 +542,22 @@ export default class Clouds extends Effect {
   }
 
   /**
+   * The noises, made before the clouds are drawn.
+   */
+  #made() {
+    return /** @type {Noises} */ (this.#noises);
+  }
+
+  /**
    * The noise over the clouds' map, repeating.
    * @param {any} context the scene's context
    */
   #createMapNoiseTexture(context) {
     if (!this.#mapNoiseTexture) {
-      mapNoise ??= createMapNoise(MAP_NOISE_SIZE);
       this.#mapNoiseTexture = this.createTexture_({
         context,
         flipY: false,
-        source: {width: MAP_NOISE_SIZE, height: MAP_NOISE_SIZE, arrayBufferView: mapNoise},
+        source: {width: MAP_NOISE_SIZE, height: MAP_NOISE_SIZE, arrayBufferView: this.#made().mapNoise},
         sampler: new Sampler({
           wrapS: TextureWrap.REPEAT,
           wrapT: TextureWrap.REPEAT,
@@ -553,7 +577,21 @@ export default class Clouds extends Effect {
   activated_(scene) {
     scene.preRender.addEventListener(this.#onPreRender);
     scene.postRender.addEventListener(this.#onPostRender);
-    acquireCloudCover(scene, this.#shadowSource);
+    // drawn, and leaving the rain under them to Precipitation, once the noises are made, if still
+    // active then
+    const stage = this.stage_;
+    makeNoises().then(
+      (made) => {
+        this.#noises = made;
+        if (stage && this.stage_ === stage) {
+          stage.enabled = true;
+          acquireCloudCover(scene, this.#shadowSource);
+          this.#historyValid = false;
+          this.#cloudsChanged();
+        }
+      },
+      (error) => console.error("The clouds' noise could not be made:", error),
+    );
   }
 
   /**
@@ -591,10 +629,78 @@ export default class Clouds extends Effect {
 
   set map(value) {
     this.#map = value;
-    this.#weatherMap.map = value && createCloudMap(value);
-    // the previous map's clouds would linger
-    this.#historyValid = false;
-    this.#cloudsChanged();
+    this.#whenMade(value, (cloudMap) => {
+      if (this.#map === value) {
+        this.#weatherMap.map = cloudMap;
+        // the previous map's clouds would linger
+        this.#historyValid = false;
+        this.#cloudsChanged();
+      }
+    });
+  }
+
+  /**
+   * Hands the clouds' map of a map of the rain to `use` once made in the worker, at once for no
+   * map: the clouds keep the previous one until then. The maps neither the map nor the next map
+   * is are dropped.
+   * @param {WeatherMapOptions | undefined} map
+   * @param {(cloudMap: WeatherMapOptions | undefined) => void} use
+   */
+  #whenMade(map, use) {
+    // once both setters of an hour's change ran, in either order
+    queueMicrotask(() => this.#dropUnwanted());
+    if (!map) {
+      use(undefined);
+      return;
+    }
+    this.#cloudMapOf(map).then(use, (error) => {
+      // but a dropped map's
+      if (error?.name !== 'AbortError') {
+        console.error("The clouds' map could not be made:", error);
+      }
+    });
+  }
+
+  /**
+   * Drops the clouds' maps neither the map nor the next map is, aborting their calls if they are
+   * still waiting.
+   */
+  #dropUnwanted() {
+    for (const [image, {controller}] of this.#cloudMaps) {
+      if (image !== this.#map?.image && image !== this.#nextMap?.image) {
+        controller.abort();
+        this.#cloudMaps.delete(image);
+      }
+    }
+  }
+
+  /**
+   * The clouds' map of a map of the rain, made once for each image.
+   * @param {WeatherMapOptions} map
+   */
+  #cloudMapOf(map) {
+    const {image, rectangle} = map;
+    let cloudMap = this.#cloudMaps.get(image);
+    if (!cloudMap) {
+      const controller = new AbortController();
+      const {width, height, data} = /** @type {{width: number, height: number, data: Uint8ClampedArray}} */ (imageData(image));
+      const {west, south, east, north} = rectangle;
+      const made = cloudWork
+        .call('cloudMap', {image: {width, height, data}, rectangle: {west, south, east, north}}, controller.signal)
+        .then(
+          (pixels) => ({image: pixels, rectangle}),
+          (error) => {
+            // made again when set again
+            if (this.#cloudMaps.get(image)?.controller === controller) {
+              this.#cloudMaps.delete(image);
+            }
+            throw error;
+          },
+        );
+      cloudMap = {made, controller};
+      this.#cloudMaps.set(image, cloudMap);
+    }
+    return cloudMap.made;
   }
 
   // the clouds changed: their shadow map is drawn again, and their accumulation starts over and
@@ -602,7 +708,10 @@ export default class Clouds extends Effect {
   #cloudsChanged() {
     this.#shadowChanged = true;
     this.#changed = true;
-    this.viewer.scene.requestRender();
+    // a map made after the viewer was destroyed
+    if (!this.viewer.scene.isDestroyed()) {
+      this.viewer.scene.requestRender();
+    }
   }
 
   /**
@@ -615,8 +724,12 @@ export default class Clouds extends Effect {
 
   set nextMap(value) {
     this.#nextMap = value;
-    this.#weatherMap.nextMap = value && createCloudMap(value);
-    this.#cloudsChanged();
+    this.#whenMade(value, (cloudMap) => {
+      if (this.#nextMap === value) {
+        this.#weatherMap.nextMap = cloudMap;
+        this.#cloudsChanged();
+      }
+    });
   }
 
   /**

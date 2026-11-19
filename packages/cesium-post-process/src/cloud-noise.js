@@ -10,8 +10,15 @@
 // height of the clouds' tops, alpha the height of their base, over 2 km. Each
 // channel is stretched over the bytes' range: between its 1st and 99th percentiles, its contrast
 // would rise and open holes in the decks over heavy rain, whose coverage CloudsDensity.glsl is
-// tuned for.
-import {Math as CesiumMath} from '@cesium/core';
+// tuned for. Made in cloud-worker.js, which has no Cesium to import (the page's may be a global,
+// which a worker does not see): this module imports nothing.
+
+/**
+ * A number modulo another, positive: CesiumMath.mod's.
+ * @param {number} m
+ * @param {number} n
+ */
+const mod = (m, n) => ((m % n) + n) % n;
 
 // cells of the base shape across the cube, and of the finest details' first octave across theirs
 const BASE_CELLS = 4;
@@ -50,14 +57,14 @@ function perlin(period, seed) {
     const cx = c % period;
     const cy = Math.floor(c / period) % period;
     const cz = Math.floor(c / period ** 2);
-    const theta = CesiumMath.TWO_PI * hash(cx, cy, cz, seed);
+    const theta = 2 * Math.PI * hash(cx, cy, cz, seed);
     const cosPhi = 2 * hash(cx, cy, cz, seed + 1) - 1;
     const sinPhi = Math.sqrt(1 - cosPhi * cosPhi);
     gradients.set([sinPhi * Math.cos(theta), sinPhi * Math.sin(theta), cosPhi], 3 * c);
   }
   const fade = (/** @type {number} */ t) => t * t * t * (t * (t * 6 - 15) + 10);
   // the corners of a voxel's cell are within one cell of it, so their wrapped index is a lookup
-  const wrapped = Int32Array.from({length: period + 1}, (_, i) => CesiumMath.mod(i, period));
+  const wrapped = Int32Array.from({length: period + 1}, (_, i) => mod(i, period));
   /**
    * @param {number} x in cells
    * @param {number} y
@@ -110,7 +117,7 @@ function worley(cells, seed) {
     points.set([hash(cx, cy, cz, seed), hash(cx, cy, cz, seed + 1), hash(cx, cy, cz, seed + 2)], 3 * c);
   }
   // the cells around a voxel are within one of its cell, so their wrapped index is a lookup
-  const wrapped = Int32Array.from({length: cells + 2}, (_, i) => CesiumMath.mod(i - 1, cells));
+  const wrapped = Int32Array.from({length: cells + 2}, (_, i) => mod(i - 1, cells));
   /**
    * @param {number} x in cells
    * @param {number} y

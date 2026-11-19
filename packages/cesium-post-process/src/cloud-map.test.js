@@ -14,7 +14,7 @@ const raining = (/** @type {number} */ red) => {
   }
   return {image: {width: SIZE, height: SIZE, data}, rectangle: Rectangle.fromDegrees(6, 46.7, 6.84, 47.276)};
 };
-const at = (/** @type {any} */ map, /** @type {number} */ x, /** @type {number} */ y, /** @type {number} */ channel) => map.image.data[4 * (y * SIZE + x) + channel];
+const at = (/** @type {any} */ image, /** @type {number} */ x, /** @type {number} */ y, /** @type {number} */ channel) => image.data[4 * (y * SIZE + x) + channel];
 
 test('the coverage covers the rain, spreads beyond it and fades with the distance', () => {
   const cloudMap = createCloudMap(raining(200));
