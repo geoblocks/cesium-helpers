@@ -1,4 +1,4 @@
-/** @import {Cartesian3} from '@cesium/core' */
+import {Cartesian3} from '@cesium/core';
 /** @import {Scene} from '@cesium/engine' */
 
 // Seen from above, Clouds draws the clouds over the rain under them, which Precipitation then
@@ -49,4 +49,21 @@ export function hasCloudCover(scene) {
  */
 export function cloudShadow(scene) {
   return covers.get(scene)?.at(-1);
+}
+
+/**
+ * The uniforms of CloudsShadow.glsl for an effect lit through the clouds of its scene, and
+ * `shadowed`, 1 while there are clouds: their shadow map, or the default texture without.
+ * @param {Scene} scene
+ */
+export function cloudShadowUniforms(scene) {
+  return {
+    shadowed: () => (cloudShadow(scene) ? 1 : 0),
+    // @ts-expect-error the scene's context is not typed
+    shadowMap: () => cloudShadow(scene)?.texture() ?? scene.context.defaultTexture,
+    shadowCenter: () => cloudShadow(scene)?.center ?? Cartesian3.ZERO,
+    shadowExtent: () => cloudShadow(scene)?.extent() ?? 1,
+    shadowBase: () => cloudShadow(scene)?.base() ?? 0,
+    shadowTop: () => cloudShadow(scene)?.top() ?? 0,
+  };
 }

@@ -152,10 +152,16 @@ vec3 lightUnderClouds(float direct, float snow) {
   return lightOnClouds(zenithFromTable(), 1.0, sunOnClouds()) * mix(twoStream(DECK_DEPTH), 1.0, direct) * mix(vec3(1.0), SNOW_HAZE / RAIN_HAZE, snow);
 }
 
+// the light a haze or a fog scatters toward the eye along a view direction in eye coordinates, by
+// full daylight: the sky's light on it, and the sun's light that reaches it, scattered forward in a
+// Henyey-Greenstein lobe of an asymmetry. Drops scatter nearly all the light they intercept: an
+// albedo of 1
+vec3 scatteredLight(vec3 view, vec3 skyLight, vec3 sunLight, float asymmetry) {
+  return min(skyLight + sunLight * henyeyGreenstein(dot(view, czm_lightDirectionEC), asymmetry), vec3(1.0));
+}
+
 // the haze's light toward the eye along a view direction in eye coordinates: the sky's light on it,
-// and the sun's through the clouds, as much of it as reaches the haze, 0 to 1. Drops scatter nearly
-// all the light they intercept: an albedo of 1
+// and the sun's through the clouds, as much of it as reaches the haze, 0 to 1
 vec3 rainHazeColor(vec3 view, float day, float snow, vec3 skyLight, float sunlit) {
-  vec3 sun = czm_lightColor * sunlit * henyeyGreenstein(dot(view, czm_lightDirectionEC), mix(HAZE_ASYMMETRY.x, HAZE_ASYMMETRY.y, snow));
-  return byDaylight(min(skyLight + sun, vec3(1.0)), day);
+  return byDaylight(scatteredLight(view, skyLight, czm_lightColor * sunlit, mix(HAZE_ASYMMETRY.x, HAZE_ASYMMETRY.y, snow)), day);
 }
