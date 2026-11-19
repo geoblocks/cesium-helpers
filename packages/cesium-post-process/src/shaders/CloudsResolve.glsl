@@ -2,9 +2,8 @@
 // of each block of 4 x 4 at each frame (Schneider 2015's temporal reprojection, a 16th of the
 // pixels a frame): the pixel marched this frame blends its new sample into its history, the others
 // take their history, reprojected to where they are seen now through the distance of the clouds
-// the march saw (Sakmary 2022) and the wind's motion of the billows since, read through a
-// Catmull-Rom filter, where a bilinear read would blur
-// it a little more at each frame, and while the view moves, clamped around the fresh samples
+// the march saw (Sakmary 2022), read through a Catmull-Rom filter, where a bilinear read would
+// blur it a little more at each frame, and while the view moves, clamped around the fresh samples
 // upsampled to the pixel, by their range, so that it does not trail behind what moved;
 // where there is no history, the fresh samples upsampled. A pixel whose scene is nearer than where
 // its ray enters the slab has no cloud in front of it, history or not: a ridge moving in front of
@@ -25,9 +24,6 @@ uniform bool hasHistory;
 // noisy fresh samples around it would only add their noise
 uniform vec2 frameOffset;
 uniform float fresh;
-// how far the wind moved the noise since the last frame, in eye coordinates: the billows seen now
-// were that much upwind then
-uniform vec3 windMotion;
 in vec2 v_textureCoordinates;
 
 
@@ -98,7 +94,7 @@ void main() {
   vec4 range = max(max(c00, c10), max(c01, c11)) - min(min(c00, c10), min(c01, c11));
   // through the clouds' distance; where the ray meets no slab, nothing is there to move: only the
   // view turns
-  vec4 point = distance > 0.0 ? vec4(direction * distance - windMotion, 1.0) : vec4(direction, 0.0);
+  vec4 point = distance > 0.0 ? vec4(direction * distance, 1.0) : vec4(direction, 0.0);
   vec4 clip = reprojection * point;
   vec2 previous = clip.xy / clip.w * 0.5 + 0.5;
   bool seen = hasHistory && clip.w > 0.0 && all(greaterThanEqual(previous, vec2(0.0))) && all(lessThanEqual(previous, vec2(1.0)));

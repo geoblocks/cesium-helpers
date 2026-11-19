@@ -1,6 +1,6 @@
 import {test, mock} from 'node:test';
 import assert from 'node:assert/strict';
-import {Cartesian3, Cartographic, Ellipsoid, JulianDate, Matrix4, Rectangle} from '@cesium/core';
+import {Cartesian3, Cartographic, JulianDate, Matrix4, Rectangle} from '@cesium/core';
 import Clouds from './clouds.js';
 import WeatherMap from './weather-map.js';
 
@@ -136,13 +136,11 @@ test('the options are live: setting one changes the uniforms and requests a rend
   const clouds = new TestClouds(/** @type {any} */ (viewer), {map});
   clouds.active = true;
   const march = /** @type {any} */ (clouds.stage_).get(0);
-  for (const [name, value] of /** @type {const} */ ([['cloudBase', 1800], ['cloudTop', 7000], ['density', 0.5], ['wind', 20]])) {
+  for (const [name, value] of /** @type {const} */ ([['cloudBase', 1800], ['cloudTop', 7000], ['density', 0.5]])) {
     viewer.calls.length = 0;
     clouds[name] = value;
     assert.equal(clouds[name], value);
-    if (name !== 'wind') {
-      assert.equal(march.uniforms[name](), value);
-    }
+    assert.equal(march.uniforms[name](), value);
     assert.deepEqual(viewer.calls, [['render']]);
   }
   viewer.calls.length = 0;
@@ -161,7 +159,6 @@ test('the defaults are those of the spec', () => {
   assert.equal(clouds.cloudBase, 2500);
   assert.equal(clouds.cloudTop, 9000);
   assert.equal(clouds.density, 1);
-  assert.equal(clouds.wind, 10);
   assert.equal(clouds.map, undefined);
 });
 
@@ -213,24 +210,6 @@ test('the march starts at the tallest cloud the map makes: 1500 m thick over dri
   }
 });
 
-test('the noise drifts with the wind toward the east at the map\'s center, rising at a tenth of its speed, by the scene\'s clock, wrapped for single precision', () => {
-  const viewer = fakeViewer();
-  const clouds = new TestClouds(/** @type {any} */ (viewer), {map});
-  clouds.active = true;
-  const {windOffset} = /** @type {any} */ (clouds.stage_).get(0).uniforms;
-  const up = Ellipsoid.WGS84.geodeticSurfaceNormalCartographic(Cartographic.fromDegrees(6, 47));
-  const east = Cartesian3.normalize(Cartesian3.cross(Cartesian3.UNIT_Z, up, new Cartesian3()), new Cartesian3());
-  const before = windOffset();
-  viewer.clock.currentTime = JulianDate.addSeconds(viewer.clock.currentTime, 100, new JulianDate());
-  // 10 m/s for 100 s, and 1 m/s up
-  const moved = Cartesian3.subtract(windOffset(), before, new Cartesian3());
-  const expected = Cartesian3.add(Cartesian3.multiplyByScalar(east, 1000, new Cartesian3()), Cartesian3.multiplyByScalar(up, 100, new Cartesian3()), new Cartesian3());
-  assert.ok(Cartesian3.equalsEpsilon(moved, expected, 1e-6));
-  viewer.clock.currentTime = JulianDate.fromIso8601('2100-01-01T00:00:00Z');
-  const far = windOffset();
-  assert.ok([far.x, far.y, far.z].every((component) => Math.abs(component) < 1600000));
-});
-
 test('a new map starts the accumulation over', () => {
   const viewer = fakeViewer();
   // the resolve's output, which a frame keeps as the history
@@ -267,7 +246,7 @@ test('the scene renders for a moment after a change, for the accumulation to set
   }
 });
 
-test('the shadow map is drawn again when the camera moves, the clock or the clouds change, at most 4 times a second', () => {
+test('the shadow map is drawn again when the camera moves, the light or the clouds change, at most 4 times a second', () => {
   mock.timers.enable({apis: ['setInterval', 'setTimeout', 'Date']});
   try {
     const viewer = fakeViewer();
@@ -293,7 +272,13 @@ test('the shadow map is drawn again when the camera moves, the clock or the clou
     assert.equal(drawn(250), false);
     cameraAt(6.03);
     assert.equal(drawn(250), true);
+    // a clock playing at its own pace does not move the light, more than a minute does
     viewer.clock.currentTime = JulianDate.addSeconds(viewer.clock.currentTime, 1, new JulianDate());
+    assert.equal(drawn(250), false);
+    // drawn 250 ms ago
+    cameraAt(6.06);
+    assert.equal(drawn(0), true);
+    viewer.clock.currentTime = JulianDate.addSeconds(viewer.clock.currentTime, 61, new JulianDate());
     assert.equal(drawn(100), false);
     assert.equal(drawn(150), true);
     // its side from 80 to 105 km
@@ -301,36 +286,6 @@ test('the shadow map is drawn again when the camera moves, the clock or the clou
     assert.equal(drawn(250), true);
     clouds.density = 0.8;
     assert.equal(drawn(250), true);
-    clouds.active = false;
-  } finally {
-    mock.timers.reset();
-  }
-});
-
-test('with a drift, the noise also drifts by the real time, and the clouds keep the scene rendering', (t) => {
-  let now = 100000;
-  t.mock.method(performance, 'now', () => now);
-  mock.timers.enable({apis: ['setInterval', 'setTimeout']});
-  try {
-    const viewer = fakeViewer();
-    const clouds = new TestClouds(/** @type {any} */ (viewer), {map, wind: 0, drift: 100});
-    assert.equal(clouds.drift, 100);
-    clouds.active = true;
-    const up = Ellipsoid.WGS84.geodeticSurfaceNormalCartographic(Cartographic.fromDegrees(6, 47));
-    const east = Cartesian3.normalize(Cartesian3.cross(Cartesian3.UNIT_Z, up, new Cartesian3()), new Cartesian3());
-    const {windOffset} = /** @type {any} */ (clouds.stage_).get(0).uniforms;
-    const before = windOffset();
-    now = 110000;
-    const moved = Cartesian3.subtract(windOffset(), before, new Cartesian3());
-    const expected = Cartesian3.add(Cartesian3.multiplyByScalar(east, 1000, new Cartesian3()), Cartesian3.multiplyByScalar(up, 100, new Cartesian3()), new Cartesian3());
-    assert.ok(Cartesian3.equalsEpsilon(moved, expected, 1e-6));
-    viewer.calls.length = 0;
-    mock.timers.tick(1000);
-    assert.ok(viewer.calls.some(([name]) => name === 'render'));
-    clouds.drift = 0;
-    viewer.calls.length = 0;
-    mock.timers.tick(1000);
-    assert.equal(viewer.calls.length, 0);
     clouds.active = false;
   } finally {
     mock.timers.reset();
@@ -395,4 +350,45 @@ test('the history is not taken after the clouds are drawn again: it went with th
   clouds.active = true;
   assert.equal(/** @type {any} */ (clouds.stage_).get(1).uniforms.hasHistory(), false);
   clouds.active = false;
+});
+
+test('the clouds stand still: no wind, no drift', () => {
+  const clouds = new TestClouds(/** @type {any} */ (fakeViewer()), /** @type {any} */ ({map, wind: 10, drift: 15}));
+  assert.equal('wind' in clouds, false);
+  assert.equal('drift' in clouds, false);
+});
+
+test('a clock playing at its own pace, and a crossfade with it, let the clouds settle and the scene rest; a change of the clouds starts them over', () => {
+  mock.timers.enable({apis: ['setInterval', 'setTimeout', 'Date']});
+  try {
+    const viewer = fakeViewer();
+    const clouds = new TestClouds(/** @type {any} */ (viewer), {map});
+    clouds.active = true;
+    const resolve = /** @type {any} */ (clouds.stage_).get(1);
+    // a frame at 30 frames a second, the clock and an hour's crossfade with it
+    const play = () => {
+      mock.timers.tick(33);
+      viewer.clock.currentTime = JulianDate.addSeconds(viewer.clock.currentTime, 1 / 30, new JulianDate());
+      clouds.mapBlend += 1 / 30 / 3600;
+      frame(viewer);
+      viewer.postListeners[0]();
+    };
+    // three seconds
+    for (let i = 0; i < 90; i++) {
+      play();
+    }
+    assert.equal(resolve.uniforms.fresh(), 0.2);
+    viewer.calls.length = 0;
+    mock.timers.tick(1000);
+    assert.equal(viewer.calls.length, 0);
+    clouds.mapBlend = 0.5;
+    play();
+    assert.equal(resolve.uniforms.fresh(), 1);
+    viewer.calls.length = 0;
+    mock.timers.tick(200);
+    assert.ok(viewer.calls.some(([name]) => name === 'render'));
+    clouds.active = false;
+  } finally {
+    mock.timers.reset();
+  }
 });

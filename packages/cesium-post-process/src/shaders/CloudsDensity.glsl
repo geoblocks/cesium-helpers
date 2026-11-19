@@ -1,5 +1,5 @@
 // The clouds' density at a point, which the march and the shadow map share: as tall and as solid
-// as the rain under it is heavy, shaped by billows of noise that drift with the wind. Needs
+// as the rain under it is heavy, shaped by billows of noise. Needs
 // CloudsSlab and WeatherMap.
 // the noise: the billows of the base shape in red, the details in green and blue
 precision highp sampler2D;
@@ -10,9 +10,6 @@ uniform highp sampler3D cloudDetail;
 uniform sampler2D mapNoise;
 // meters above the ellipsoid
 uniform float cloudTop;
-// the direction the wind blows toward, and how far it has carried the noise, in world coordinates
-uniform vec3 windDirection;
-uniform vec3 windOffset;
 // scale of the opacity
 uniform float density;
 
@@ -85,9 +82,6 @@ const float LARGE_SCALE = 0.27;
 // the noise is read this many mipmaps blurrier than a pixel's footprint: its features then span a
 // few pixels, rather than one, which each pixel's few samples would leave grainy
 const float LOD_BIAS = 1.5;
-// the clouds lean downwind by this many meters from the base to the top of the slab,
-// p += height_fraction * wind_direction * 500 (Schneider 2017)
-const float WIND_SKEW = 500.0;
 // how much the details erode the thin edges of the clouds
 const float EROSION = 0.6;
 // the details are wisps at the base of a cloud, billows above this share of its height: inverted
@@ -100,10 +94,6 @@ const float WISPY_BASE = 0.3;
 const float DETAIL_TILE = 2000.0;
 const float DETAIL_VOXELS = 32.0;
 const float FINE_EROSION = 0.5;
-// the finest details drift this much faster than the billows, carried a quarter further by the
-// wind's offset: the billows' edges change as they go (Schneider 2015). A quarter of WIND_PERIOD is
-// a whole number of their tiles, so they do not jump when it wraps
-const float DETAIL_DRIFT = 0.25;
 const vec2 FINE_FOOTPRINT = vec2(250.0, 60.0);
 
 // the cloud's density at a point, 0 to the density uniform, from the clouds' map (cloud-map.js):
@@ -134,11 +124,7 @@ float cloudDensity(vec3 positionWC, float h, float footprint, out float rain, ou
   float base = clamp(y / FLAT_BASE, 0.0, 1.0);
   float profile = base * mix(1.0 - smoothstep(DECK_TOP, 1.0, y), pow(1.0 - y, TOWER_ENVELOPE), type);
   float lod = max(log2(footprint * NOISE_VOXELS / NOISE_TILE) + LOD_BIAS, 0.0);
-  // the noise drifts with the wind and the map does not, so the clouds stay where it rains and
-  // their billows pass through them (Schneider 2017)
-  float slabFraction = clamp((h - cloudBase) / (cloudTop - cloudBase), 0.0, 1.0);
-  vec3 drifted = positionWC - windOffset - WIND_SKEW * slabFraction * windDirection;
-  vec3 q = drifted / NOISE_TILE;
+  vec3 q = positionWC / NOISE_TILE;
   vec4 noise = textureLod(cloudNoise, fract(q), lod);
   // the same noise about four times larger, its axes swapped, breaks up the repetition of the tile,
   // which far views would show as a grid
@@ -164,7 +150,7 @@ float cloudDensity(vec3 positionWC, float h, float footprint, out float rain, ou
   float fine = 1.0 - smoothstep(FINE_FOOTPRINT.y, FINE_FOOTPRINT.x, footprint);
   if (fine > 0.0 && shape > 0.0 && shape < 1.0) {
     float fineLod = max(log2(footprint * DETAIL_VOXELS / DETAIL_TILE) + LOD_BIAS, 0.0);
-    float f = textureLod(cloudDetail, fract((drifted - DETAIL_DRIFT * windOffset) / DETAIL_TILE), fineLod).r;
+    float f = textureLod(cloudDetail, fract(positionWC / DETAIL_TILE), fineLod).r;
     erosion = min(erosion + FINE_EROSION * fine * mix(1.0 - f, f, clamp(y / WISPY_BASE, 0.0, 1.0)) * (1.0 - shape), 0.95);
   }
   return density * clamp((shape - erosion) / (1.0 - erosion), 0.0, 1.0);

@@ -25,6 +25,7 @@ export const {
   GeometryInstance,
   HeadingPitchRange,
   IntersectionTests,
+  JulianDate,
   KeyboardEventModifier,
   Material,
   Math,
