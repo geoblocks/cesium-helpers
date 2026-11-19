@@ -1,5 +1,5 @@
 // The clouds' density at a point, which the march and the shadow map share: as tall and as solid
-// as the rain under it is heavy, shaped by billows of noise. Needs
+// as the rain under it is heavy, shaped by billows of noise. Needs clouds.js's SHADER_CONSTANTS,
 // CloudsSlab and WeatherMap.
 // the noise: the billows of the base shape in red, the details in green and blue
 precision highp sampler2D;
@@ -15,26 +15,22 @@ uniform float density;
 // the coverage of the fair-weather cumulus over dry ground, 0 for none
 uniform float fairWeather;
 
-// the clouds over the lightest rain are this thick, in meters, clouds.js's THIN_DEPTH
-const float THIN_DEPTH = 1500.0;
-// the clouds reach their full density over this share of their height from their base, a band the
-// noise carves into an uneven underside; the lifting condensation level is about the same across
-// an air mass, but no air mass is uniform: the base of each column rises and falls by this many
-// meters with a noise over 2 km, and the rain lowers it by up to this many meters under the
-// heaviest, where the air below is moist (clouds.js's BASE_SWING and BASE_DROP). The deck is full
-// up to this share of its height, then thins out to its top, the top of each column rising and
-// falling by this share of its depth with the coverage's noise over 8 km, higher where the clouds
-// are fuller (clouds.js's TOP_SWING): neither end is one flat plane. A wider band at the base and a
-// thinner full deck open holes to the ground in the decks over heavy rain. Towers thin out all the
+// the clouds over the lightest rain are THIN_DEPTH thick, in meters, and their base and top swing
+// by BASE_SWING, BASE_DROP and TOP_SWING, constants clouds.js prepends. The clouds reach their full
+// density over FLAT_BASE of their height from their base, a band the noise carves into an uneven
+// underside; the lifting condensation level is about the same across an air mass, but no air mass
+// is uniform: the base of each column rises and falls by BASE_SWING meters with a noise over 2 km,
+// and the rain lowers it by up to BASE_DROP meters under the heaviest, where the air below is moist.
+// The deck is full up to DECK_TOP of its height, then thins out to its top, the top of each column
+// rising and falling by TOP_SWING of its depth with the coverage's noise over 8 km, higher where the
+// clouds are fuller: neither end is one flat plane. A wider band at the base and a thinner full deck
+// open holes to the ground in the decks over heavy rain. Towers thin out all the
 // way up, in the convective envelope pow(1 - h, 1.5) (Schneider 2022), and spread an anvil from
 // this share of their height to this one, their coverage raised to a power from 1 to this one,
 // pow(coverage, remap(h, 0.7, 0.8, 1, lerp(1, 0.5, anvil_bias))) (Schneider 2017). Tuned by eye on
 // the weather demo, not from a source
 const float FLAT_BASE = 0.12;
-const float BASE_SWING = 300.0;
-const float BASE_DROP = 250.0;
 const float DECK_TOP = 0.55;
-const float TOP_SWING = 0.3;
 const float TOWER_ENVELOPE = 1.5;
 const vec3 ANVIL = vec3(0.7, 0.8, 0.5);
 // the cloud shield over dry ground is broken: its coverage is this share of the clouds' over the
