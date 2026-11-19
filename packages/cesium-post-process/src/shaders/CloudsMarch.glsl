@@ -46,13 +46,20 @@ const float CHEAP_LIGHT = 0.8;
 // drops below the tallest cloud they find, and is skipped where they find no rain, rather than
 // spending its steps in the empty air above the clouds (the coverage early-out of Schneider 2015)
 const int RAY_PROBES = 8;
-// the sun's light through the cloud, sampled at these distances toward it, in meters
+// the sun's light through the cloud, sampled at these distances toward it, in meters. Among the
+// lobes of a cumulus, at these three, the first within a lobe's width, through the lobes and with
+// the extinction of a real cumulus' edge, about 0.01 per meter rather than the deck's EXTINCTION,
+// so that a lobe shades the crevice behind it a few tens of meters in; the others, the eye and the
+// clouds without lobes keep the deck's, for which an overcast from below stays gray rather than
+// black and the sunlit lobes near white
 const vec2 LIGHT_DISTANCES = vec2(200.0, 700.0);
+const vec3 LOBE_LIGHT_DISTANCES = vec3(60.0, 180.0, 500.0);
+const float LOBE_EXTINCTION = 0.01;
 // the sky's light on the clouds at their base and at their top, by day, and the moon's share of it
 // at night. By day, their tops see the sky overhead, in the color of Cesium's at its luminance, and
 // their bases the sunlight the ground bounces (Hillaire 2016, sec. 5.5.1), less as the sun is lower
 // than this sine of its height. Cesium's sky itself, and an albedo of 0.1 to 0.3 for the ground,
-// would leave the tops gray: our two samples toward the sun let little of it through
+// would leave the tops gray: our few samples toward the sun let little of it through
 const vec3 AMBIENT_BASE = vec3(0.32, 0.35, 0.40);
 const vec3 AMBIENT_TOP = vec3(0.62, 0.66, 0.72);
 const float HIGH_SUN = 0.5;
@@ -196,7 +203,9 @@ void main() {
     float h = heightAt(pointEC);
     vec3 pointWC = czm_viewerPositionWC + directionWC * t;
     float footprint = t * pixelAngle;
-    float density = cloudDensity(pointWC, h, footprint, rain, column, dimensional);
+    float lobes = lobeFade(footprint);
+    float lobed;
+    float density = cloudDensity(pointWC, h, footprint, lobes, rain, column, dimensional, lobed);
     if (coarse) {
       if (density > 0.0) {
         coarse = false;
@@ -224,14 +233,21 @@ void main() {
     bool cheap = day > 0.0 && transmittance <= CHEAP_LIGHT;
     float opticalDepth = 0.0;
     float previous = 0.0;
-    for (int j = 0; j < (cheap ? 0 : 2); j++) {
+    // from the two samples to the lobes' three as the point is lobed, the third of the two none long,
+    // so that the light does not change in a step where the lobes begin
+    vec3 distances = mix(LIGHT_DISTANCES.xyy, LOBE_LIGHT_DISTANCES, lobed);
+    for (int j = 0; j < (cheap ? 0 : lobed > 0.0 ? 3 : 2); j++) {
       // jittered as the step, for the samples of neighboring pixels not to band (Hillaire 2016,
-      // sec. 5.5.2); without the finest details, which a ray 200 m long toward the light does not see
-      float distanceToward = LIGHT_DISTANCES[j] * (0.75 + 0.5 * jitter);
-      opticalDepth += EXTINCTION * cloudDensity(pointWC + lightWC * distanceToward, heightAt(pointEC + lightEC * distanceToward), max(footprint, FINE_FOOTPRINT.x), unused, unused, unused) * (distanceToward - previous);
+      // sec. 5.5.2); without the finest details, which a ray a few hundred meters long toward the
+      // light does not see, but for the first among the lobes, which sees the lobes on the lobes
+      float distanceToward = distances[j] * (0.75 + 0.5 * jitter);
+      bool first = j == 0;
+      float extinction = first ? mix(EXTINCTION, LOBE_EXTINCTION, lobed) : EXTINCTION;
+      float sampleFootprint = first ? mix(FINE_FOOTPRINT.x, max(footprint, FINE_FOOTPRINT.y), lobed) : FINE_FOOTPRINT.x;
+      opticalDepth += extinction * cloudDensity(pointWC + lightWC * distanceToward, heightAt(pointEC + lightEC * distanceToward), max(footprint, sampleFootprint), first ? lobes : 0.0, unused, unused, unused, unused) * (distanceToward - previous);
       previous = distanceToward;
     }
-    // the samples reach 700 m toward the sun, a fifth of the way through a deck 1500 m thick under a
+    // the samples reach 700 m toward the sun, 500 m among the lobes, a fifth of the way through a deck 1500 m thick under a
     // sun 23 degrees high: the shadow map has the whole way, so where the samples find a thin spot
     // deep in the cloud the sun does not shine through it. Its texels and its four depths are too
     // coarse for the billows near the top of a column, which the samples alone light
