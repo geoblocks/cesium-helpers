@@ -58,6 +58,17 @@ const withTimers = (/** @type {() => void} */ run) => {
   }
 };
 
+// the same, for a test that waits for the clouds' noises to be made: without a worker, in the
+// promises' reactions
+const withTimersAsync = async (/** @type {(made: () => Promise<void>) => Promise<void>} */ run) => {
+  mock.timers.enable({apis: ['setInterval']});
+  try {
+    await run(() => new Promise((resolve) => setImmediate(resolve)));
+  } finally {
+    mock.timers.reset();
+  }
+};
+
 test('activating adds the stage, tests the depth against the terrain and makes it overcast, deactivating undoes it all', () => {
   withTimers(() => {
     const viewer = fakeViewer();
@@ -160,8 +171,8 @@ test('without an intensity, there is no pass and no frames', () => {
   });
 });
 
-test('the drops pass knows while Clouds draws the clouds in the scene, to leave the rain under them to them', () => {
-  withTimers(() => {
+test('the drops pass knows while Clouds draws the clouds in the scene, to leave the rain under them to them', async () => {
+  await withTimersAsync(async (made) => {
     const viewer = fakeViewer();
     const precipitation = new Precipitation(/** @type {any} */ (viewer));
     precipitation.active = true;
@@ -169,12 +180,14 @@ test('the drops pass knows while Clouds draws the clouds in the scene, to leave 
     assert.equal(drops.uniforms.clouds(), 0);
     const clouds = new Clouds(/** @type {any} */ (viewer));
     clouds.active = true;
+    await made();
     assert.equal(drops.uniforms.clouds(), 1);
     // their shadow dims the scene, not the overcast as well
     assert.equal(drops.uniforms.shade(), 0);
     // in another scene, they do not count
     const other = new Clouds(/** @type {any} */ (fakeViewer()));
     other.active = true;
+    await made();
     clouds.active = false;
     assert.equal(drops.uniforms.clouds(), 0);
     other.active = false;
@@ -196,8 +209,8 @@ test('the precipitation crossfades to the next map, at the camera and in the sha
   });
 });
 
-test('the shafts read the shadow map of the clouds in the same scene, and none without them', () => {
-  withTimers(() => {
+test('the shafts read the shadow map of the clouds in the same scene, and none without them', async () => {
+  await withTimersAsync(async (made) => {
     const viewer = fakeViewer();
     const precipitation = new Precipitation(/** @type {any} */ (viewer));
     precipitation.active = true;
@@ -206,6 +219,7 @@ test('the shafts read the shadow map of the clouds in the same scene, and none w
     assert.equal(drops.uniforms.shadowed(), 0);
     const clouds = new Clouds(/** @type {any} */ (viewer));
     clouds.active = true;
+    await made();
     assert.equal(shafts.uniforms.shadowed(), 1);
     assert.equal(drops.uniforms.shadowed(), 1);
     // the clouds' own shadow, as their last stage reads it

@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {Cartesian3, Cartographic, JulianDate, Matrix4, Rectangle} from '@cesium/core';
 import Clouds from './clouds.js';
 import WeatherMap from './weather-map.js';
+import cloudWork from './cloud-work.js';
+import {hasCloudCover} from './cloud-cover.js';
 
 // a GPU resource without WebGL: what it was made with, and whether it was destroyed
 const resource = (/** @type {any} */ options) => {
@@ -89,6 +91,12 @@ const fakeViewer = (height = 1000) => {
   };
 };
 
+// a map of one pixel raining at an intensity, over the same rectangle
+const rainingAt = (/** @type {number} */ red) => ({image: {width: 1, height: 1, data: new Uint8ClampedArray([red, 0, 0, 255])}, rectangle: map.rectangle});
+
+// the clouds' maps and noises made: without a worker, in the promises' reactions
+const made = () => new Promise((resolve) => setImmediate(resolve));
+
 // a frame: the scene's preRender listeners, the effect's and the depth's box's
 const frame = (/** @type {{listeners: Function[]}} */ viewer) => viewer.listeners.forEach((listener) => listener());
 
@@ -114,10 +122,11 @@ test('activating adds the stage and tests the depth against the terrain, deactiv
   assert.equal(destroy.mock.callCount(), 1);
 });
 
-test('deactivating destroys the noise textures made when the clouds were drawn', () => {
+test('deactivating destroys the noise textures made when the clouds were drawn', async () => {
   const viewer = fakeViewer();
   const clouds = new TestClouds(/** @type {any} */ (viewer), {map});
   clouds.active = true;
+  await made();
   const march = /** @type {any} */ (clouds.stage_).get(0);
   for (const uniform of ['cloudNoise', 'cloudDetail']) {
     const texture = march.uniforms[uniform]();
@@ -129,6 +138,96 @@ test('deactivating destroys the noise textures made when the clouds were drawn',
     clouds.active = true;
     assert.notEqual(march.uniforms[uniform](), texture, uniform);
   }
+});
+
+test('the clouds are drawn once their noises are made, their shadow map too', async () => {
+  const viewer = fakeViewer();
+  const clouds = new TestClouds(/** @type {any} */ (viewer), {map});
+  clouds.active = true;
+  const stage = /** @type {any} */ (clouds.stage_);
+  frame(viewer);
+  assert.equal(stage.enabled, false);
+  assert.equal(viewer.scene.context.draws.length, 0);
+  viewer.calls.length = 0;
+  await made();
+  assert.equal(stage.enabled, true);
+  assert.ok(viewer.calls.some(([name]) => name === 'render'));
+  frame(viewer);
+  assert.equal(viewer.scene.context.draws.length, 1);
+  clouds.active = false;
+});
+
+test('the clouds keep the map they have until the next one is made, and drop a map replaced before it was', async () => {
+  const clouds = new TestClouds(/** @type {any} */ (fakeViewer()), {map: rainingAt(0)});
+  clouds.active = true;
+  await made();
+  const march = /** @type {any} */ (clouds.stage_).get(0);
+  const drizzle = march.uniforms.slabTop();
+  clouds.map = rainingAt(255);
+  assert.equal(march.uniforms.slabTop(), drizzle);
+  const towers = rainingAt(255);
+  clouds.map = towers;
+  await made();
+  assert.ok(march.uniforms.slabTop() > drizzle);
+  assert.equal(clouds.map, towers);
+  // the next map too, and none at once
+  clouds.nextMap = rainingAt(128);
+  clouds.nextMap = undefined;
+  await made();
+  assert.equal(clouds.nextMap, undefined);
+  clouds.active = false;
+});
+
+test('the clouds leave the rain under them to Precipitation once they are drawn', async () => {
+  const viewer = fakeViewer();
+  const clouds = new TestClouds(/** @type {any} */ (viewer), {map});
+  clouds.active = true;
+  assert.equal(hasCloudCover(/** @type {any} */ (viewer.scene)), false);
+  await made();
+  assert.equal(hasCloudCover(/** @type {any} */ (viewer.scene)), true);
+  clouds.active = false;
+  assert.equal(hasCloudCover(/** @type {any} */ (viewer.scene)), false);
+});
+
+test('at an hour\'s change, the next map made is the map, whichever is set first', async (t) => {
+  const clouds = new TestClouds(/** @type {any} */ (fakeViewer()), {map: rainingAt(10)});
+  const next = rainingAt(20);
+  clouds.nextMap = next;
+  await made();
+  const call = t.mock.method(cloudWork, 'call');
+  clouds.nextMap = rainingAt(30);
+  clouds.map = next;
+  await made();
+  assert.deepEqual(call.mock.calls.map(({arguments: [type]}) => type), ['cloudMap']);
+});
+
+test('a map that could not be made is made again when set again', async (t) => {
+  const error = t.mock.method(console, 'error', () => {});
+  const clouds = new TestClouds(/** @type {any} */ (fakeViewer()));
+  const original = cloudWork.call;
+  t.mock.method(cloudWork, 'call', () => Promise.reject(new Error('no memory')), {times: 1});
+  const towers = rainingAt(255);
+  clouds.map = towers;
+  await made();
+  assert.equal(error.mock.callCount(), 1);
+  assert.equal(cloudWork.call, original);
+  clouds.map = undefined;
+  clouds.map = towers;
+  await made();
+  clouds.active = true;
+  await made();
+  assert.ok(/** @type {any} */ (clouds.stage_).get(0).uniforms.slabTop() > 2500 + 1.3 * 1500);
+  clouds.active = false;
+});
+
+test('a map made after the viewer was destroyed requests no render', async () => {
+  const viewer = fakeViewer();
+  const clouds = new TestClouds(/** @type {any} */ (viewer));
+  clouds.map = map;
+  viewer.scene.isDestroyed = () => true;
+  viewer.calls.length = 0;
+  await made();
+  assert.deepEqual(viewer.calls, []);
 });
 
 test('the options are live: setting one changes the uniforms and requests a render', () => {
@@ -162,11 +261,12 @@ test('the defaults are those of the spec', () => {
   assert.equal(clouds.map, undefined);
 });
 
-test('the density at the camera is the map inside the clouds, 0 outside them', () => {
+test('the density at the camera is the map inside the clouds, 0 outside them', async () => {
   for (const [height, expected] of [[1000, 0], [4000, 128 / 255], [9500, 0]]) {
     const viewer = fakeViewer(height);
     const clouds = new TestClouds(/** @type {any} */ (viewer), {map});
     clouds.active = true;
+    await made();
     frame(viewer);
     assert.ok(Math.abs(clouds.localDensity - expected) < 1e-9, `at ${height} m`);
     // a frame starts the renders that let the clouds settle, until they are deactivated
@@ -197,29 +297,31 @@ test('the clouds do not make the scene render on its own', () => {
   }
 });
 
-test('the march starts at the tallest cloud the map makes: 1500 m thick over drizzle, the cloud top over the heaviest rain, their tops 30 % higher where they swing up', () => {
-  const rainingAt = (/** @type {number} */ red) => ({image: {width: 1, height: 1, data: new Uint8ClampedArray([red, 0, 0, 255])}, rectangle: map.rectangle});
+test('the march starts at the tallest cloud the map makes: 1500 m thick over drizzle, the cloud top over the heaviest rain, their tops 30 % higher where they swing up', async () => {
   // the type at 128, from the rate at that intensity, 10 mm/h times its square
   const type = Math.round((255 * Math.log((10 * (128 / 255) ** 2) / 0.5)) / Math.log(20)) / 255;
   for (const [red, depth] of [[0, 1500], [255, 6500], [128, 1500 + 5000 * type]]) {
     const expected = 2500 + 1.3 * depth;
     const clouds = new TestClouds(/** @type {any} */ (fakeViewer()), {map: rainingAt(red)});
     clouds.active = true;
+    await made();
     const march = /** @type {any} */ (clouds.stage_).get(0);
     assert.ok(Math.abs(march.uniforms.slabTop() - expected) < 1e-9, `at ${red}`);
   }
 });
 
-test('a new map starts the accumulation over', () => {
+test('a new map starts the accumulation over', async () => {
   const viewer = fakeViewer();
   // the resolve's output, which a frame keeps as the history
   /** @type {any} */ (viewer.scene.postProcessStages).getOutputTexture = () => ({width: 4, height: 4});
   const clouds = new TestClouds(/** @type {any} */ (viewer), {map});
   clouds.active = true;
+  await made();
   viewer.postListeners[0]();
   const resolve = /** @type {any} */ (clouds.stage_).get(1);
   assert.equal(resolve.uniforms.hasHistory(), true);
   clouds.map = map;
+  await made();
   assert.equal(resolve.uniforms.hasHistory(), false);
   clouds.active = false;
 });
@@ -246,13 +348,14 @@ test('the scene renders for a moment after a change, for the accumulation to set
   }
 });
 
-test('the shadow map is drawn again when the camera moves, the light or the clouds change, at most 4 times a second', () => {
+test('the shadow map is drawn again when the camera moves, the light or the clouds change, at most 4 times a second', async () => {
   mock.timers.enable({apis: ['setInterval', 'setTimeout', 'Date']});
   try {
     const viewer = fakeViewer();
     const {camera} = viewer.scene;
     const clouds = new TestClouds(/** @type {any} */ (viewer), {map});
     clouds.active = true;
+    await made();
     const {draws} = viewer.scene.context;
     // a frame some milliseconds after the last, and whether it drew the shadow map
     const drawn = (/** @type {number} */ milliseconds) => {
@@ -338,11 +441,12 @@ test('the slab reaches below the cloud base, as low as a base swings down under 
   clouds.active = false;
 });
 
-test('the history is not taken after the clouds are drawn again: it went with them', () => {
+test('the history is not taken after the clouds are drawn again: it went with them', async () => {
   const viewer = fakeViewer();
   /** @type {any} */ (viewer.scene.postProcessStages).getOutputTexture = () => ({width: 4, height: 4});
   const clouds = new TestClouds(/** @type {any} */ (viewer), {map});
   clouds.active = true;
+  await made();
   viewer.postListeners[0]();
   const resolve = /** @type {any} */ (clouds.stage_).get(1);
   assert.equal(resolve.uniforms.hasHistory(), true);

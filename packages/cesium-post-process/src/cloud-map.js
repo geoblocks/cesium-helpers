@@ -1,14 +1,10 @@
-import {Math as CesiumMath} from '@cesium/core';
-import {imageData} from './weather-map.js';
-
-/** @import {WeatherMapOptions} from './weather-map.js' */
-
 // The clouds' map, from a map of the rain: a radar sees the rain, "not the small cloud droplets and
 // ice crystals that make up the rest of the cloud" (UBC ATSC 201), so the clouds are derived from
 // it rather than drawn where it rains. Red is the rain, as it is; green is the coverage, the rain
 // spread into a cloud shield wider than it; blue is the type of the clouds, from a flat deck over
 // drizzle to towers over heavy rain, the precipitation turning the map "to cumulonimbus clouds"
-// (Schneider 2015).
+// (Schneider 2015). Made in cloud-worker.js, which has no Cesium to import (the page's may be a
+// global, which a worker does not see): this module imports nothing.
 
 // the cloud shield reaches this far beyond the rain, in meters, its edge soft over about as much: 5
 // to 15 km wide
@@ -24,9 +20,6 @@ const TOWER_RATE = 10;
 const EARTH_RADIUS = 6371000;
 // a Gaussian is approximated by this many box blurs, each a running sum whatever its width
 const BOXES = 3;
-
-/** @type {WeakMap<object, WeatherMapOptions>} */
-const cloudMaps = new WeakMap();
 
 /**
  * Blurs values in place along rows (step 1) or columns (step width) by a box of a radius, a running
@@ -47,7 +40,7 @@ function boxBlur(values, width, height, radius, rows) {
     }
     let sum = 0;
     for (let j = -radius; j <= radius; j++) {
-      sum += line[CesiumMath.clamp(j, 0, length - 1)];
+      sum += line[Math.min(Math.max(j, 0), length - 1)];
     }
     for (let j = 0; j < length; j++) {
       values[start + j * step] = sum / (2 * radius + 1);
@@ -83,17 +76,14 @@ function dilate(values, width, height, radius, rows) {
 }
 
 /**
- * The clouds' map of a map of the rain, over the same rectangle, made once for each image.
- * @param {WeatherMapOptions} map
- * @returns {WeatherMapOptions}
+ * The pixels of the clouds' map of the pixels of a map of the rain, over the same rectangle.
+ * @param {{image: {width: number, height: number, data: Uint8ClampedArray}, rectangle: {west: number, south: number, east: number, north: number}}} map
+ * the map's RGBA pixels, and its rectangle in radians
+ * @returns {{width: number, height: number, data: Uint8ClampedArray}}
  */
-export default function createCloudMap(map) {
-  const known = cloudMaps.get(map.image);
-  if (known) {
-    return known;
-  }
-  const {width, height, data} = /** @type {{width: number, height: number, data: Uint8ClampedArray}} */ (imageData(map.image));
-  const {west, south, east, north} = map.rectangle;
+export default function createCloudMap({image, rectangle}) {
+  const {width, height, data} = image;
+  const {west, south, east, north} = rectangle;
   const pixel = 0.5 * EARTH_RADIUS * (((east - west) * Math.cos(0.5 * (south + north))) / width + (north - south) / height);
   // the rain dilated by the spread, in pixels, then softened by a Gaussian of half of it, the
   // radius of each box for its standard deviation
@@ -119,7 +109,5 @@ export default function createCloudMap(map) {
     cloud[4 * i + 2] = rate > DECK_RATE ? Math.round((255 * Math.log(rate / DECK_RATE)) / Math.log(TOWER_RATE / DECK_RATE)) : 0;
     cloud[4 * i + 3] = 255;
   }
-  const cloudMap = {image: {width, height, data: cloud}, rectangle: map.rectangle};
-  cloudMaps.set(map.image, cloudMap);
-  return cloudMap;
+  return {width, height, data: cloud};
 }
