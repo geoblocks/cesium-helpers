@@ -37,10 +37,6 @@ const vec2 LIGHT_DISTANCES = vec2(200.0, 700.0);
 const vec3 AMBIENT_BASE = vec3(0.32, 0.35, 0.40);
 const vec3 AMBIENT_TOP = vec3(0.62, 0.66, 0.72);
 const float HIGH_SUN = 0.5;
-// the sky's color on the clouds' tops is desaturated toward its gray, keeping this share of it: in
-// full, its hue turns the tops sky blue, where the sun's white light dominates them (Hillaire 2016,
-// sec. 5.5.1, lets artists desaturate the sky's light)
-const float SKY_SATURATION = 0.3;
 // the sky's light inside a cloud is occluded by its dimensional profile, its height profile times
 // its coverage, pow(1 - dimensional_profile, 0.5) (Schneider 2022): bright at its edges and top,
 // dark in its core; and by the lack of light from below at its base, in the share of its column's height
@@ -49,7 +45,6 @@ const vec2 DARK_BASE = vec2(0.07, 0.14);
 // the clouds over the heaviest rain absorb this share of the light they intercept, for the
 // "foreboding dark clouds" of Horizon Zero Dawn (Schneider 2015)
 const float RAIN_ALBEDO = 0.8;
-const float SUN = 0.8;
 // the sun's light scattered more than once, as octaves of the light scattered once (Wrenninge's,
 // Hillaire 2016, sec. 5.8, eq. 19-20): octave n has a^n of the scattering, b^n of the extinction and
 // c^n of the phase's eccentricity, so it reaches deeper into the cloud, more alike in all
@@ -61,11 +56,8 @@ const float OCTAVE_EXTINCTION = 0.5;
 const float OCTAVE_ECCENTRICITY = 0.5;
 // the light on the top of the cloud above a point that reaches it scattered many times, which the
 // few samples toward the sun miss and which makes an overcast gray rather than black from below:
-// the transmission of a layer of optical depth tau that scatters without absorbing, in the
-// two-stream (Eddington) approximation, 1 / (1 + 0.75 (1 - g) tau), less the direct beam
-// that the samples toward the sun carry, exp(-tau / mu) along its slanted path, the sun mu high. The asymmetry of the light the droplets of a
-// cloud scatter, about 0.85 in the visible
-const float CLOUD_ASYMMETRY = 0.85;
+// RainHaze.glsl's twoStream, less the direct beam that the samples toward the sun carry,
+// exp(-tau / mu) along its slanted path, the sun mu high
 const vec3 MOONLIGHT = vec3(0.60, 0.63, 0.70);
 
 // Henyey-Greenstein's phase function, times 4 pi: 1 for light scattered alike in all directions
@@ -123,14 +115,10 @@ void main() {
   vec3 sunLight = SUN * czm_lightColor * day;
   // the sky overhead, and the sunlight from the ground, by day; the moon's at night
   vec3 zenith = clearSkyBelow(cloudBase, czm_inverseViewRotation * up, czm_lightDirectionWC);
-  vec3 skyHue = mix(vec3(1.0), zenith / max(czm_luminance(zenith), 1e-3), SKY_SATURATION);
-  vec3 skyAbove = mix(MOONLIGHT, skyHue, day) * czm_luminance(AMBIENT_TOP);
+  vec3 skyAbove = mix(MOONLIGHT, skyHueOf(zenith), day) * czm_luminance(AMBIENT_TOP);
   vec3 groundBelow = AMBIENT_BASE * mix(MOONLIGHT, czm_lightColor * clamp(dot(up, czm_lightDirectionEC) / HIGH_SUN, 0.0, 1.0), day);
-  // the sun and the clear sky on the top of the clouds, on a level surface: Cesium's sky, in the
-  // tops' desaturated hue, as skyAbove, raised for the tops not to look gray, would light the bases
-  // brighter than the sun does
   float sunHeight = max(dot(up, czm_lightDirectionEC), 0.0);
-  vec3 onTop = sunLight * sunHeight + skyHue * czm_luminance(zenith) * day;
+  vec3 onTop = lightOnClouds(zenith, day);
   // interleaved gradient noise, a different start along the ray for each pixel, and at each frame,
   // by the golden ratio (Wolfe 2020)
   // the angle a pixel of this pass covers
@@ -184,7 +172,7 @@ void main() {
     // toward its top the samples toward the sun and their octaves already carry the light
     // scattered there
     float tau = shadowed * sunHeight;
-    float diffuse = (1.0 / (1.0 + 0.75 * (1.0 - CLOUD_ASYMMETRY) * tau) - exp(-shadowed)) * deep;
+    float diffuse = (twoStream(tau) - exp(-shadowed)) * deep;
     vec3 scattered = sunLight * sunThrough + mix(groundBelow, skyAbove, y) * ambientOcclusion + onTop * diffuse;
     float stepTransmittance = exp(-sigma * dt);
     // the light scattered over the step, the integral of the source over it, (S - S T) / sigma_t

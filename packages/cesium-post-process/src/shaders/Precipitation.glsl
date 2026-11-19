@@ -141,18 +141,28 @@ void main() {
   vec2 below = belowHeight(view * sceneDistance, cloudBase);
   vec4 sampled = shafts();
   vec3 shaft = sampled.xyz * (1.0 - clouds * (1.0 - raining));
-  // the rain's, in its bands, and the clear air's and the mist's over the share of the ray in the
-  // rain, thinning out with the height, summed in optical depth
+  // the rain's, in its bands, and the clear air's over the share of the ray in the rain, thinning
+  // out with the height, summed in optical depth
   float rainLength = (below.y - below.x) * sceneDistance;
   float h0 = heightAt(view * sceneDistance * below.x);
   float h1 = heightAt(view * sceneDistance * below.y);
-  float layers = layerDepth(CLEAR_AIR, h0, h1, rainLength) + layerDepth(MIST, h0, h1, rainLength);
-  float haze = rainHaze(rainLength * shaft.y * (1.0 + RAIN_BANDS) * rainExtinction(intensity, snow) + shaft.z * layers);
+  float haze = rainHaze(rainLength * shaft.y * (1.0 + RAIN_BANDS) * rainExtinction(intensity, snow) + shaft.z * layerDepth(CLEAR_AIR, h0, h1, rainLength));
   // a rain cell seen from a dry spot is still under its own clouds
   float overcast = max(localIntensity, min(shaft.y * (1.0 + RAIN_BANDS), 1.0));
-  // the sun through the gaps of the clouds, from their shadow map, or as much as the overcast lets
-  float sunlit = shadowed > 0.0 ? sampled.w : 1.0 - overcast;
-  vec3 hazeColor = rainHazeColor(view, daylight(), snow, overcast, sunlit);
+  float day = daylight();
+  // with the clouds' shadow map, the rain is under them, lit by what they let through, lighter
+  // under their thin parts, and by the sun through their gaps; without, by the gray of an overcast
+  // sky and as much of the sun as the overcast lets
+  vec3 skyLight;
+  float sunlit;
+  if (shadowed > 0.0) {
+    skyLight = lightUnderClouds(sampled.w, day, snow);
+    sunlit = sampled.w;
+  } else {
+    skyLight = overcastSky(view, snow, overcast);
+    sunlit = 1.0 - overcast;
+  }
+  vec3 hazeColor = rainHazeColor(view, day, snow, skyLight, sunlit);
   vec3 color = mix(sceneColor.rgb, hazeColor, haze);
 
   color = mix(color, min(mix(RAIN_SHAFT_SHADE, SNOW_SHAFT_SHADE, snow) * hazeColor, vec3(1.0)), shaft.x);

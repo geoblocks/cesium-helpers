@@ -21,13 +21,21 @@ const float RAIN_RATE = 10.0;
 // per km (Montero-Martinez et al. 2025): 39 km of visibility in dry air, 11.5 km at 2.5 mm/h, 4.4 km
 // at 10 mm/h
 const vec2 RAIN_LAW = vec2(0.00011, 0.85);
-// layers of haze thinning out with the height, their extinction per meter at sea level and their
-// scale height in meters, summed in optical depth with the rain's: the clear air's, 0.1 per km at
-// the ground, over an aerosol's scale height of 1 to 2 km; and a mist lying low, 1 per km at the
-// Swiss plateau's 500 m, that fills the valleys and leaves the ridges above it. Both scale heights
-// and the mist's extinction are not from a source
+// the clear air's haze thinning out with the height, its extinction per meter at sea level and its
+// scale height in meters, summed in optical depth with the rain's: 0.1 per km at the ground, over
+// an aerosol's scale height of 1 to 2 km, which is not from a source. No low mist with it: at 1
+// per km it would hide more than the rain does, and turn the view to one gray
 const vec2 CLEAR_AIR = vec2(0.0001, 1200.0);
-const vec2 MIST = vec2(0.0035, 400.0);
+// the asymmetry of the light the droplets of a cloud scatter, about 0.85 in the visible
+const float CLOUD_ASYMMETRY = 0.85;
+// the optical depth of a deck of clouds over the rain, where none of the sun's beam comes through
+const float DECK_DEPTH = 10.0;
+// the sun's light on the clouds, as a share of the scene's
+const float SUN = 0.8;
+// the sky's color on the clouds' tops is desaturated toward its gray, keeping this share of it: in
+// full, its hue turns the tops sky blue, where the sun's white light dominates them (Hillaire 2016,
+// sec. 5.5.1, lets artists desaturate the sky's light)
+const float SKY_SATURATION = 0.3;
 // the rain's extinction drifts in bands, by this share around its mean: sigma_rain *=
 // mix(0.6, 1.4, noise) (Wronski 2014, "procedural Perlin noise animated by wind")
 const float RAIN_BANDS = 0.4;
@@ -119,6 +127,11 @@ vec3 skyToward(vec3 view, float elevation) {
   return clearSky(czm_inverseViewRotation * (cos(elevation) * level + sin(elevation) * up), czm_lightDirectionWC);
 }
 
+// the clear sky overhead, from the sky table
+vec3 zenithFromTable() {
+  return texture(skyTable, vec2((SKY_TABLE + 0.5) / (SKY_TABLE + 1.0), 0.5)).rgb;
+}
+
 // the clear sky toward a view direction in eye coordinates, from the sky table: at its azimuth from
 // the sun's, SKY_ELEVATION above the horizon, toward overhead as it looks up
 vec3 skyFromTable(vec3 view) {
@@ -127,19 +140,48 @@ vec3 skyFromTable(vec3 view) {
   float cosAzimuth = dot(level, level) > 1e-6 && dot(sun, sun) > 1e-6 ? dot(normalize(level), normalize(sun)) : 1.0;
   float u = (acos(clamp(cosAzimuth, -1.0, 1.0)) / czm_pi * (SKY_TABLE - 1.0) + 0.5) / (SKY_TABLE + 1.0);
   vec3 horizon = texture(skyTable, vec2(u, 0.5)).rgb;
-  vec3 zenith = texture(skyTable, vec2((SKY_TABLE + 0.5) / (SKY_TABLE + 1.0), 0.5)).rgb;
-  return mix(horizon, zenith, max(dot(view, up), 0.0));
+  return mix(horizon, zenithFromTable(), max(dot(view, up), 0.0));
 }
 
-// the haze's light toward the eye along a view direction in eye coordinates, under an overcast as
-// thick as it rains at the camera or along the ray, 0 to 1: the sky's, from the clear sky to the
-// overcast gray, and the sun's through the clouds, as much of it as reaches the haze, 0 to 1.
-// Drops scatter nearly all the light they intercept: an albedo of 1
-vec3 rainHazeColor(vec3 view, float day, float snow, float overcast, float sunlit) {
-  float elevation = max(dot(view, up), 0.0);
-  vec3 sky = skyFromTable(view);
-  vec3 overcastSky = mix(RAIN_HAZE, SNOW_HAZE, snow) * (1.0 + 2.0 * elevation) * (1.0 - THICK_CLOUDS * overcast);
+// the share of the light on the top of a layer of clouds of optical depth tau that reaches its
+// base, scattered many times: the transmission of a layer that scatters without absorbing, in the
+// two-stream (Eddington) approximation, 1 / (1 + 0.75 (1 - g) tau)
+float twoStream(float tau) {
+  return 1.0 / (1.0 + 0.75 * (1.0 - CLOUD_ASYMMETRY) * tau);
+}
+
+// the hue of the sky overhead on the clouds, at a luminance of 1
+vec3 skyHueOf(vec3 zenith) {
+  return mix(vec3(1.0), zenith / max(czm_luminance(zenith), 1e-3), SKY_SATURATION);
+}
+
+// the sun and the clear sky on the top of the clouds, on a level surface, by day: Cesium's sky
+// overhead, in the tops' desaturated hue; raised as CloudsMarch.glsl's skyAbove is, for the tops
+// not to look gray, it would light the bases brighter than the sun does
+vec3 lightOnClouds(vec3 zenith, float day) {
+  return day * (SUN * czm_lightColor * max(dot(up, czm_lightDirectionEC), 0.0) + skyHueOf(zenith) * czm_luminance(zenith));
+}
+
+// the sky's light on the haze without the clouds' shadow map, under an overcast as thick as it
+// rains at the camera or along the ray, 0 to 1: from the clear sky to the gray of an overcast sky,
+// brighter overhead, darker as the overcast is thicker
+vec3 overcastSky(vec3 view, float snow, float overcast) {
+  vec3 gray = mix(RAIN_HAZE, SNOW_HAZE, snow) * (1.0 + 2.0 * max(dot(view, up), 0.0)) * (1.0 - THICK_CLOUDS * overcast);
+  return mix(skyFromTable(view), gray, overcast);
+}
+
+// the sky's light on the haze under clouds that let this share of the sun's beam through: the
+// light on their top, all of it where the beam comes through, and under a deck what reaches its
+// base, as CloudsMarch.glsl lights the clouds' own base: the rain under a cloud is as bright as
+// the cloud behind it, lighter under its thin parts; whiter in the snow, as the overcast sky's
+vec3 lightUnderClouds(float direct, float day, float snow) {
+  return lightOnClouds(zenithFromTable(), day) * mix(twoStream(DECK_DEPTH), 1.0, direct) * mix(vec3(1.0), SNOW_HAZE / RAIN_HAZE, snow);
+}
+
+// the haze's light toward the eye along a view direction in eye coordinates: the sky's light on it,
+// and the sun's through the clouds, as much of it as reaches the haze, 0 to 1. Drops scatter nearly
+// all the light they intercept: an albedo of 1
+vec3 rainHazeColor(vec3 view, float day, float snow, vec3 skyLight, float sunlit) {
   vec3 sun = czm_lightColor * sunlit * henyeyGreenstein(dot(view, czm_lightDirectionEC), mix(HAZE_ASYMMETRY.x, HAZE_ASYMMETRY.y, snow));
-  vec3 color = min(mix(sky, overcastSky, overcast) + sun, vec3(1.0));
-  return byDaylight(color, day);
+  return byDaylight(min(skyLight + sun, vec3(1.0)), day);
 }
