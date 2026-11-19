@@ -235,7 +235,7 @@ test('the options are live: setting one changes the uniforms and requests a rend
   const clouds = new TestClouds(/** @type {any} */ (viewer), {map});
   clouds.active = true;
   const march = /** @type {any} */ (clouds.stage_).get(0);
-  for (const [name, value] of /** @type {const} */ ([['cloudBase', 1800], ['cloudTop', 7000], ['density', 0.5]])) {
+  for (const [name, value] of /** @type {const} */ ([['cloudBase', 1800], ['cloudTop', 7000], ['density', 0.5], ['fairWeather', 0.3]])) {
     viewer.calls.length = 0;
     clouds[name] = value;
     assert.equal(clouds[name], value);
@@ -258,6 +258,8 @@ test('the defaults are those of the spec', () => {
   assert.equal(clouds.cloudBase, 2500);
   assert.equal(clouds.cloudTop, 9000);
   assert.equal(clouds.density, 1);
+  // no fair-weather cumulus: the clouds are the rain's only
+  assert.equal(clouds.fairWeather, 0);
   assert.equal(clouds.map, undefined);
 });
 
