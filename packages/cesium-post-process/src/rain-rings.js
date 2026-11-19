@@ -23,8 +23,8 @@ const TIME_PERIOD = 3600;
 const NO_WATER = 1e9;
 
 /**
- * Rings where the rain lands: on the ground, the roofs and the water, in each cell of a local frame a drop landing, a thin ring growing from it
- * and fading, wider and slower on water. For a view of a place from far enough that the drops themselves are too small to see; or under
+ * Rings where the rain lands: on the ground, the roofs and the water, in each cell of a local frame a drop landing, a ripple growing from it
+ * and fading, shaded as a crest by the light, wider and slower on water. For a view of a place from far enough that the drops themselves are too small to see; or under
  * `Precipitation`, the drops falling and these where they land. Found from the depth, with the surface's slope from the normal rebuilt from the
  * neighboring pixels: nothing lies in the air.
  */
@@ -45,7 +45,7 @@ export default class RainRings extends Effect {
    * @param {CesiumWidget} viewer
    * @param {{name?: string, intensity?: number, cell?: number, reach?: number, waterLevel?: number, maxSlope?: number, rate?: number,
    *   color?: Color, origin?: Cartesian3, clock?: () => number, openSky?: OpenSky}} [options] The share of the cells that have a drop, 0 to 1; the cell's size
-   *   and the ring's growth on the ground, in meters (the ring on water is clipped at 0.3 cell); the water's height above the ellipsoid, in
+   *   and the ring's growth on the ground, in meters (its crest never past a cell); the water's height above the ellipsoid, in
    *   meters, or undefined for none; the steepest slope that takes a ring, in degrees; rings a second in a cell; the ring's color, its alpha how
    *   strongly it shows; the point of the world the cells are laid about; the time the rings run by, in seconds (the wall clock's by default;
    *   one that stands still keeps them still, for a viewer who asks for less motion); what is open to the sky, the rest taking none (all
@@ -147,7 +147,8 @@ export default class RainRings extends Effect {
   }
 
   /**
-   * How far a ring grows on the ground, in meters: over water, 1.7 times as far, but never past 0.3 cell, or the edge of its cell would clip it.
+   * How far a ring grows on the ground, in meters: over water, 1.7 times as far, but its crest never past a cell, the farthest the
+   * neighboring cells a pixel sums reach.
    */
   get reach() {
     return this.#reach;
@@ -196,7 +197,8 @@ export default class RainRings extends Effect {
   }
 
   /**
-   * The ring's color, its alpha how strongly it shows. Slate on a light ground, pale on a dark one.
+   * The ring's color, its alpha how strongly it shows: the crest tinted by half of it, and lit and shaded by its slope toward the light by
+   * up to 0.8 of it. Slate on a light ground, pale on a dark one.
    */
   get color() {
     return this.#color;
