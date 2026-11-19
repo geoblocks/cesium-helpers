@@ -74,6 +74,11 @@ const int OCTAVES = 2;
 const float OCTAVE_SCATTERING = 0.5;
 const float OCTAVE_EXTINCTION = 0.5;
 const float OCTAVE_ECCENTRICITY = 0.5;
+// the silver lining: a narrow lobe toward the sun, the larger of it and the broad phase, this
+// eccentric and this strong, max(HG(g), silver_intensity HG(0.99 - silver_spread)) (Schneider 2015):
+// thin edges near the sun glow, where the broad lobe's 0.6 lights them a tenth as much
+const float SILVER_G = 0.87;
+const float SILVER = 0.35;
 // the light on the top of the cloud above a point that reaches it scattered many times, which the
 // few samples toward the sun miss and which makes an overcast gray rather than black from below:
 // RainHaze.glsl's twoStream, less the direct beam that the samples toward the sun carry,
@@ -132,7 +137,7 @@ void main() {
   float contribution = 1.0;
   float eccentricity = 1.0;
   for (int n = 0; n < OCTAVES; n++) {
-    octaves[n] = contribution * mix(phase(cosTheta, -0.2 * eccentricity), phase(cosTheta, 0.6 * eccentricity), 0.7);
+    octaves[n] = contribution * max(mix(phase(cosTheta, -0.2 * eccentricity), phase(cosTheta, 0.6 * eccentricity), 0.7), SILVER * phase(cosTheta, SILVER_G * eccentricity));
     contribution *= OCTAVE_SCATTERING;
     eccentricity *= OCTAVE_ECCENTRICITY;
   }
@@ -142,7 +147,7 @@ void main() {
   // "a visual discrepancy happens at the horizon between clouds and earth" (Hillaire 2016, sec.
   // 5.9.1). The sky toward the view, at least SKY_ELEVATION above the horizon
   vec3 fogColor = skyToward(direction, max(asin(clamp(dot(direction, up), -1.0, 1.0)), SKY_ELEVATION));
-  vec3 sunLight = SUN * czm_lightColor * day;
+  vec3 sunLight = SUN * czm_lightColor * sunThroughAir() * day;
   // the sky overhead, and the sunlight from the ground, by day; the moon's at night
   vec3 zenith = clearSkyBelow(cloudBase, czm_inverseViewRotation * up, czm_lightDirectionWC);
   vec3 skyAbove = mix(MOONLIGHT, skyHueOf(zenith), day) * czm_luminance(AMBIENT_TOP);
