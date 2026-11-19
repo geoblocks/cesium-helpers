@@ -134,6 +134,10 @@ void main() {
       highest = max(highest, cell.b);
     }
   }
+  // a ray that meets no shield meets only the fair-weather cumulus, everywhere off it, as deep as the
+  // thinnest deck: half the fine steps are short enough there
+  int fineSteps = covered > 0.0 ? FINE_STEPS : FINE_STEPS / 2;
+  covered = max(covered, fairWeather);
   segment = slab(dot(direction, up), sceneDistance, cloudTopFor(highest, 1.0));
   span = segment.y - segment.x;
   if (covered <= 0.0 || span <= 0.0) {
@@ -194,10 +198,10 @@ void main() {
   int empty = 0;
   int found = 0;
   for (int i = 0; i < MAX_SAMPLES; i++) {
-    if (k >= FINE_STEPS) {
+    if (k >= fineSteps) {
       break;
     }
-    float s = (float(k) + jitter) / float(FINE_STEPS);
+    float s = (float(k) + jitter) / float(fineSteps);
     float t = segment.x + span * s * s;
     vec3 pointEC = direction * t;
     float h = heightAt(pointEC);
@@ -225,7 +229,7 @@ void main() {
       continue;
     }
     empty = 0;
-    float dt = span * (2.0 * s + 1.0 / float(FINE_STEPS)) / float(FINE_STEPS);
+    float dt = span * (2.0 * s + 1.0 / float(fineSteps)) / float(fineSteps);
     // the light through the cloud toward it; by day, behind cloud that hides a fifth of what is
     // behind it, from the shadow map alone, whose light reaches the eye dimmed by it (the cheap
     // light samples of Schneider 2015, there past a transmittance of 0.7: alike to the eye, and

@@ -33,8 +33,9 @@ createViewer('cesiumContainer').then(viewer => {
     duration: 0,
   });
 
-  // in the order of the stages: the clouds, the rain in front of them, then the lightning
-  const clouds = new Clouds(viewer);
+  // in the order of the stages: the clouds, the rain in front of them, then the lightning; fair-weather
+  // cumulus over the dry ground, which the radar does not see
+  const clouds = new Clouds(viewer, {fairWeather: 0.3});
   // the radar's map alone says how hard it rains, at the camera and along each view
   const precipitation = new Precipitation(viewer, {intensity: 1});
   // striking once it has a map, which says where: within 30 km from the ground, farther from higher up

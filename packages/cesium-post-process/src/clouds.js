@@ -131,7 +131,8 @@ export default class Clouds extends Effect {
   #cloudBase;
   #cloudTop;
   #density;
-  // without a map, no clouds
+  #fairWeather;
+  // without a map, no clouds but the fair-weather cumulus
   #weatherMap = new WeatherMap(0);
   /** @type {WeatherMapOptions | undefined} */
   #map;
@@ -201,7 +202,7 @@ export default class Clouds extends Effect {
 
   /**
    * @param {CesiumWidget} viewer
-   * @param {{name?: string, map?: WeatherMapOptions, cloudBase?: number, cloudTop?: number, density?: number}} [options]
+   * @param {{name?: string, map?: WeatherMapOptions, cloudBase?: number, cloudTop?: number, density?: number, fairWeather?: number}} [options]
    */
   constructor(viewer, options = {}) {
     super(viewer, options);
@@ -209,6 +210,7 @@ export default class Clouds extends Effect {
     this.#cloudBase = options.cloudBase ?? 2500;
     this.#cloudTop = options.cloudTop ?? 9000;
     this.#density = options.density ?? 1;
+    this.#fairWeather = options.fairWeather ?? 0;
     // the maps of the rain, from which the clouds' maps are made
     this.map = options.map;
     this.#shadowExtent = SHADOW_EXTENTS[0];
@@ -351,6 +353,7 @@ export default class Clouds extends Effect {
       mapNoise: () => this.#createMapNoiseTexture(context),
       cloudTop: () => this.#cloudTop,
       density: () => this.#density,
+      fairWeather: () => this.#fairWeather,
     };
   }
 
@@ -792,8 +795,24 @@ export default class Clouds extends Effect {
   }
 
   /**
+   * The coverage of fair-weather cumulus over the dry ground, 0 for none to 1: the bright, separate
+   * puffs of a day without rain, which a radar does not see, in fields with clear sky between them,
+   * blending into the clouds over the rain. Every view ray through the slab is then marched, not only
+   * those over the rain.
+   */
+  get fairWeather() {
+    return this.#fairWeather;
+  }
+
+  set fairWeather(value) {
+    this.#fairWeather = value;
+    this.#cloudsChanged();
+  }
+
+  /**
    * The map's intensity at the camera when it is inside the clouds, 0 to 1,
-   * read each frame while active; 0 outside them.
+   * read each frame while active; 0 outside them, and in the fair-weather cumulus, which are not on
+   * the map.
    */
   get localDensity() {
     return this.#localDensity;
