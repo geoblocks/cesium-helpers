@@ -1,5 +1,6 @@
 // The slab of the clouds along a view ray, which the march and the resolve share: where the ray's
-// height reaches a height, and the part of the ray in the slab. Needs Height.
+// height reaches a height, and the part of the ray in the slab. Needs clouds.js's SHADER_CONSTANTS
+// and Height.
 // meters above the ellipsoid; the slab reaches down to slabBottom, the lowest a cloud's base goes,
 // CloudsDensity.glsl's BASE_SWING and BASE_DROP under it, from clouds.js
 uniform float cloudBase;
@@ -12,9 +13,8 @@ uniform float slabTop;
 // steps longer than the billows and turn the far clouds into streaks; deeper than this into the
 // slab, it is nearly always behind a cloud
 const float MAX_DISTANCE = 40000.0;
-// the march marches one pixel of each block of BLOCK x BLOCK at each frame, clouds.js's
-// CLOUD_SCALE, in rounds of BLOCK x BLOCK frames
-const float BLOCK = 4.0;
+// the march marches one pixel of each block of BLOCK x BLOCK at each frame, in rounds of BLOCK x
+// BLOCK frames, a constant clouds.js prepends, 1 / its CLOUD_SCALE
 // the sky's distance, past any slab, in meters
 const float BEYOND_SLAB = 1e9;
 

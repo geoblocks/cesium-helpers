@@ -76,11 +76,16 @@ void main() {
 }
 `;
 // the clouds over the lightest rain are this thick, in meters, and their base and top swing by
-// these, CloudsDensity.glsl's THIN_DEPTH, BASE_SWING, BASE_DROP and TOP_SWING
+// these, as CloudsDensity.glsl explains
 const THIN_DEPTH = 1500;
 const BASE_SWING = 300;
 const BASE_DROP = 250;
 const TOP_SWING = 0.3;
+// those constants and the march's blocks for the shaders, prepended to them, so that the slab the
+// march and the shadow map cover is the one the density fills
+const SHADER_CONSTANTS = Object.entries({THIN_DEPTH, BASE_SWING, BASE_DROP, TOP_SWING, BLOCK: 1 / CLOUD_SCALE})
+  .map(([name, value]) => `const float ${name} = ${Number.isInteger(value) ? value.toFixed(1) : String(value)};\n`)
+  .join('');
 
 // texels along each side of the map's noise
 const MAP_NOISE_SIZE = 256;
@@ -169,6 +174,9 @@ export default class Clouds extends Effect {
   #copy = undefined;
   /** @type {any} */
   #copySource = undefined;
+  // the stage that builds the full resolution, whose output the history keeps
+  /** @type {PostProcessStage | undefined} */
+  #resolve = undefined;
   // whether the history is to be taken: not before one is kept, nor after another map's clouds
   #historyValid = false;
   #sceneSize = new Cartesian2();
@@ -259,7 +267,7 @@ export default class Clouds extends Effect {
     const frameOffset = () => BAYER[this.#frame % BAYER.length];
     // its texture of 32-bit floats holds the light, the transmittance and the distance packed
     const march = new PostProcessStage({
-      fragmentShader: EyeFromDepth + Hash + Height + CloudsSlab + WeatherMapShader + CloudsDensity + CloudsShadow + Fog + Phase + CloudLight + RainHaze + CloudsMarch,
+      fragmentShader: SHADER_CONSTANTS + EyeFromDepth + Hash + Height + CloudsSlab + WeatherMapShader + CloudsDensity + CloudsShadow + Fog + Phase + CloudLight + RainHaze + CloudsMarch,
       uniforms: {
         ...this.#slabUniforms(scene),
         // @ts-expect-error the scene's context is not typed
@@ -276,8 +284,8 @@ export default class Clouds extends Effect {
       pixelDatatype: PixelDatatype.FLOAT,
     });
     // at the full resolution, built over the frames
-    const resolve = new PostProcessStage({
-      fragmentShader: EyeFromDepth + Height + CloudsSlab + CloudsResolve,
+    const resolve = (this.#resolve = new PostProcessStage({
+      fragmentShader: SHADER_CONSTANTS + EyeFromDepth + Height + CloudsSlab + CloudsResolve,
       uniforms: {
         ...this.#slabUniforms(scene),
         cloudTexture: march.name,
@@ -289,7 +297,7 @@ export default class Clouds extends Effect {
         fresh: () => Math.max(1 / (1 + Math.floor(this.#stillFrames / BAYER.length)), LEAST_FRESH),
       },
       pixelDatatype: PixelDatatype.HALF_FLOAT,
-    });
+    }));
     const composite = new PostProcessStageComposite({
       ...this.named_,
       stages: [
@@ -447,7 +455,7 @@ export default class Clouds extends Effect {
     if (!this.#shadow) {
       this.#shadow = this.createTexture_({context, width: SHADOW_SIZE, height: SHADOW_SIZE, pixelDatatype: PixelDatatype.HALF_FLOAT});
       this.#shadowFramebuffer = this.createFramebuffer_({context, colorTextures: [this.#shadow], destroyAttachments: false});
-      this.#shadowCommand = context.createViewportQuadCommand(Height + CloudsSlab + WeatherMapShader + CloudsDensity + CloudsShadow + CloudsShadowMap, {
+      this.#shadowCommand = context.createViewportQuadCommand(SHADER_CONSTANTS + Height + CloudsSlab + WeatherMapShader + CloudsDensity + CloudsShadow + CloudsShadowMap, {
         framebuffer: this.#shadowFramebuffer,
         renderState: this.renderState_({x: 0, y: 0, width: SHADOW_SIZE, height: SHADOW_SIZE}),
         uniformMap: {
@@ -477,7 +485,7 @@ export default class Clouds extends Effect {
    */
   #keepHistory(scene) {
     // @ts-expect-error the collection's output textures are not typed
-    const output = this.#noises && this.stage_ && scene.postProcessStages.getOutputTexture?.(this.stage_.get(1).name);
+    const output = this.#noises && this.stage_ && this.#resolve && scene.postProcessStages.getOutputTexture?.(this.#resolve.name);
     if (!output) {
       return;
     }
@@ -612,6 +620,8 @@ export default class Clouds extends Effect {
     }
     this.#destroyHistory();
     this.#destroyShadow();
+    // removed with the stage, which destroys it
+    this.#resolve = undefined;
     this.#copy?.shaderProgram?.destroy();
     this.#copy = undefined;
     this.#weatherMap.destroy();

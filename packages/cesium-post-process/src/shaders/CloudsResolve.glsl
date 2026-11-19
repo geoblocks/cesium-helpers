@@ -7,7 +7,8 @@
 // upsampled to the pixel, by their range, so that it does not trail behind what moved;
 // where there is no history, the fresh samples upsampled. A pixel whose scene is nearer than where
 // its ray enters the slab has no cloud in front of it, history or not: a ridge moving in front of
-// a cloud does not keep the cloud's light for 16 frames. Needs EyeFromDepth, Height and CloudsSlab.
+// a cloud does not keep the cloud's light for 16 frames. Needs clouds.js's SHADER_CONSTANTS, EyeFromDepth, Height and
+// CloudsSlab.
 precision highp sampler2D;
 uniform sampler2D depthTexture;
 // this frame's march, packed (CloudsMarch.glsl's packCloud), and the previous frames' clouds

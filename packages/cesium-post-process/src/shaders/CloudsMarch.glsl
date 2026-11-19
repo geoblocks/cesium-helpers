@@ -12,8 +12,8 @@
 // them: an overcast is gray from below, lighter under its thin parts, and white from above. The steps are short near the camera and longer with the distance, so
 // a camera inside a cloud is in its fog; across the empty air they are four times as long, and short
 // again in the clouds, lit only there. Precipitation, activated after them, draws the rain's haze
-// over them. Needs EyeFromDepth, Hash, Height, CloudsSlab, WeatherMap, CloudsDensity, CloudsShadow,
-// Fog, Phase, CloudLight and RainHaze.
+// over them. Needs clouds.js's SHADER_CONSTANTS, EyeFromDepth, Hash, Height, CloudsSlab,
+// WeatherMap, CloudsDensity, CloudsShadow, Fog, Phase, CloudLight and RainHaze.
 precision highp sampler2D;
 uniform sampler2D depthTexture;
 // the highest rain around each block of the map's pixels, over both maps, from weather-map.js
