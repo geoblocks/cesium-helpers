@@ -55,6 +55,16 @@ const int RAY_PROBES = 8;
 const vec2 LIGHT_DISTANCES = vec2(200.0, 700.0);
 const vec3 LOBE_LIGHT_DISTANCES = vec3(60.0, 180.0, 500.0);
 const float LOBE_EXTINCTION = 0.01;
+// in the fair-weather cumulus, the sun's light from the clouds above a point, the shadow map's, sees
+// this many times their optical depth: the eye sees them with a real cloud's extinction scaled down,
+// about 1.3 km of visibility rather than 50 to 100 m, for their soft look, but the light that far
+// through a cumulus would light its whole base toward the sun, white. Deeper there, their bases are
+// gray under sunlit tops and only their thin edges glow toward the sun; the samples toward the sun
+// near the point keep the cloud's own depth, so their sunlit tops and sides stay bright. The rain's
+// clouds, a deck lit through its gaps, keep theirs. The factor follows the point lit, as the shadow
+// map does not tell the clouds above it apart: a cumulus shaded by a rain tower sees the tower
+// deeper too, at the shield's edge
+const float SUN_DEPTH = 3.0;
 // the sky's light on the clouds at their base and at their top, by day, and the moon's share of it
 // at night. By day, their tops see the sky overhead, in the color of Cesium's at its luminance, and
 // their bases the sunlight the ground bounces (Hillaire 2016, sec. 5.5.1), less as the sun is lower
@@ -209,7 +219,8 @@ void main() {
     float footprint = t * pixelAngle;
     float lobes = lobeFade(footprint);
     float lobed;
-    float density = cloudDensity(pointWC, h, footprint, lobes, rain, column, dimensional, lobed);
+    float cumulus;
+    float density = cloudDensity(pointWC, h, footprint, lobes, rain, column, dimensional, lobed, cumulus);
     if (coarse) {
       if (density > 0.0) {
         coarse = false;
@@ -248,7 +259,7 @@ void main() {
       bool first = j == 0;
       float extinction = first ? mix(EXTINCTION, LOBE_EXTINCTION, lobed) : EXTINCTION;
       float sampleFootprint = first ? mix(FINE_FOOTPRINT.x, max(footprint, FINE_FOOTPRINT.y), lobed) : FINE_FOOTPRINT.x;
-      opticalDepth += extinction * cloudDensity(pointWC + lightWC * distanceToward, heightAt(pointEC + lightEC * distanceToward), max(footprint, sampleFootprint), first ? lobes : 0.0, unused, unused, unused, unused) * (distanceToward - previous);
+      opticalDepth += extinction * cloudDensity(pointWC + lightWC * distanceToward, heightAt(pointEC + lightEC * distanceToward), max(footprint, sampleFootprint), first ? lobes : 0.0, unused, unused, unused, unused, unused) * (distanceToward - previous);
       previous = distanceToward;
     }
     // the samples reach 700 m toward the sun, 500 m among the lobes, a fifth of the way through a deck 1500 m thick under a
@@ -259,7 +270,12 @@ void main() {
     float deep = 1.0 - clamp(column, 0.0, 1.0);
     // without the samples, the cloud at the point taken to go on toward the light as far as they
     // reach, so that the top of a column, where the shadow map is not read, is not in full sun
-    opticalDepth = max(cheap ? sigma * LIGHT_DISTANCES.x : opticalDepth, shadowed * deep);
+    // in the cumulus, the shadow map's depth beyond what the samples near the point see, the cloud
+    // above them, is deeper: the near samples keep the cloud's own depth. For the rain's clouds, the
+    // larger of the two
+    float near = cheap ? sigma * LIGHT_DISTANCES.x : opticalDepth;
+    float sunDepth = mix(1.0, SUN_DEPTH, cumulus);
+    opticalDepth = near + sunDepth * max(shadowed * deep - near, 0.0);
     float sunThrough = 0.0;
     float occlusion = 1.0;
     for (int n = 0; n < OCTAVES; n++) {
@@ -272,8 +288,9 @@ void main() {
     // thick: lighter under their thin parts, darker under their thick ones; deep in its column, as
     // toward its top the samples toward the sun and their octaves already carry the light
     // scattered there
-    float tau = shadowed * sunHeight;
-    float diffuse = (twoStream(tau) - exp(-shadowed)) * deep;
+    float columnDepth = sunDepth * shadowed;
+    float tau = columnDepth * sunHeight;
+    float diffuse = (twoStream(tau) - exp(-columnDepth)) * deep;
     vec3 scattered = sunLight * sunThrough + mix(groundBelow, skyAbove, y) * ambientOcclusion + onTop * diffuse;
     float stepTransmittance = exp(-sigma * dt);
     // the light scattered over the step, the integral of the source over it, (S - S T) / sigma_t

@@ -143,8 +143,9 @@ float finestDetail(vec3 positionWC, float footprint) {
 // pixel, in meters, and the details fade out as it grows: sampled once a pixel, finer noise would
 // alias into speckles. The lobes of cumulus by this weight, 0 to 1, lobeFade's of the pixel's
 // footprint for the march and its first sample toward the light, 0 for the others and the shadow
-// map, whose texels are as wide as a lobe; it gives how lobed the point is, 0 to 1
-float cloudDensity(vec3 positionWC, float h, float footprint, float lobeWeight, out float rain, out float column, out float dimensional, out float lobed) {
+// map, whose texels are as wide as a lobe; it gives how lobed the point is, 0 to 1, and how much of
+// it is fair-weather cumulus, 0 to 1
+float cloudDensity(vec3 positionWC, float h, float footprint, float lobeWeight, out float rain, out float column, out float dimensional, out float lobed, out float cumulus) {
   // the rain in red, the shield's coverage in green, the clouds' type in blue
   vec2 swing;
   float variation;
@@ -154,6 +155,7 @@ float cloudDensity(vec3 positionWC, float h, float footprint, float lobeWeight, 
   column = 0.0;
   dimensional = 0.0;
   lobed = 0.0;
+  cumulus = 0.0;
   // from the fair-weather cumulus over dry ground to the rain's clouds, as the shield covers it
   float shield = smoothstep(0.0, FAIR_BLEND, cell.g);
   // none where the noise is low, so that the clear sky between the fields skips the billows' reads
@@ -174,6 +176,8 @@ float cloudDensity(vec3 positionWC, float h, float footprint, float lobeWeight, 
   if (y <= 0.0 || y >= 1.0) {
     return 0.0;
   }
+  // only within the column, where there may be cloud
+  cumulus = fairShare;
   float base = clamp(y / FLAT_BASE, 0.0, 1.0);
   float profile = base * mix(1.0 - smoothstep(DECK_TOP, 1.0, y), pow(1.0 - y, TOWER_ENVELOPE), type);
   float lod = max(log2(footprint * NOISE_VOXELS / NOISE_TILE) + LOD_BIAS, 0.0);
