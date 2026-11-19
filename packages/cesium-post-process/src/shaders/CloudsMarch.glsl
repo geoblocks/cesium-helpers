@@ -1,5 +1,7 @@
-// Clouds from a map of the rain, raymarched at a fraction of the resolution: the light they scatter
-// toward the camera, and the share of the scene still seen through them, along each view ray. They
+// Clouds from a map of the rain, raymarched for one pixel of each block of 4 x 4 at each frame, in
+// a texture of a quarter of the resolution, CloudsResolve.glsl building the full resolution from
+// them over the frames: the light they scatter toward the camera, the share of the scene still seen
+// through them, and how far they are, along the pixel's view ray. They
 // fill a slab above the cloud base where the map has rain: a flat layer over drizzle, towers up to
 // the cloud top over the heaviest rain, with a rounded base and top, shaped by billows of noise
 // that repeats in world coordinates, read from a texture made once (cloud-noise.js): wispy over
@@ -10,17 +12,18 @@
 // them: an overcast is gray from below, lighter under its thin parts, and white from above. The steps are short near the camera and longer with the distance, so
 // a camera inside a cloud is in its fog; across the empty air they are four times as long, and short
 // again in the clouds, lit only there. Precipitation, activated after them, draws the rain's haze
-// over them. Needs EyeFromDepth, Height, CloudsSlab, WeatherMap, CloudsDensity, CloudsShadow, Fog,
-// Phase and RainHaze.
+// over them. Needs EyeFromDepth, Hash, Height, CloudsSlab, WeatherMap, CloudsDensity, CloudsShadow,
+// Fog, Phase and RainHaze.
 precision highp sampler2D;
 uniform sampler2D depthTexture;
-// the farthest distance of the scene in this texel's block of pixels, from CloudsDepth.glsl
-uniform sampler2D cloudDepth;
 // the highest rain around each block of the map's pixels, over both maps, from weather-map.js
 uniform sampler2D maxMap;
-// the frames drawn, for the jitter to change at each, and CloudsResolve.glsl to accumulate them
+// the frames drawn, for the jitter to change at each of a pixel's marches
 uniform float frame;
-in vec2 v_textureCoordinates;
+// the pixel of each block of 4 x 4 marched this frame, and the scene's size in pixels, from
+// clouds.js
+uniform vec2 frameOffset;
+uniform vec2 sceneSize;
 
 // the ray's samples: FINE_STEPS of them from its start to its end, closer near the camera; across
 // the empty air a coarse step spans COARSE of them, and where it finds a cloud the march steps
@@ -37,6 +40,8 @@ const int MAX_SAMPLES = 48;
 const float FAR_FADE = 0.6;
 // below this transmittance, the samples are lit from the shadow map alone
 const float CHEAP_LIGHT = 0.8;
+// the sky's distance, past any slab, in meters
+const float BEYOND_SLAB = 1e9;
 // the ray is probed at this many points of the max map before its march, less than a block of it
 // apart over MAX_DISTANCE, 5 km for the 4 km blocks of a 1 km map: the march starts where the ray
 // drops below the tallest cloud they find, and is skipped where they find no rain, rather than
@@ -80,15 +85,25 @@ float phase(float cosTheta, float g) {
   return 4.0 * czm_pi * henyeyGreenstein(cosTheta, g);
 }
 
+// the march's output, in a texture of 32-bit floats read texel by texel: the light in red and
+// green, packed two halves each with the transmittance, the distance in blue, 0 where the ray meets
+// no slab; one output, which a post-process stage has, rather than two
+vec4 packCloud(vec3 light, float transmittance, float distance) {
+  return vec4(uintBitsToFloat(packHalf2x16(light.rg)), uintBitsToFloat(packHalf2x16(vec2(light.b, transmittance))), distance, 1.0);
+}
+
 void main() {
-  vec4 eye = eyeAt(depthTexture, v_textureCoordinates);
+  // the pixel of the block this texel stands for, marched this frame
+  vec2 pixel = min(4.0 * floor(gl_FragCoord.xy) + frameOffset, sceneSize - 1.0) + 0.5;
+  vec2 uv = pixel / sceneSize;
+  vec4 eye = eyeAt(depthTexture, uv);
   vec3 direction = normalize(eye.xyz);
-  // the farthest of the texel's pixels, the sky past the slab: the slab ends its rays
-  float sceneDistance = texture(cloudDepth, v_textureCoordinates).r;
+  // the sky past the slab: the slab ends its rays
+  float sceneDistance = eye.w == 0.0 ? BEYOND_SLAB : length(eye.xyz);
   vec2 segment = slab(dot(direction, up), sceneDistance, slabTop);
   float span = segment.y - segment.x;
   if (span <= 0.0) {
-    out_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+    out_FragColor = packCloud(vec3(0.0), 1.0, 0.0);
     return;
   }
   vec3 directionWC = czm_inverseViewRotation * direction;
@@ -106,7 +121,7 @@ void main() {
   segment = slab(dot(direction, up), sceneDistance, cloudBase + mix(THIN_DEPTH, cloudTop - cloudBase, highest));
   span = segment.y - segment.x;
   if (covered <= 0.0 || span <= 0.0) {
-    out_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+    out_FragColor = packCloud(vec3(0.0), 1.0, segment.x);
     return;
   }
   vec3 lightWC = czm_inverseViewRotation * czm_lightDirectionEC;
@@ -134,11 +149,15 @@ void main() {
   vec3 groundBelow = AMBIENT_BASE * mix(MOONLIGHT, czm_lightColor * clamp(dot(up, czm_lightDirectionEC) / HIGH_SUN, 0.0, 1.0), day);
   float sunHeight = max(dot(up, czm_lightDirectionEC), 0.0);
   vec3 onTop = lightOnClouds(zenith, day);
-  // interleaved gradient noise, a different start along the ray for each pixel, and at each frame,
-  // by the golden ratio (Wolfe 2020)
-  // the angle a pixel of this pass covers
-  float pixelAngle = 2.0 / (czm_projection[1][1] * czm_viewport.w);
-  float jitter = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))) + 0.618034 * frame);
+  // the angle a pixel of the scene covers: the full resolution is built from the marches
+  float pixelAngle = 2.0 / (czm_projection[1][1] * sceneSize.y);
+  // a different start along the ray for each pixel, at random, and at each of its marches, one in
+  // 16 frames, by the golden ratio (Wolfe 2020): interleaved gradient noise's diagonal pattern
+  // would show, each pixel being marched so seldom
+  float jitter = fract(hash(pixel) + 0.618034 * floor(frame / 16.0));
+  // the distance of what the march sees, weighted by the light it hides, for the reprojection
+  float distanceSum = 0.0;
+  float distanceWeight = 0.0;
   vec3 light = vec3(0.0);
   float transmittance = 1.0;
   float rain;
@@ -221,10 +240,13 @@ void main() {
     // (Hillaire 2016, eq. 17): the albedo, sigma_s / sigma_t, of what the step intercepts
     vec3 seen = czm_fog(t, scattered * mix(1.0, RAIN_ALBEDO, rain), fogColor, czm_fogVisualDensityScalar);
     light += transmittance * seen * (1.0 - stepTransmittance);
+    distanceSum += t * transmittance * (1.0 - stepTransmittance);
+    distanceWeight += transmittance * (1.0 - stepTransmittance);
     transmittance *= stepTransmittance;
     if (transmittance < 0.03) {
       break;
     }
   }
-  out_FragColor = vec4(min(light, vec3(1.0)), transmittance);
+  // without a cloud seen, where the ray enters the slab, near what is seen of it from outside
+  out_FragColor = packCloud(min(light, vec3(1.0)), transmittance, distanceWeight > 1e-4 ? distanceSum / distanceWeight : segment.x);
 }

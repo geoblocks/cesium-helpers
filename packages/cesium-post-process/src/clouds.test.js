@@ -118,7 +118,7 @@ test('deactivating destroys the noise textures made when the clouds were drawn',
   const viewer = fakeViewer();
   const clouds = new TestClouds(/** @type {any} */ (viewer), {map});
   clouds.active = true;
-  const march = /** @type {any} */ (clouds.stage_).get(1);
+  const march = /** @type {any} */ (clouds.stage_).get(0);
   for (const uniform of ['cloudNoise', 'cloudDetail']) {
     const texture = march.uniforms[uniform]();
     // made once while active
@@ -135,7 +135,7 @@ test('the options are live: setting one changes the uniforms and requests a rend
   const viewer = fakeViewer();
   const clouds = new TestClouds(/** @type {any} */ (viewer), {map});
   clouds.active = true;
-  const march = /** @type {any} */ (clouds.stage_).get(1);
+  const march = /** @type {any} */ (clouds.stage_).get(0);
   for (const [name, value] of /** @type {const} */ ([['cloudBase', 1800], ['cloudTop', 7000], ['density', 0.5], ['wind', 20]])) {
     viewer.calls.length = 0;
     clouds[name] = value;
@@ -207,7 +207,7 @@ test('the march starts at the tallest cloud the map makes: 1500 m thick over dri
   for (const [red, expected] of [[0, 4000], [255, 9000], [128, 4000 + 5000 * type]]) {
     const clouds = new TestClouds(/** @type {any} */ (fakeViewer()), {map: rainingAt(red)});
     clouds.active = true;
-    const march = /** @type {any} */ (clouds.stage_).get(1);
+    const march = /** @type {any} */ (clouds.stage_).get(0);
     assert.ok(Math.abs(march.uniforms.slabTop() - expected) < 1e-9, `at ${red}`);
   }
 });
@@ -216,7 +216,7 @@ test('the noise drifts with the wind toward the east at the map\'s center, by th
   const viewer = fakeViewer();
   const clouds = new TestClouds(/** @type {any} */ (viewer), {map});
   clouds.active = true;
-  const {windOffset} = /** @type {any} */ (clouds.stage_).get(1).uniforms;
+  const {windOffset} = /** @type {any} */ (clouds.stage_).get(0).uniforms;
   const up = Ellipsoid.WGS84.geodeticSurfaceNormalCartographic(Cartographic.fromDegrees(6, 47));
   const east = Cartesian3.normalize(Cartesian3.cross(Cartesian3.UNIT_Z, up, new Cartesian3()), new Cartesian3());
   const before = windOffset();
@@ -236,8 +236,8 @@ test('a new map starts the accumulation over', () => {
   const clouds = new TestClouds(/** @type {any} */ (viewer), {map});
   clouds.active = true;
   viewer.postListeners[0]();
-  const resolve = /** @type {any} */ (clouds.stage_).get(2);
-  assert.equal(resolve.uniforms.historyWeight(), 0.9);
+  const resolve = /** @type {any} */ (clouds.stage_).get(1);
+  assert.equal(resolve.uniforms.historyWeight(), 1);
   clouds.map = map;
   assert.equal(resolve.uniforms.historyWeight(), 0);
   clouds.active = false;
@@ -254,7 +254,7 @@ test('the scene renders for a moment after a change, for the accumulation to set
     viewer.calls.length = 0;
     mock.timers.tick(200);
     assert.ok(viewer.calls.some(([name]) => name === 'render'));
-    mock.timers.tick(1000);
+    mock.timers.tick(2000);
     frame(viewer);
     viewer.postListeners[0]();
     viewer.calls.length = 0;
@@ -316,7 +316,7 @@ test('with a drift, the noise also drifts by the real time, and the clouds keep 
     clouds.active = true;
     const up = Ellipsoid.WGS84.geodeticSurfaceNormalCartographic(Cartographic.fromDegrees(6, 47));
     const east = Cartesian3.normalize(Cartesian3.cross(Cartesian3.UNIT_Z, up, new Cartesian3()), new Cartesian3());
-    const {windOffset} = /** @type {any} */ (clouds.stage_).get(1).uniforms;
+    const {windOffset} = /** @type {any} */ (clouds.stage_).get(0).uniforms;
     const before = windOffset();
     now = 110000;
     const moved = Cartesian3.subtract(windOffset(), before, new Cartesian3());
@@ -332,4 +332,43 @@ test('with a drift, the noise also drifts by the real time, and the clouds keep 
   } finally {
     mock.timers.reset();
   }
+});
+
+test('the march marches each pixel of a block of 4 x 4 once in 16 frames, the resolve at the same pixel', () => {
+  const viewer = fakeViewer();
+  const clouds = new TestClouds(/** @type {any} */ (viewer), {map});
+  clouds.active = true;
+  const stage = /** @type {any} */ (clouds.stage_);
+  const seen = new Set();
+  for (let i = 0; i < 16; i++) {
+    const offset = stage.get(0).uniforms.frameOffset();
+    assert.deepEqual(stage.get(1).uniforms.frameOffset(), offset);
+    seen.add(`${offset.x},${offset.y}`);
+    viewer.postListeners[0]();
+  }
+  assert.equal(seen.size, 16);
+  clouds.active = false;
+});
+
+test('a still view averages each pixel\'s samples, a moving one starts over', () => {
+  const viewer = fakeViewer();
+  const clouds = new TestClouds(/** @type {any} */ (viewer), {map});
+  clouds.active = true;
+  const resolve = /** @type {any} */ (clouds.stage_).get(1);
+  frame(viewer);
+  viewer.postListeners[0]();
+  assert.equal(resolve.uniforms.fresh(), 1);
+  assert.equal(resolve.uniforms.moving(), 1);
+  // the second round of the blocks' pixels: their second samples weigh a half, and the history is
+  // the pixels' own
+  for (let i = 0; i < 16; i++) {
+    viewer.postListeners[0]();
+  }
+  assert.equal(resolve.uniforms.fresh(), 1 / 2);
+  assert.equal(resolve.uniforms.moving(), 0);
+  for (let i = 0; i < 16 * 20; i++) {
+    viewer.postListeners[0]();
+  }
+  assert.equal(resolve.uniforms.fresh(), 0.2);
+  clouds.active = false;
 });
