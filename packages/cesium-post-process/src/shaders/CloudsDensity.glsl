@@ -84,8 +84,12 @@ vec4 cloudMapAt(vec3 positionWC, out vec2 swing, out float variation) {
   texel.g = clamp(texel.g * (1.0 + open * variation), 0.0, 1.0);
   return texel;
 }
-// extinction inside a solid cloud, per meter: about 1.3 km of visibility
+// extinction inside a solid cloud, per meter, for the light through it: about 1.3 km of
+// visibility, a real cloud's 50 to 100 m scaled down, where the light with as much would leave an
+// overcast black from below. The eye sees the clouds this many times as deep: about 330 m, for
+// sharp edges
 const float EXTINCTION = 0.003;
+const float EYE_DEPTH = 4.0;
 // the noise repeats every this many meters, in 4 billows across, with this many voxels, clouds.js's
 // NOISE_SIZE, and its details are about this size
 const float NOISE_TILE = 16000.0;
