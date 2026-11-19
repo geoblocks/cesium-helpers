@@ -80,6 +80,10 @@ const TOP_SWING = 0.3;
 // the wind moves the noise less than this between two frames, in meters: more is its offset
 // wrapping, or the clock jumping, and the history is not moved with it
 const MOST_WIND_MOTION = 1000;
+// as the wind carries the noise, it rises through the slab at this share of the wind's speed, so
+// the billows change their shape as they drift rather than keeping it (Schneider 2015's
+// evolution, about 1 m/s in a wind of 12 m/s); CloudsDensity.glsl's finest details drift faster
+const RISE = 0.1;
 // the wind's offset of the noise wraps at this many meters, a period of its tile, CloudsDensity.glsl's
 // NOISE_TILE, of its larger lookup, the tile over LARGE_SCALE (0.27), and of the finest details'
 // tile, DETAIL_TILE (2000 m): single precision would lose the offset after days of wind
@@ -135,6 +139,8 @@ export default class Clouds extends Effect {
   /** @type {Rectangle | undefined} */
   #windRectangle = undefined;
   #windVector;
+  // the up at the map's center, which the noise rises along
+  #riseVector = Cartesian3.ZERO;
   /** @type {WeatherMapOptions | undefined} */
   #map;
   /** @type {WeatherMapOptions | undefined} */
@@ -341,19 +347,22 @@ export default class Clouds extends Effect {
       this.#windRectangle = rectangle;
       const up = Ellipsoid.WGS84.geodeticSurfaceNormalCartographic(Rectangle.center(rectangle));
       this.#windVector = Cartesian3.normalize(Cartesian3.cross(Cartesian3.UNIT_Z, up, new Cartesian3()), new Cartesian3());
+      this.#riseVector = Cartesian3.multiplyByScalar(up, RISE, new Cartesian3());
     }
     return this.#windVector;
   }
 
   /**
    * How far the wind has carried the noise by the scene's clock, still while it is paused, and the
-   * drift by the real time, in world coordinates, in double precision and wrapped at WIND_PERIOD.
+   * drift by the real time, and how far it has risen meanwhile, in world coordinates, in double
+   * precision and wrapped at WIND_PERIOD.
    * @param {number} [seconds] the real time
    */
   #windOffset(seconds = performance.now() / 1000) {
     const {dayNumber, secondsOfDay} = this.viewer.clock.currentTime;
     const distance = this.#wind * (dayNumber * 86400 + secondsOfDay) + this.#drift * seconds;
-    const offset = Cartesian3.multiplyByScalar(this.#windDirection(), distance, new Cartesian3());
+    const direction = this.#windDirection();
+    const offset = Cartesian3.multiplyByScalar(Cartesian3.add(direction, this.#riseVector, new Cartesian3()), distance, new Cartesian3());
     offset.x %= WIND_PERIOD;
     offset.y %= WIND_PERIOD;
     offset.z %= WIND_PERIOD;

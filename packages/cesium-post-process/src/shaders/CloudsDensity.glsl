@@ -94,6 +94,10 @@ const float WISPY_BASE = 0.3;
 const float DETAIL_TILE = 2000.0;
 const float DETAIL_VOXELS = 32.0;
 const float FINE_EROSION = 0.5;
+// the finest details drift this much faster than the billows, carried a quarter further by the
+// wind's offset: the billows' edges change as they go (Schneider 2015). A quarter of WIND_PERIOD is
+// a whole number of their tiles, so they do not jump when it wraps
+const float DETAIL_DRIFT = 0.25;
 const vec2 FINE_FOOTPRINT = vec2(250.0, 60.0);
 
 // the cloud's density at a point, 0 to the density uniform, from the clouds' map (cloud-map.js):
@@ -154,7 +158,7 @@ float cloudDensity(vec3 positionWC, float h, float footprint, out float rain, ou
   float fine = 1.0 - smoothstep(FINE_FOOTPRINT.y, FINE_FOOTPRINT.x, footprint);
   if (fine > 0.0 && shape > 0.0 && shape < 1.0) {
     float fineLod = max(log2(footprint * DETAIL_VOXELS / DETAIL_TILE) + LOD_BIAS, 0.0);
-    float f = textureLod(cloudDetail, fract(drifted / DETAIL_TILE), fineLod).r;
+    float f = textureLod(cloudDetail, fract((drifted - DETAIL_DRIFT * windOffset) / DETAIL_TILE), fineLod).r;
     erosion = min(erosion + FINE_EROSION * fine * mix(1.0 - f, f, clamp(y / WISPY_BASE, 0.0, 1.0)) * (1.0 - shape), 0.95);
   }
   return density * clamp((shape - erosion) / (1.0 - erosion), 0.0, 1.0);

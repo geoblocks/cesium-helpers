@@ -64,7 +64,7 @@ const float HIGH_SUN = 0.5;
 const vec2 DARK_BASE = vec2(0.07, 0.14);
 // the clouds over the heaviest rain absorb this share of the light they intercept, for the
 // "foreboding dark clouds" of Horizon Zero Dawn (Schneider 2015)
-const float RAIN_ALBEDO = 0.8;
+const float RAIN_ALBEDO = 0.6;
 // the sun's light scattered more than once, as octaves of the light scattered once (Wrenninge's,
 // Hillaire 2016, sec. 5.8, eq. 19-20): octave n has a^n of the scattering, b^n of the extinction and
 // c^n of the phase's eccentricity, so it reaches deeper into the cloud, more alike in all
@@ -84,6 +84,9 @@ const float SILVER = 0.35;
 // RainHaze.glsl's twoStream, less the direct beam that the samples toward the sun carry,
 // exp(-tau / mu) along its slanted path, the sun mu high
 const vec3 MOONLIGHT = vec3(0.60, 0.63, 0.70);
+// at night, the moon lights them from its direction, this much of the sun's light, in the moonlight's
+// tint, as it rises above the horizon: by day the sun is their one light, at night the moon
+const float MOON = 0.1;
 
 // Henyey-Greenstein's phase function, times 4 pi: 1 for light scattered alike in all directions
 float phase(float cosTheta, float g) {
@@ -129,10 +132,13 @@ void main() {
     out_FragColor = packCloud(vec3(0.0), 1.0, segment.x);
     return;
   }
-  vec3 lightWC = czm_inverseViewRotation * czm_lightDirectionEC;
-  // a forward lobe for the silver lining, a weak backward one, for each octave: the sun is a
+  float day = daylight();
+  // the light they are lit by, the sun by day, the moon at night
+  vec3 lightEC = day > 0.0 ? czm_lightDirectionEC : czm_moonDirectionEC;
+  vec3 lightWC = czm_inverseViewRotation * lightEC;
+  // a forward lobe for the silver lining, a weak backward one, for each octave: the light is a
   // direction, the angle is the same along the ray
-  float cosTheta = dot(direction, czm_lightDirectionEC);
+  float cosTheta = dot(direction, lightEC);
   float octaves[OCTAVES];
   float contribution = 1.0;
   float eccentricity = 1.0;
@@ -141,13 +147,12 @@ void main() {
     contribution *= OCTAVE_SCATTERING;
     eccentricity *= OCTAVE_ECCENTRICITY;
   }
-  float day = daylight();
   // the far clouds fade into the sky behind them as Cesium's fog fades the terrain, by its factor at
   // each step's distance: the same aerial perspective on the clouds as on the earth, without which
   // "a visual discrepancy happens at the horizon between clouds and earth" (Hillaire 2016, sec.
   // 5.9.1). The sky toward the view, at least SKY_ELEVATION above the horizon
   vec3 fogColor = skyToward(direction, max(asin(clamp(dot(direction, up), -1.0, 1.0)), SKY_ELEVATION));
-  vec3 sunLight = SUN * czm_lightColor * sunThroughAir() * day;
+  vec3 sunLight = day > 0.0 ? SUN * czm_lightColor * sunThroughAir() * day : MOON * MOONLIGHT * smoothstep(0.0, 0.1, dot(up, czm_moonDirectionEC));
   // the sky overhead, and the sunlight from the ground, by day; the moon's at night
   vec3 zenith = clearSkyBelow(cloudBase, czm_inverseViewRotation * up, czm_lightDirectionWC);
   vec3 skyAbove = mix(MOONLIGHT, skyHueOf(zenith), day) * czm_luminance(AMBIENT_TOP);
@@ -215,7 +220,7 @@ void main() {
       // jittered as the step, for the samples of neighboring pixels not to band (Hillaire 2016,
       // sec. 5.5.2)
       float distanceToward = LIGHT_DISTANCES[j] * (0.75 + 0.5 * jitter);
-      opticalDepth += EXTINCTION * cloudDensity(pointWC + lightWC * distanceToward, heightAt(pointEC + czm_lightDirectionEC * distanceToward), footprint, unused, unused, unused) * (distanceToward - previous);
+      opticalDepth += EXTINCTION * cloudDensity(pointWC + lightWC * distanceToward, heightAt(pointEC + lightEC * distanceToward), footprint, unused, unused, unused) * (distanceToward - previous);
       previous = distanceToward;
     }
     // the samples reach 700 m toward the sun, a fifth of the way through a deck 1500 m thick under a

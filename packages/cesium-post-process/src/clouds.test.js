@@ -213,7 +213,7 @@ test('the march starts at the tallest cloud the map makes: 1500 m thick over dri
   }
 });
 
-test('the noise drifts with the wind toward the east at the map\'s center, by the scene\'s clock, wrapped for single precision', () => {
+test('the noise drifts with the wind toward the east at the map\'s center, rising at a tenth of its speed, by the scene\'s clock, wrapped for single precision', () => {
   const viewer = fakeViewer();
   const clouds = new TestClouds(/** @type {any} */ (viewer), {map});
   clouds.active = true;
@@ -222,9 +222,10 @@ test('the noise drifts with the wind toward the east at the map\'s center, by th
   const east = Cartesian3.normalize(Cartesian3.cross(Cartesian3.UNIT_Z, up, new Cartesian3()), new Cartesian3());
   const before = windOffset();
   viewer.clock.currentTime = JulianDate.addSeconds(viewer.clock.currentTime, 100, new JulianDate());
-  // 10 m/s for 100 s
+  // 10 m/s for 100 s, and 1 m/s up
   const moved = Cartesian3.subtract(windOffset(), before, new Cartesian3());
-  assert.ok(Cartesian3.equalsEpsilon(moved, Cartesian3.multiplyByScalar(east, 1000, new Cartesian3()), 1e-6));
+  const expected = Cartesian3.add(Cartesian3.multiplyByScalar(east, 1000, new Cartesian3()), Cartesian3.multiplyByScalar(up, 100, new Cartesian3()), new Cartesian3());
+  assert.ok(Cartesian3.equalsEpsilon(moved, expected, 1e-6));
   viewer.clock.currentTime = JulianDate.fromIso8601('2100-01-01T00:00:00Z');
   const far = windOffset();
   assert.ok([far.x, far.y, far.z].every((component) => Math.abs(component) < 1600000));
@@ -321,7 +322,8 @@ test('with a drift, the noise also drifts by the real time, and the clouds keep 
     const before = windOffset();
     now = 110000;
     const moved = Cartesian3.subtract(windOffset(), before, new Cartesian3());
-    assert.ok(Cartesian3.equalsEpsilon(moved, Cartesian3.multiplyByScalar(east, 1000, new Cartesian3()), 1e-6));
+    const expected = Cartesian3.add(Cartesian3.multiplyByScalar(east, 1000, new Cartesian3()), Cartesian3.multiplyByScalar(up, 100, new Cartesian3()), new Cartesian3());
+    assert.ok(Cartesian3.equalsEpsilon(moved, expected, 1e-6));
     viewer.calls.length = 0;
     mock.timers.tick(1000);
     assert.ok(viewer.calls.some(([name]) => name === 'render'));
