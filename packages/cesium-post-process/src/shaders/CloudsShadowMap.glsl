@@ -56,7 +56,7 @@ void main() {
   float unused;
   for (int i = 0; i < SHADOW_STEPS; i++) {
     vec3 point = start + czm_lightDirectionWC * mix(top, base, (float(i) + 0.5) / float(SHADOW_STEPS));
-    depth += EXTINCTION * cloudDensity(point, shadowHeight(point), shadowExtent / SHADOW_SIZE, 0.0, unused, unused, unused, unused) * ds;
+    depth += EXTINCTION * cloudDensity(point, shadowHeight(point), shadowExtent / SHADOW_SIZE, 0.0, unused, unused, unused, unused, unused) * ds;
     if (i == SHADOW_STEPS / 4 - 1) {
       depths.x = depth;
     } else if (i == SHADOW_STEPS / 2 - 1) {
