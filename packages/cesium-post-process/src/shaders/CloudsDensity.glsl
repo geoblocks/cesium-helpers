@@ -127,10 +127,10 @@ float cloudDensity(vec3 positionWC, float h, float footprint, out float rain, ou
   // the profile times the coverage carves the noise rather than scaling it,
   // saturate(noise - (1 - dimensional_profile)) (Schneider 2022): the core stays solid, and only
   // the noise's highest billows reach the top and the base. Ramped up over a softness rather than
-  // sharpened by a power as in Nubis Cubed (Schneider 2023): with 250 m voxels, a sharp edge
-  // follows their interpolation in a grid. The edges soften as the pixels grow, which would
-  // otherwise cut them in steps of the pass's resolution
-  float soft = 0.15 + 0.35 * clamp(footprint / 2000.0, 0.0, 1.0);
+  // sharpened by a power as in Nubis Cubed (Schneider 2023): a sharper edge than this, between two
+  // of the march's fine steps, shows as contour lines along it. The edges soften as the pixels grow,
+  // which would otherwise cut them in steps of the pass's resolution
+  float soft = 0.05 + 0.45 * clamp(footprint / 2000.0, 0.0, 1.0);
   float shape = smoothstep(0.0, soft, noise.r - (1.0 - profile * coverage));
   // the details erode where the cloud is thin, its edges, and leave its core solid
   float billows = mix(noise.g, noise.b, 0.4);
