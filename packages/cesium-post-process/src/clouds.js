@@ -34,19 +34,21 @@ import WeatherMap, {imageData} from './weather-map.js';
 // texture of a quarter of the resolution, in this order of the pixels of a block, a Bayer matrix's,
 // so that consecutive frames march pixels far apart; CloudsResolve.glsl builds the full resolution,
 // a pixel's n-th sample since the view last changed weighing 1 / n in it, a running mean, down to
-// this share, so that the clouds still follow the light as it moves less than LIGHT_TIME's
+// this share, about the last 20 samples, few enough for the clouds to follow the light as it moves
+// less than LIGHT_TIME's, and enough to average out the march's jitter along the clouds' edges
 const CLOUD_SCALE = 0.25;
-const LEAST_FRESH = 0.2;
+const LEAST_FRESH = 0.05;
 const BAYER = [0, 10, 2, 8, 5, 15, 7, 13, 1, 11, 3, 9, 4, 14, 6, 12].map((i) => new Cartesian2(i % 4, Math.floor(i / 4)));
 // voxels along each side of the noise and of its finest details, CloudsDensity.glsl's
 // NOISE_VOXELS and DETAIL_VOXELS
 const NOISE_SIZE = 64;
 const DETAIL_VOXELS = 32;
-// after the camera, the light or the clouds change, the scene renders this long, in milliseconds, at
-// this frame rate, for the accumulation to settle, also in requestRenderMode: four rounds of the 16
-// pixels of each block, four samples of each pixel
-const SETTLE_TIME = 2000;
+// after the camera, the light or the clouds change, the scene renders at this frame rate, also in
+// requestRenderMode, for this many rounds of the 16 pixels of each block, for the accumulation to
+// settle: eight samples of each pixel, a frame count rather than a time, so that a slower GPU's
+// clouds settle as far; fewer leave the march's jitter as grain along the clouds' edges
 const SETTLE_RATE = 30;
+const SETTLE_ROUNDS = 8;
 // the clock changes the clouds only through their light, the sun's or the moon's direction, which
 // moves about a quarter of a degree in this many seconds: a clock playing at its own pace changes
 // nothing between frames, a change of more than this does. Likewise a crossfade played with it, as
@@ -117,6 +119,8 @@ function makeNoises() {
 }
 
 const groundScratch = new Cartesian3();
+const viewProjectionScratch = new Matrix4();
+const sizeScratch = new Cartesian2();
 
 /**
  * Clouds from a map of the rain: a slab about the cloud base where the map
@@ -128,8 +132,9 @@ const groundScratch = new Cartesian3();
  * its shafts and its haze are drawn over them, so from below the cloud base
  * they are seen through the rain. One pixel of each block of 4 x 4 is
  * raymarched at each frame, and the full resolution built from them over the
- * frames. After a change, the scene renders for two seconds for them to
- * settle, then rests.
+ * frames. After a change, the scene renders for eight samples of each
+ * pixel, about four seconds at 30 frames per second, for them to settle,
+ * then rests.
  * Without a map, there are no clouds.
  */
 export default class Clouds extends Effect {
@@ -182,14 +187,14 @@ export default class Clouds extends Effect {
   #sceneSize = new Cartesian2();
   #previousViewProjection = new Matrix4();
   #reprojection = new Matrix4();
-  #lastView = new Matrix4();
+  #lastViewProjection = new Matrix4();
+  #lastSize = new Cartesian2();
   /** @type {JulianDate | undefined} */
   #lastTime = undefined;
   #changed = false;
   // the map's blend when the accumulation last started over for it
   #settledBlend = 0;
   #settling = false;
-  #settleUntil = 0;
   // the shadow map, its ground point and time, and whether the clouds changed since it was drawn
   /** @type {any} */
   #shadow = undefined;
@@ -226,18 +231,28 @@ export default class Clouds extends Effect {
     // for Precipitation, which lights its haze through it
     this.#shadowSource = {texture: () => this.#shadow, center: this.#shadowCenter, extent: () => this.#shadowExtent, base: () => this.#slabBottom(), top: () => this.#slabTop()};
     this.#onPreRender = () => {
-      const {camera} = this.viewer.scene;
-      this.#drawShadow(this.viewer.scene);
+      const {scene} = this.viewer;
+      const {camera} = scene;
+      this.#drawShadow(scene);
       const {longitude, latitude, height} = camera.positionCartographic;
       const inside = height >= this.#slabBottom() && height <= this.#slabTop();
       this.#localDensity = inside ? this.#weatherMap.intensityAt(longitude, latitude) : 0;
       const time = this.viewer.clock.currentTime;
-      if (this.#changed || !Matrix4.equals(camera.viewMatrix, this.#lastView) || !JulianDate.equalsEpsilon(time, this.#lastTime, LIGHT_TIME)) {
+      // the projection and the size too: a zoom with the camera held moves what a pixel sees, and a
+      // still view reads each pixel's history where it is
+      const viewProjection = Matrix4.multiply(camera.frustum.projectionMatrix, camera.viewMatrix, viewProjectionScratch);
+      const size = Cartesian2.fromElements(scene.drawingBufferWidth, scene.drawingBufferHeight, sizeScratch);
+      if (
+        this.#changed ||
+        !Matrix4.equals(viewProjection, this.#lastViewProjection) ||
+        !Cartesian2.equals(size, this.#lastSize) ||
+        !JulianDate.equalsEpsilon(time, this.#lastTime, LIGHT_TIME)
+      ) {
         this.#changed = false;
         this.#stillFrames = 0;
-        Matrix4.clone(camera.viewMatrix, this.#lastView);
+        Matrix4.clone(viewProjection, this.#lastViewProjection);
+        Cartesian2.clone(size, this.#lastSize);
         this.#lastTime = JulianDate.clone(time, this.#lastTime);
-        this.#settleUntil = Date.now() + SETTLE_TIME;
         if (!this.#settling) {
           this.#settling = true;
           acquireFrames(this.viewer.scene, SETTLE_RATE);
@@ -251,7 +266,7 @@ export default class Clouds extends Effect {
       // a whole number of rounds of the blocks' pixels
       this.#frame = (this.#frame + 1) % 1024;
       this.#stillFrames++;
-      if (this.#settling && Date.now() > this.#settleUntil) {
+      if (this.#settling && this.#stillFrames >= SETTLE_ROUNDS * BAYER.length) {
         this.#settling = false;
         releaseFrames(scene, SETTLE_RATE);
       }
