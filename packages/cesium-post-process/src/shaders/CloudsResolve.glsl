@@ -2,8 +2,8 @@
 // of each block of 4 x 4 at each frame (Schneider 2015's temporal reprojection, a 16th of the
 // pixels a frame): the pixel marched this frame blends its new sample into its history, the others
 // take their history, reprojected to where they are seen now through the distance of the clouds
-// the march saw (Sakmary 2022), read through a Catmull-Rom filter, where a bilinear read would
-// blur it a little more at each frame, and while the view moves, clamped around the fresh samples
+// the march saw (Sakmary 2022), read through a Catmull-Rom filter while the view moves, where a
+// bilinear read would blur it a little more at each frame, and clamped around the fresh samples
 // upsampled to the pixel, by their range, so that it does not trail behind what moved;
 // where there is no history, the fresh samples upsampled. A pixel whose scene is nearer than where
 // its ray enters the slab has no cloud in front of it, history or not: a ridge moving in front of
@@ -21,8 +21,9 @@ uniform bool hasHistory;
 // the pixel of each block marched this frame, and the share of its new sample in its clouds, from
 // clouds.js: 1 / n for its n-th since the view last changed, a running mean; 1 in the first round
 // of the blocks' pixels after a change, while the view moves and the history is clamped. Once still
-// for a round, the reprojection is exact, each pixel's history its own samples, and a clamp to the
-// noisy fresh samples around it would only add their noise
+// for a round, each pixel's history is its own samples, read as it is: a clamp to the noisy fresh
+// samples around it would only add their noise, and the filter, at the few thousandths of a pixel
+// the reprojection is off by through the clouds' distance, sharpens their noise again at each frame
 uniform vec2 frameOffset;
 uniform float fresh;
 in vec2 v_textureCoordinates;
@@ -76,11 +77,18 @@ void main() {
     out_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
     return;
   }
-  // this pixel's block, whose sample was marched at frameOffset in it, and the 2 x 2 samples
-  // around the pixel, for the bounds and the upsampling
+  // this pixel's block, whose sample was marched at frameOffset in it
   ivec2 block = ivec2(floor(pixel / BLOCK));
+  bool marched = all(equal(pixel - BLOCK * vec2(block), frameOffset));
   float distance;
   vec4 current = freshLight(block, distance);
+  // still: the history is the pixel's own, where it is
+  if (hasHistory && fresh < 1.0) {
+    vec4 history = texelFetch(historyTexture, ivec2(pixel), 0);
+    out_FragColor = marched ? mix(history, current, fresh) : history;
+    return;
+  }
+  // the 2 x 2 samples around the pixel, for the bounds and the upsampling
   vec2 grid = (pixel - frameOffset) / BLOCK;
   ivec2 corner = ivec2(floor(grid));
   vec2 f = fract(grid);
@@ -89,26 +97,21 @@ void main() {
   vec4 c01 = freshLight(corner + ivec2(0, 1));
   vec4 c11 = freshLight(corner + ivec2(1, 1));
   vec4 upsampled = mix(mix(c00, c10, f.x), mix(c01, c11, f.x), f.y);
-  // the history is clamped within the fresh samples' range around their bilinear upsampling: the
-  // bounds of the 2 x 2 samples themselves are the same for a block of pixels, which their clamp
-  // turned into squares
-  vec4 range = max(max(c00, c10), max(c01, c11)) - min(min(c00, c10), min(c01, c11));
   // through the clouds' distance; where the ray meets no slab, nothing is there to move: only the
   // view turns
   vec4 point = distance > 0.0 ? vec4(direction * distance, 1.0) : vec4(direction, 0.0);
   vec4 clip = reprojection * point;
   vec2 previous = clip.xy / clip.w * 0.5 + 0.5;
   bool seen = hasHistory && clip.w > 0.0 && all(greaterThanEqual(previous, vec2(0.0))) && all(lessThanEqual(previous, vec2(1.0)));
-  bool marched = all(equal(pixel - BLOCK * vec2(block), frameOffset));
   // the history read only where it is taken: not where it is off screen, nor for a pixel marched in
   // the first round after a change, whose new sample is all of it
-  if (!seen || (marched && fresh >= 1.0)) {
+  if (!seen || marched) {
     out_FragColor = marched ? current : upsampled;
     return;
   }
-  vec4 history = historyAt(previous, size);
-  if (fresh >= 1.0) {
-    history = clamp(history, upsampled - range, upsampled + range);
-  }
-  out_FragColor = marched ? mix(history, current, fresh) : history;
+  // the history is clamped within the fresh samples' range around their bilinear upsampling: the
+  // bounds of the 2 x 2 samples themselves are the same for a block of pixels, which their clamp
+  // turned into squares
+  vec4 range = max(max(c00, c10), max(c01, c11)) - min(min(c00, c10), min(c01, c11));
+  out_FragColor = clamp(historyAt(previous, size), upsampled - range, upsampled + range);
 }

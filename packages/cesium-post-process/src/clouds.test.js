@@ -339,7 +339,16 @@ test('the scene renders for a moment after a change, for the accumulation to set
     viewer.calls.length = 0;
     mock.timers.tick(200);
     assert.ok(viewer.calls.some(([name]) => name === 'render'));
-    mock.timers.tick(2000);
+    // eight rounds of the blocks' pixels, however long they take, but for the frame above and the
+    // last one
+    mock.timers.tick(10000);
+    for (let i = 0; i < 8 * 16 - 2; i++) {
+      frame(viewer);
+      viewer.postListeners[0]();
+    }
+    viewer.calls.length = 0;
+    mock.timers.tick(200);
+    assert.ok(viewer.calls.some(([name]) => name === 'render'));
     frame(viewer);
     viewer.postListeners[0]();
     viewer.calls.length = 0;
@@ -417,21 +426,36 @@ test('a still view averages each pixel\'s samples, a moving one starts over', ()
   const viewer = fakeViewer();
   const clouds = new TestClouds(/** @type {any} */ (viewer), {map});
   clouds.active = true;
-  const resolve = /** @type {any} */ (clouds.stage_).get(1);
-  frame(viewer);
-  viewer.postListeners[0]();
-  assert.equal(resolve.uniforms.fresh(), 1);
-  // the second round of the blocks' pixels: their second samples weigh a half, and the history is
-  // the pixels' own, no longer clamped
-  for (let i = 0; i < 16; i++) {
+  try {
+    const resolve = /** @type {any} */ (clouds.stage_).get(1);
+    frame(viewer);
     viewer.postListeners[0]();
+    assert.equal(resolve.uniforms.fresh(), 1);
+    // the second round of the blocks' pixels: their second samples weigh a half, and the history is
+    // the pixels' own, no longer clamped
+    for (let i = 0; i < 16; i++) {
+      viewer.postListeners[0]();
+    }
+    assert.equal(resolve.uniforms.fresh(), 1 / 2);
+    for (let i = 0; i < 16 * 20; i++) {
+      viewer.postListeners[0]();
+    }
+    assert.equal(resolve.uniforms.fresh(), 0.05);
+    // a zoom, the camera held where it is, starts over too: the history is read where it is while still
+    viewer.scene.camera.frustum.projectionMatrix = Matrix4.fromUniformScale(2);
+    frame(viewer);
+    assert.equal(resolve.uniforms.fresh(), 1);
+    // and so does a new size of the scene, its aspect the same
+    for (let i = 0; i < 16; i++) {
+      viewer.postListeners[0]();
+    }
+    assert.equal(resolve.uniforms.fresh(), 1 / 2);
+    Object.assign(viewer.scene, {drawingBufferWidth: 200, drawingBufferHeight: 100});
+    frame(viewer);
+    assert.equal(resolve.uniforms.fresh(), 1);
+  } finally {
+    clouds.active = false;
   }
-  assert.equal(resolve.uniforms.fresh(), 1 / 2);
-  for (let i = 0; i < 16 * 20; i++) {
-    viewer.postListeners[0]();
-  }
-  assert.equal(resolve.uniforms.fresh(), 0.2);
-  clouds.active = false;
 });
 
 test('the slab reaches below the cloud base, as low as a base swings down under the heaviest rain, for the march and the shadow map', () => {
@@ -479,11 +503,11 @@ test('a clock playing at its own pace, and a crossfade with it, let the clouds s
       frame(viewer);
       viewer.postListeners[0]();
     };
-    // three seconds
-    for (let i = 0; i < 90; i++) {
+    // five seconds
+    for (let i = 0; i < 150; i++) {
       play();
     }
-    assert.equal(resolve.uniforms.fresh(), 0.2);
+    assert.equal(resolve.uniforms.fresh(), 1 / 10);
     viewer.calls.length = 0;
     mock.timers.tick(1000);
     assert.equal(viewer.calls.length, 0);
