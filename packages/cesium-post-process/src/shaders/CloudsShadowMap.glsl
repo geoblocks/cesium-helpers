@@ -44,6 +44,8 @@ void main() {
       covered = max(covered, texture(maxMap, uv).g);
     }
   }
+  // the fair-weather cumulus are everywhere off the shield
+  covered = max(covered, fairWeather);
   if (covered <= 0.0) {
     out_FragColor = vec4(0.0);
     return;

@@ -12,6 +12,8 @@ uniform sampler2D mapNoise;
 uniform float cloudTop;
 // scale of the opacity
 uniform float density;
+// the coverage of the fair-weather cumulus over dry ground, 0 for none
+uniform float fairWeather;
 
 // the clouds over the lightest rain are this thick, in meters, clouds.js's THIN_DEPTH
 const float THIN_DEPTH = 1500.0;
@@ -38,15 +40,26 @@ const vec3 ANVIL = vec3(0.7, 0.8, 0.5);
 // the cloud shield over dry ground is broken: its coverage is this share of the clouds' over the
 // rain, which the rain raises to the full
 const float SHIELD_COVERAGE = 0.5;
-// the map's cells are read jittered by up to this share of a cell, uv + 0.3 * perlin2(uv * k)
-// cells, so that their squares do not show; and the coverage varies by up to this share around its
-// mean, by noise over 8 cells, 8 km of the radar's 1 km cells, a pattern that is not the billows'
-// noise, whose tile would show (Högfeldt 2016). Both from a square of noise made once
-// (cloud-noise.js), read once rather than computed three times at each sample, which spans this
-// many of the map's cells, cloud-noise.js's MAP_TILE_CELLS
-const float MAP_JITTER = 0.3;
-const float COVERAGE_NOISE = 0.4;
+// the coverage varies by up to these shares around its mean, by noise over 8 cells, 8 km of the
+// radar's 1 km cells, and over 2, a pattern that is not the billows' noise, whose tile would show
+// (Högfeldt 2016): over dry ground and light rain it breaks the shield into clouds with gaps between
+// them, less as the rain is heavier, from the first intensity to the second, so that the heaviest
+// rain falls from closed cloud. From a square of noise made once (cloud-noise.js), read once rather
+// than computed at each sample, which spans this many of the map's cells, cloud-noise.js's
+// MAP_TILE_CELLS. The map itself is softened and warped by cloud-map.js
+const vec2 COVERAGE_NOISE = vec2(0.6, 0.35);
+const vec2 OPEN_RAIN = vec2(0.3, 0.7);
+// the fair-weather cumulus, which a radar does not see, over dry ground, where the shield's coverage
+// is under FAIR_BLEND: columns as deep as the thinnest deck, puffy as a tower of this type, varied
+// by the same noise as the coverage, this many times its variation, so that they gather in fields
+// with clear sky between them, carved by the same billows as the rain's clouds (finer ones, read at
+// another scale, alias far away and streak where the scale changes): the bright, separate puffs with
+// dark flat bases of a day without rain
+const float FAIR_BLEND = 0.3;
+const float FAIR_TYPE = 1.0;
+const float FAIR_FIELDS = 1.5;
 const float MAP_TILE_CELLS = 64.0;
+const float NOISE_CELL = 1000.0;
 
 // the top of a column of clouds of a type, 0 to 1, its top swinging by -1 to 1, in meters above the
 // ellipsoid: a deck THIN_DEPTH thick over drizzle to towers up to the cloud top over heavy rain
@@ -54,20 +67,25 @@ float cloudTopFor(float type, float swing) {
   return cloudBase + mix(THIN_DEPTH, cloudTop - cloudBase, type) * (1.0 + TOP_SWING * swing);
 }
 
-// the clouds' map at a point in world coordinates, jittered, its coverage varied, 0 outside the map;
-// and how far its base and its top swing, -1 to 1
-vec4 cloudMapAt(vec3 positionWC, out vec2 swing) {
-  vec2 cells = vec2(textureSize(map, 0));
+// the clouds' map at a point in world coordinates, its coverage varied, 0 outside the map; how far
+// its base and its top swing, -1 to 1; and the coverage's variation, about -1 to 1
+vec4 cloudMapAt(vec3 positionWC, out vec2 swing, out float variation) {
   vec2 uv = mapUv(positionWC);
-  // the jitter in red and green, the coverage's variation in blue, the base's in alpha, -1 to 1
-  vec4 noise = texture(mapNoise, uv * cells / MAP_TILE_CELLS) * 2.0 - 1.0;
-  swing = noise.ab;
-  uv += MAP_JITTER * noise.rg / cells;
+  // the coverage's variation over 8 cells in red, over 2 in green, the base's in blue, -1 to 1, the
+  // cells NOISE_CELL meters on the ground whatever the map's pixels, a map or none: east and north
+  // on the sphere
+  vec3 n = normalize(positionWC);
+  vec2 ground = vec2(atan(n.y, n.x) * sqrt(1.0 - n.z * n.z), asin(n.z)) * czm_ellipsoidRadii.x;
+  vec4 noise = texture(mapNoise, ground / (NOISE_CELL * MAP_TILE_CELLS)) * 2.0 - 1.0;
+  // the top swings with the coverage, higher where the clouds are fuller
+  swing = noise.br;
+  variation = dot(COVERAGE_NOISE, noise.rg);
   if (any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0)))) {
     return vec4(0.0);
   }
   vec4 texel = mix(texture(map, uv), texture(nextMap, uv), mapBlend);
-  texel.g = clamp(texel.g * (1.0 + COVERAGE_NOISE * noise.b), 0.0, 1.0);
+  float open = 1.0 - smoothstep(OPEN_RAIN.x, OPEN_RAIN.y, texel.r);
+  texel.g = clamp(texel.g * (1.0 + open * variation), 0.0, 1.0);
   return texel;
 }
 // extinction inside a solid cloud, per meter: about 1.3 km of visibility
@@ -129,18 +147,28 @@ float finestDetail(vec3 positionWC, float footprint) {
 float cloudDensity(vec3 positionWC, float h, float footprint, float lobeWeight, out float rain, out float column, out float dimensional, out float lobed) {
   // the rain in red, the shield's coverage in green, the clouds' type in blue
   vec2 swing;
-  vec4 cell = cloudMapAt(positionWC, swing);
+  float variation;
+  vec4 cell = cloudMapAt(positionWC, swing, variation);
   float m = cell.r;
-  float type = cell.b;
   rain = m;
   column = 0.0;
   dimensional = 0.0;
   lobed = 0.0;
-  if (cell.g <= 0.0) {
+  // from the fair-weather cumulus over dry ground to the rain's clouds, as the shield covers it
+  float shield = smoothstep(0.0, FAIR_BLEND, cell.g);
+  // none where the noise is low, so that the clear sky between the fields skips the billows' reads
+  float fair = min(fairWeather * (1.0 - shield) * max(1.0 + FAIR_FIELDS * variation, 0.0), 1.0);
+  if (cell.g <= 0.0 && fair <= 0.0) {
     return 0.0;
   }
+  // the cumulus' share of the coverage, 0 without them: the rain's clouds are as they are then
+  float rainCoverage = cell.g * mix(SHIELD_COVERAGE, 1.0, m);
+  float fairShare = fair / max(fair + rainCoverage, 1e-3);
+  float rainType = cell.b * (1.0 - fairShare);
+  float type = mix(cell.b, FAIR_TYPE, fairShare);
   float bottom = cloudBase + BASE_SWING * swing.x - BASE_DROP * m;
-  float top = cloudTopFor(type, swing.y);
+  // the cumulus' top the thinnest deck's, the slab's top over dry ground
+  float top = cloudTopFor(rainType, swing.y);
   float y = (h - bottom) / (top - bottom);
   column = y;
   if (y <= 0.0 || y >= 1.0) {
@@ -155,8 +183,9 @@ float cloudDensity(vec3 positionWC, float h, float footprint, float lobeWeight, 
   // which far views would show as a grid
   float large = textureLod(cloudNoise, fract(LARGE_SCALE * q.zxy + 0.5), max(lod + log2(LARGE_SCALE), 0.0)).r;
   noise.r = clamp(noise.r + 0.6 * (large - 0.5), 0.0, 1.0);
-  float coverage = cell.g * mix(SHIELD_COVERAGE, 1.0, m);
-  coverage = pow(coverage, mix(1.0, mix(1.0, ANVIL.z, type), clamp((y - ANVIL.x) / (ANVIL.y - ANVIL.x), 0.0, 1.0)));
+  float coverage = max(rainCoverage, fair);
+  // the anvil of the rain's towers, not of the fair-weather cumulus
+  coverage = pow(coverage, mix(1.0, mix(1.0, ANVIL.z, rainType), clamp((y - ANVIL.x) / (ANVIL.y - ANVIL.x), 0.0, 1.0)));
   dimensional = profile * coverage;
   // the profile times the coverage carves the noise rather than scaling it,
   // saturate(noise - (1 - dimensional_profile)) (Schneider 2022): the core stays solid, and only
