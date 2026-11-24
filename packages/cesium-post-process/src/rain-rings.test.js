@@ -73,8 +73,15 @@ test('without an origin, they are laid about where the camera was when the effec
 test('a cell has a drop only if its hash is under the intensity: a hash of exactly 0, the origin cell\'s, is no drop at no rain', () => {
   const viewer = fakeViewer();
   const {fragmentShader} = new RainRings(viewer).createStage_(viewer.scene);
-  assert.match(fragmentShader, /float\(hash\(id\) < intensity\)/);
+  assert.match(fragmentShader, /hash\(id\) >= intensity\) \{\s*continue;/);
   assert.doesNotMatch(fragmentShader, /step\(hash\(id\)/);
+});
+
+test('a ring grows with the square root of its age, is shaded by the light along the ground', () => {
+  const viewer = fakeViewer();
+  const {fragmentShader} = new RainRings(viewer).createStage_(viewer.scene);
+  assert.match(fragmentShader, /sqrt\(age\)/);
+  assert.match(fragmentShader, /czm_lightDirectionEC/);
 });
 
 test('the stage shares the depth effects\' chunks: the eye from the depth, the height, the rebuilt normal', () => {
