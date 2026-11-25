@@ -74,11 +74,20 @@ npx lerna version
 git log -1
 git tag --points-at HEAD
 
-# publish to npm the packages tagged on the current commit (needs npm credentials only);
-# each package is built first.
+# build the packages from the released sources: lerna publishes each package's dist as it is on
+# disk. Its prepack script builds it, but npm's ignore-scripts (in an .npmrc) skips that script,
+# and the package then ships the dist of an earlier build.
+npm run build
+
+# publish to npm the packages tagged on the current commit (needs npm credentials only).
 npx lerna publish from-git
+
+# check what the registry serves, a few minutes later; a version missing there (a publish that
+# stopped part way) is published by from-package, which skips the versions already published.
+npm view @geoblocks/<package> version
+npx lerna publish from-package
 ```
 
 The shaders are written in `packages/*/src/shaders/*.glsl` and converted to JavaScript modules
-next to them, as in CesiumJS. `npm install` and `npm run dev` generate these modules; run
-`npm run build-shaders` after editing a shader otherwise.
+next to them, as in CesiumJS. `npm install` (unless npm's ignore-scripts is set), `npm run dev` and
+`npm run build` generate these modules; run `npm run build-shaders` after editing a shader otherwise.
