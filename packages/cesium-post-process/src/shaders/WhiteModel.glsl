@@ -1,8 +1,10 @@
-// A white model's look, as an architect's plaster model or clay render, after DepthEdges: every
+// A white model's look, as an architect's plaster model or clay render, after DepthEdges and
+// Normal: every
 // color turned to its value and the values pressed into a narrow range of whites (an accent's hue
 // kept, if asked; the darkest left black, a section's poché), so the light and the shapes alone
-// tell the surfaces apart; darker where surfaces meet, an ambient obscurance from the depth; the
-// creases lit and shaded, a fine outline along the jumps; the sky, if asked, a pale gradient.
+// tell the surfaces apart (or, matte, the values a studio's lights' on the surfaces alone, a clay
+// render's: the scene's textures gone); darker where surfaces meet, an ambient obscurance from the
+// depth; the creases lit and shaded, a fine outline along the jumps; the sky, if asked, a pale gradient.
 // its samplers read in high precision, whatever comes before (a phone's GPU's default is low)
 precision highp sampler2D;
 uniform sampler2D colorTexture;
@@ -19,6 +21,8 @@ uniform vec3 warm;
 // keeps it, 0 for none
 uniform vec2 values;
 uniform float poche;
+// how much of a color's value is the studio's lights' on its surface rather than its own, from 0 to 1
+uniform float matte;
 // how much darker a corner gets, and how wide its shadow is, in meters
 uniform float occlusion;
 uniform float radius;
@@ -30,6 +34,14 @@ in vec2 v_textureCoordinates;
 // the darkest colors' values, under the poché's, kept as they are rather than pressed into the
 // whites, fading into them over these shares of it: an architect's poché, solid black, or a text's
 const vec2 POCHE = vec2(0.6, 1.4);
+// the studio's lights, those of Blender's solid viewport (Cesium has none): each its direction in
+// eye coordinates, turning with the view, and its strength, then how far each wraps around the
+// surface; the key from above the viewer's left shoulder, a fill from below right, a top, a back;
+// the clay they light, Blender's 0.8 less its highlights' share
+const vec4 LIGHTS[4] = vec4[4](vec4(-0.4082, 0.3469, 0.8444, 0.53), vec4(0.6245, -0.5621, -0.5423, 0.08),
+  vec4(0.5217, 0.8261, 0.213, 0.04), vec4(-0.3525, 0.1709, -0.9201, 0.03));
+const float WRAPS[4] = float[4](0.0, 0.2, 0.48, 0.53);
+const float CLAY = 0.76;
 // the occlusion: its widest, in pixels; its samples, on a spiral turned by the golden angle, the
 // spiral itself turned from pixel to pixel; how steeply above the surface a sample rises to count
 // (the normal from the depth is not exact), and how far from the pixel, in meters, a pixel and a
@@ -41,6 +53,18 @@ const float GOLDEN = 2.39996;
 const float BIAS = 0.15;
 const float NEAREST = 0.05;
 const vec2 SHOWN = vec2(3.0, 8.0);
+
+// the clay's value under the studio's lights on a surface of normal n, as Blender's solid viewport
+// (workbench_get_world_lighting, its highlights left out): the lights summed in linear values,
+// each wrapped, then encoded for the screen; about 0.63 facing the viewer, 0.2 turned down
+float studioAt(vec3 n) {
+  float sum = 0.0;
+  for (int i = 0; i < 4; i++) {
+    float w = 1.0 + WRAPS[i];
+    sum += LIGHTS[i].w * clamp((dot(n, LIGHTS[i].xyz) + WRAPS[i]) / (w * w), 0.0, 1.0);
+  }
+  return czm_linearToSrgb(vec3(CLAY * sum)).r;
+}
 
 // how much the surfaces around uv close in over it, from 0 to 1, as the Alchemy ambient obscurance
 // (McGuire et al. 2011): the share of the samples around it, in a disc of the radius, that rise
@@ -89,8 +113,14 @@ void main() {
   // saturated as asked, scaled down rather than clipped where a channel would pass 1
   float value = czm_luminance(sceneColor.rgb);
   float kept = poche > 0.0 ? 1.0 - smoothstep(POCHE.x * poche, POCHE.y * poche, value) : 0.0;
-  float pressed = mix(mix(values.x, values.y, value), value, kept);
-  vec3 hue = sceneColor.rgb * pressed / max(value, 1e-4);
+  // matte, the value the studio's lights give the surface (its normal across the nearer of its
+  // neighbors each way: dFdx and dFdy, shared by a block of four pixels, would speckle the
+  // silhouettes), whatever its color's own, the poché's too
+  float lit = matte > 0.0 ? mix(value, studioAt(normalAt(depthTexture, uv, p, 1.0)), matte) : value;
+  kept *= 1.0 - matte;
+  float pressed = mix(mix(values.x, values.y, lit), value, kept);
+  // a black has no hue: it takes the value alone
+  vec3 hue = value > 1e-4 ? sceneColor.rgb * pressed / value : vec3(pressed);
   vec3 color = mix(vec3(pressed), hue / max(1.0, max(hue.r, max(hue.g, hue.b))), saturation);
   float steps = clamp(bevel / pixel, 1.0, BEVEL);
   if (light != 0.0 || shade != 0.0) {
