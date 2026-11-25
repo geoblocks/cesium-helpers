@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.10.1](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-post-process%400.10.0...%40geoblocks%2Fcesium-post-process%400.10.1) (2026-11-25)
+
+**Note:** Version bump only for package @geoblocks/cesium-post-process
+
+
+
+
+
 # [0.10.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-post-process%400.9.2...%40geoblocks%2Fcesium-post-process%400.10.0) (2026-11-25)
 
 * feat(cesium-post-process)!: clouds without wind ([9ba8be7](https://github.com/geoblocks/cesium-helpers/commit/9ba8be7e5dac86b45effa569c5b3c2c5cbcacead))
