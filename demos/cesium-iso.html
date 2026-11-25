@@ -44,6 +44,7 @@
     <wa-select id="style" size="s" label="Style" value="toy">
       <wa-option value="toy">Toy</wa-option>
       <wa-option value="white">White model</wa-option>
+      <wa-option value="clay">Clay model</wa-option>
       <wa-option value="none">None</wa-option>
     </wa-select>
     <wa-switch id="tilt-shift" size="s" checked>Tilt-shift</wa-switch>
@@ -81,11 +82,13 @@
       const vignette = new LensDistortion(viewer, {distortion: 0, vignette: 0.15});
       // or an architect's white model: the colors to plaster, darker where surfaces meet, a pale gray sky
       const white = new WhiteModel(viewer, {sky: [Cesium.Color.fromCssColorString('#dcdedd'), Cesium.Color.fromCssColorString('#f3f3f1')]});
+      // or a clay render, as a modeler's viewport: gray, the values a studio's lights' on the surfaces alone, no outline
+      const clay = new WhiteModel(viewer, {matte: 1, values: [0, 1], warm: [1, 1, 1], light: 0, shade: 0, outline: 0, sky: [Cesium.Color.fromCssColorString('#3d3d3d'), Cesium.Color.fromCssColorString('#4a4a4a')]});
       // the effects in their order, again from the first, as Cesium adds a stage after the others
       const effects = () => {
         const style = document.querySelector('#style').value;
         const on = style === 'toy';
-        const shown = [[toy, on], [white, style === 'white'], [tiltShift, document.querySelector('#tilt-shift').checked], [vignette, on]];
+        const shown = [[toy, on], [white, style === 'white'], [clay, style === 'clay'], [tiltShift, document.querySelector('#tilt-shift').checked], [vignette, on]];
         shown.forEach(([effect]) => effect.active = false);
         shown.forEach(([effect, active]) => effect.active = active);
       };

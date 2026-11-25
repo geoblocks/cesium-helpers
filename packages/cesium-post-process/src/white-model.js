@@ -1,5 +1,6 @@
 import {Cartesian2} from '@cesium/core';
 import Toy from './toy.js';
+import Normal from './shaders/Normal.js';
 import WhiteModelShader from './shaders/WhiteModel.js';
 
 /** @import {Color} from '@cesium/core' */
@@ -11,18 +12,20 @@ const valuesScratch = new Cartesian2();
  * A white model's look, as an architect's plaster model or clay render: every color turned to its
  * value, the values pressed into a narrow range of whites (the darkest left black: a section's
  * poché), darker where surfaces meet, the edges lit and shaded and finely outlined as the toy's,
- * the sky a pale gradient if asked. A `Toy` with another grading: its options and properties,
- * `saturation` 0 (an accent's hue kept above it), `warm` the plaster's tint.
+ * the sky a pale gradient if asked; `matte`, the values a studio's lights' on the surfaces alone,
+ * the scene's textures gone, as a modeler's viewport. A `Toy` with another grading: its options
+ * and properties, `saturation` 0 (an accent's hue kept above it), `warm` the plaster's tint.
  */
 export default class WhiteModel extends Toy {
   #values;
   #poche;
+  #matte;
   #occlusion;
   #radius;
 
   /**
    * @param {CesiumWidget} viewer
-   * @param {{name?: string, light?: number, shade?: number, bevel?: number, outline?: number, jump?: number, saturation?: number, warm?: [number, number, number], values?: [number, number], poche?: number, occlusion?: number, radius?: number, sky?: [Color, Color]}} [options]
+   * @param {{name?: string, light?: number, shade?: number, bevel?: number, outline?: number, jump?: number, saturation?: number, warm?: [number, number, number], values?: [number, number], poche?: number, matte?: number, occlusion?: number, radius?: number, sky?: [Color, Color]}} [options]
    */
   constructor(viewer, options = {}) {
     // the toy's options, each the white model's default when not given, or given as undefined
@@ -36,6 +39,7 @@ export default class WhiteModel extends Toy {
     });
     this.#values = options.values ?? [0.35, 0.97];
     this.#poche = options.poche ?? 0.1;
+    this.#matte = options.matte ?? 0;
     this.#occlusion = options.occlusion ?? 0.35;
     this.#radius = options.radius ?? 1.5;
   }
@@ -45,7 +49,7 @@ export default class WhiteModel extends Toy {
    * @protected
    */
   shader_() {
-    return WhiteModelShader;
+    return Normal + WhiteModelShader;
   }
 
   /**
@@ -57,6 +61,7 @@ export default class WhiteModel extends Toy {
       ...super.uniforms_(),
       values: () => Cartesian2.fromArray(this.#values, 0, valuesScratch),
       poche: () => this.#poche,
+      matte: () => this.#matte,
       occlusion: () => this.#occlusion,
       radius: () => this.#radius,
     };
@@ -84,6 +89,20 @@ export default class WhiteModel extends Toy {
 
   set poche(value) {
     this.#poche = value;
+    this.viewer.scene.requestRender();
+  }
+
+  /**
+   * How much of a color's value is the studio's lights' on its surface rather than its own: at 1
+   * the scene's textures, its poché and its own light are gone, each face a flat value by the way
+   * it turns, as a modeler's viewport or a clay render; 0, the default, for the scene's values.
+   */
+  get matte() {
+    return this.#matte;
+  }
+
+  set matte(value) {
+    this.#matte = value;
     this.viewer.scene.requestRender();
   }
 

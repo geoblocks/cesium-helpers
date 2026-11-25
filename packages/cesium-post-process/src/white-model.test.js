@@ -16,7 +16,7 @@ test('the white model shares the toy\'s edges, with its own grading and occlusio
     assert.ok(stage.fragmentShader.includes('float creaseOf(') && stage.fragmentShader.includes('float outlineAt('));
   }
   assert.ok(white.fragmentShader.includes('float occludedAt(') && !toy.fragmentShader.includes('float occludedAt('));
-  assert.deepEqual(Object.keys(white.uniforms).sort(), [...Object.keys(toy.uniforms), 'occlusion', 'poche', 'radius', 'values'].sort());
+  assert.deepEqual(Object.keys(white.uniforms).sort(), [...Object.keys(toy.uniforms), 'matte', 'occlusion', 'poche', 'radius', 'values'].sort());
 });
 
 test('the white model\'s defaults: white, its values pressed, a pale tint; the toy\'s options taken', () => {
@@ -45,6 +45,18 @@ test('the poché: the darkest colors kept black below a tenth by default, 0 to p
   white.poche = 0;
   assert.equal(white.createStage_(undefined).uniforms.poche(), 0);
   assert.deepEqual(viewer.calls, ['render']);
+});
+
+test('matte: the scene\'s values by default, the studio\'s lights\' on the surfaces\' normals when asked', () => {
+  const viewer = fakeViewer();
+  const white = new WhiteModel(viewer);
+  const stage = white.createStage_(undefined);
+  assert.equal(stage.uniforms.matte(), 0);
+  assert.ok(stage.fragmentShader.includes('vec3 normalAt(') && stage.fragmentShader.includes('float studioAt('));
+  white.matte = 1;
+  assert.equal(white.createStage_(undefined).uniforms.matte(), 1);
+  assert.deepEqual(viewer.calls, ['render']);
+  assert.equal(new WhiteModel(viewer, {matte: 0.5}).matte, 0.5);
 });
 
 test('an option given as undefined takes the white model\'s default, not the toy\'s', () => {
