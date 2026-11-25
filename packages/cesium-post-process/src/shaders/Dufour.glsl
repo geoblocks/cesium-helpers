@@ -103,7 +103,7 @@ void main() {
   float amount = strokesAt(en, down, cover);
 
   if (outline > 0.0) {
-    amount = max(amount, outline * outlineAt(uv, c, vec4(0.0), 1.0, pixelAt(c)));
+    amount = max(amount, outline * outlineAt(uv, c, pixelAt(c)));
   }
   out_FragColor = vec4(mix(paper, ink, amount), sceneColor.a);
 }
