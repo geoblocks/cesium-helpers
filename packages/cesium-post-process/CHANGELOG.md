@@ -3,6 +3,37 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.10.0](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-post-process%400.9.2...%40geoblocks%2Fcesium-post-process%400.10.0) (2026-11-25)
+
+* feat(cesium-post-process)!: clouds without wind ([9ba8be7](https://github.com/geoblocks/cesium-helpers/commit/9ba8be7e5dac86b45effa569c5b3c2c5cbcacead))
+
+### Bug Fixes
+
+* **cesium-post-process:** light the rain's haze by the clouds above it ([385225c](https://github.com/geoblocks/cesium-helpers/commit/385225c4bda8ff30178ee0b2718f9a6d7e6ccccc))
+* **cesium-post-process:** no crease on a flat face seen at a grazing angle ([2113e7f](https://github.com/geoblocks/cesium-helpers/commit/2113e7fb8eef359edcaeef37ec69966d44a4c388))
+* **cesium-post-process:** the clouds' history, packing, night and cheap light ([9e8f342](https://github.com/geoblocks/cesium-helpers/commit/9e8f3422395d27d0ed8f4755e94db24f637e4e03))
+* **cesium-post-process:** the depth's normal at the screen's border and in an orthographic view ([1f165af](https://github.com/geoblocks/cesium-helpers/commit/1f165af7e98980fba7f438c5f62051aa900bef94))
+
+### Features
+
+* **cesium-post-process:** a matte white model, lit as Blender's solid viewport ([5bf977c](https://github.com/geoblocks/cesium-helpers/commit/5bf977cf648af64e8256cc3e1dfea9d6d3b1e1e0))
+* **cesium-post-process:** a silver lining and a warm sun on the clouds ([ffd6847](https://github.com/geoblocks/cesium-helpers/commit/ffd6847908229df8f303d269f4bfcb22576ac27c))
+* **cesium-post-process:** build the clouds at full resolution over the frames ([960a882](https://github.com/geoblocks/cesium-helpers/commit/960a88231134f4caec8f3e39b9ddb1945b0cdecc))
+* **cesium-post-process:** cauliflower lobes on the clouds' towers ([2c4918f](https://github.com/geoblocks/cesium-helpers/commit/2c4918f72ff7de0201cfaf7f1e223f4f318421b3))
+* **cesium-post-process:** erode the clouds' edges with a finer detail noise ([46ce8b6](https://github.com/geoblocks/cesium-helpers/commit/46ce8b6f3ef8f4f5ba411ec6037dfc31f1e4aa8e))
+* **cesium-post-process:** evolving billows, moonlit clouds, darker rain clouds ([0a84769](https://github.com/geoblocks/cesium-helpers/commit/0a8476932a0affd013b8620ed224903bffa14985))
+* **cesium-post-process:** give the clouds uneven bases and tops ([409f7c5](https://github.com/geoblocks/cesium-helpers/commit/409f7c5e2ea3a0dcc42a7a85708c15bde018637a))
+* **cesium-post-process:** light the valley fog by the sky and the sun ([bd29dad](https://github.com/geoblocks/cesium-helpers/commit/bd29dadeea82eb203d40edae02cb27baf37d80ab))
+* **cesium-post-process:** make the clouds' map and noise in a worker ([9aaf3a7](https://github.com/geoblocks/cesium-helpers/commit/9aaf3a75d086b47ceecd3d4703cc58eb114c30d8))
+* **cesium-post-process:** march the clouds in short steps inside them only ([b7d89ae](https://github.com/geoblocks/cesium-helpers/commit/b7d89aeca56d7f9c7313fb365f6874469ad0b407))
+* **cesium-post-process:** read the clouds' history through a Catmull-Rom filter ([1f295be](https://github.com/geoblocks/cesium-helpers/commit/1f295bef471d6081fbbfde1598cf5e5f13cd7092))
+
+### BREAKING CHANGES
+
+* Clouds no longer takes the wind and drift options,
+  nor has their properties.
+
+
 ## [0.9.2](https://github.com/geoblocks/cesium-helpers/compare/%40geoblocks%2Fcesium-post-process%400.9.1...%40geoblocks%2Fcesium-post-process%400.9.2) (2026-11-18)
 
 ### Bug Fixes
