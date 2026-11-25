@@ -34,9 +34,8 @@ void main() {
   vec3 color = sceneColor.rgb;
   // the creases' neighbours read only when they light or shade: a scene drawing its own edges asks for neither
   if (light != 0.0 || shade != 0.0) {
-    vec4 n = neighborsAt(uv, c, steps);
-    float crease = creaseOf(n, steps * pixel, pixel);
-    color *= n.x + n.y + n.z + n.w > 0.0 ? 1.0 + light * crease : 1.0 - shade * crease;
+    float crease = creaseOf(neighborsAt(uv, c, steps), c, steps * pixel, pixel);
+    color *= 1.0 + (crease > 0.0 ? light : shade) * crease;
   }
   if (outline > 0.0) {
     color *= 1.0 - outline * outlineAt(uv, c, pixel);

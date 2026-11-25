@@ -85,3 +85,18 @@ test('the outline is the near side of a jump measured against the far side\'s su
   const outline = shader.slice(shader.indexOf('float outlineAt('));
   assert.doesNotMatch(outline.slice(0, outline.indexOf('\n}')), /step\(jump/);
 });
+
+test('the crease is the bend where the depth is affine on the screen, signed, fading out at a jump as the outline fades in', () => {
+  const stages = [new Toy(fakeViewer()), new WhiteModel(fakeViewer())].map(effect => effect.createStage_(undefined));
+  const crease = stages[0].fragmentShader.slice(stages[0].fragmentShader.indexOf('float creaseOf('));
+  const body = crease.slice(0, crease.indexOf('\n}'));
+  // a perspective view's bend in the depth's reciprocal: a plane at any slope bends by nothing, a floor seen at a grazing angle is not lit
+  assert.match(body, /czm_orthographicIn3D != 1\.0\) \{\s+vec4 ratio = c \/ \(n \+ c\);/);
+  assert.match(body, /smoothstep\(0\.75 \* limit, 1\.25 \* limit, far\)/);
+  // a pixel's jump, whatever the bevel: one counted in spans shades the face behind every silhouette
+  assert.match(body, /float limit = jump \* pixel;/);
+  // both looks take its sign: lit outward, shaded inward
+  for (const stage of stages) {
+    assert.match(stage.fragmentShader, /\(crease > 0\.0 \? light : shade\) \* crease/);
+  }
+});

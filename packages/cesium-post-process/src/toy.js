@@ -115,7 +115,8 @@ export default class Toy extends Effect {
    * The edges' bevel, in meters: close up, their light and shade fade over that width, as a molded
    * plastic edge's; a pixel at the least, 8 at the most; 0, the default, for a pixel. Next to a small
    * step (a frame proud of a wall), which it cannot tell from a fold, it lights a patch of the face
-   * behind.
+   * behind. The edge of a face receding steeply is not lit: its depth a bevel away is past the `jump`,
+   * so with a low `jump` a bevel leaves few edges.
    */
   get bevel() {
     return this.#bevel;

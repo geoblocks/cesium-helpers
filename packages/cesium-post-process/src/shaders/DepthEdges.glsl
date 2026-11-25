@@ -39,11 +39,24 @@ vec4 neighborsAt(vec2 uv, float c, float steps) {
   return vec4(depthAt(uv + vec2(o.x, 0.0)), depthAt(uv - vec2(o.x, 0.0)), depthAt(uv + vec2(0.0, o.y)), depthAt(uv - vec2(0.0, o.y))) - c;
 }
 
-// how sharply the depth bends between neighbors n a span of meters apart, from 0 to 1, none across
-// a jump; convex where they lie farther than the middle, their sum positive
-float creaseOf(vec4 n, float span, float pixel) {
+// how sharply the depth bends at c between its neighbors n, a span of meters apart, from -1 to 1: positive where the
+// surface bends outward (convex, the neighbors farther than the middle), negative inward; none across a jump, fading
+// out over a quarter of it each way as the outline fades in. The bend is measured where the depth is affine on the
+// screen, as farSide's: an orthographic view's depth, a perspective one's reciprocal, scaled back to meters. A plane
+// at any slope then bends by nothing: the depth's own second difference grows toward a plane's vanishing line, a floor
+// seen at a grazing angle lit in a band. The jump is counted in pixels' sizes whatever the span: neighbors read a
+// bevel away lie that much farther along a slope, so a bevel drops the crease of a wall receding steeply (all of
+// them with a low jump), but a jump counted in spans shades a band of the face behind every silhouette
+float creaseOf(vec4 n, float c, float span, float pixel) {
   float far = max(max(abs(n.x), abs(n.y)), max(abs(n.z), abs(n.w)));
-  return smoothstep(CREASE.x, CREASE.y, (abs(n.x + n.y) + abs(n.z + n.w)) / span) * (1.0 - step(jump * pixel, far));
+  vec2 bend = vec2(n.x + n.y, n.z + n.w);
+  if (czm_orthographicIn3D != 1.0) {
+    vec4 ratio = c / (n + c);
+    bend = c * (2.0 - ratio.xz - ratio.yw);
+  }
+  float limit = jump * pixel;
+  float sharp = smoothstep(CREASE.x, CREASE.y, (abs(bend.x) + abs(bend.y)) / span) * (1.0 - smoothstep(0.75 * limit, 1.25 * limit, far));
+  return bend.x + bend.y > 0.0 ? sharp : -sharp;
 }
 
 // how far the surface beyond the pixel at uv lies behind it, in one direction o (a pixel's step): the two neighbours
