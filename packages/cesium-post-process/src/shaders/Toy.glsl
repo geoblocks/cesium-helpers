@@ -39,7 +39,7 @@ void main() {
     color *= n.x + n.y + n.z + n.w > 0.0 ? 1.0 + light * crease : 1.0 - shade * crease;
   }
   if (outline > 0.0) {
-    color *= 1.0 - outline * outlineAt(uv, c, vec4(0.0), steps, pixel);
+    color *= 1.0 - outline * outlineAt(uv, c, pixel);
   }
   color = czm_saturation(color, saturation) * warm;
   out_FragColor = vec4(clamp(color, 0.0, 1.0), sceneColor.a);

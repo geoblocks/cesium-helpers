@@ -65,9 +65,8 @@ float farSide(vec2 uv, vec2 o, float c) {
 }
 
 // the outline, a pixel wide, on the near side of a jump: the farthest of the four directions' surfaces behind the pixel,
-// against the jump, anti-aliased over a quarter of it each way (n and steps, the creases' neighbours, unused here: the
-// outline reads its own)
-float outlineAt(vec2 uv, float c, vec4 n, float steps, float pixel) {
+// against the jump, anti-aliased over a quarter of it each way
+float outlineAt(vec2 uv, float c, float pixel) {
   vec2 texel = 1.0 / czm_viewport.zw;
   float farther = max(max(farSide(uv, vec2(texel.x, 0.0), c), farSide(uv, vec2(-texel.x, 0.0), c)),
     max(farSide(uv, vec2(0.0, texel.y), c), farSide(uv, vec2(0.0, -texel.y), c)));

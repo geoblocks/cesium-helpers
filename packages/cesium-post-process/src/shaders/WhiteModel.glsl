@@ -132,7 +132,7 @@ void main() {
     color *= 1.0 - occlusion * occludedAt(uv, p, normal, pixel);
   }
   if (outline > 0.0) {
-    color *= 1.0 - outline * outlineAt(uv, c, vec4(0.0), steps, pixel);
+    color *= 1.0 - outline * outlineAt(uv, c, pixel);
   }
   out_FragColor = vec4(clamp(color * warm, 0.0, 1.0), sceneColor.a);
 }
